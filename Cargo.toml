@@ -2,6 +2,11 @@
 name = "fpgad"
 version = "0.1.0"
 edition = "2024"
+license = "GPL-3.0"
+description = "An FPGA manager daemon that handles the dirty work for you."
+homepage = "https://github.com/talhaHavadar/fpgad"
+repository = "https://github.com/talhaHavadar/fpgad"
+readme = "README.md"
 
 [dependencies]
 tokio = { version = "1.44.2", features = ["full"] }
