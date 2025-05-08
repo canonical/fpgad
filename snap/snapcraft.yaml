@@ -1,0 +1,25 @@
+name: fpgad # you probably want to 'snapcraft register <name>'
+base: core24 # the base snap is the execution environment for this snap
+adopt-info: version
+summary: An FPGA manager daemon that handles the dirty work for you
+description: |
+  An FPGA manager daemon that handles the dirty work for you.
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: devmode # use 'strict' once you have the right plugs and slots
+apps:
+  fpgad:
+    command: bin/fpgad
+parts:
+  version:
+    plugin: nil
+    source: .
+    build-snaps:
+      - jq
+    override-pull: |
+      craftctl default
+      cargo_version=$(cargo metadata --no-deps --format-version 1 | jq -r .packages[0].version)
+      craftctl set version="$cargo_version+git$(date +'%Y%m%d').$(git describe --always --exclude '*')"
+  fpgad:
+    # See 'snapcraft plugins'
+    plugin: rust
+    source: .
