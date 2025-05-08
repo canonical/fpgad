@@ -5,6 +5,7 @@ mod comm;
 use comm::dbus::interfaces::Greeter;
 
 mod platforms;
+mod system_io;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
