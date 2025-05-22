@@ -1,0 +1,44 @@
+name: 'Pull Request Labeler'
+on:
+  pull_request_target:
+    types:
+      - labeled
+      - unlabeled
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+    branches:
+      - main
+jobs:
+  labeler:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: label-the-pr
+        uses: actions/labeler@v5
+        with:
+          sync-labels: true
+      - if: ${{ !github.event.pull_request.draft }}
+        run: |
+          # Add reviewers
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r scripts/ci/requirements.txt
+
+          echo "Adding reviewers based on components"
+          for component in $(echo "${{ steps.label-the-pr.outputs.all-labels }}" | sed "s/,/ /g"); do
+            echo "Actor(${{ github.actor }}): Requesting reviewers for component: $component"
+            # Below is not working due to a known issue: https://github.com/cli/cli/issues/4844
+            # gh pr edit ${{github.event.pull_request.number}} --add-reviewer $owner
+            curl -L \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers \
+              -d "{\"reviewers\":$(./scripts/ci/check_pull_request.py --get-component-owners $component,${{ github.actor }})}"
+          done

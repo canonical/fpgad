@@ -1,0 +1,21 @@
+root:
+  - changed-files:
+      - any-glob-to-any-file: '*'
+workflows:
+  - changed-files:
+      - any-glob-to-any-file: .github/workflows/**
+app:
+  - changed-files:
+      - any-glob-to-any-file: src/*
+comm:
+  - changed-files:
+      - any-glob-to-any-file: src/comm/**
+dbus:
+  - changed-files:
+      - any-glob-to-any-file: src/comm/dbus/**
+platforms:
+  - changed-files:
+      - any-glob-to-any-file: src/platforms/**
+softeners:
+  - changed-files:
+      - any-glob-to-any-file: src/softeners/**

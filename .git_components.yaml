@@ -1,0 +1,24 @@
+root:
+  owners:
+    - talhaHavadar
+scripts:
+  owners:
+    - talhaHavadar
+app:
+  owners:
+    - talhaHavadar
+comm:
+  owners:
+    - talhaHavadar
+dbus:
+  owners:
+    - talhaHavadar
+platforms:
+  owners:
+    - talhaHavadar
+softeners:
+  owners:
+    - talhaHavadar
+workflows:
+  owners:
+    - talhaHavadar
