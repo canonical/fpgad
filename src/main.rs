@@ -31,11 +31,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //
     for fpga in list_fpga_managers().iter() {
         let mut universal_platform = UniversalPlatform::new();
-        println!("{}", universal_platform.fpga(&fpga).name());
+        println!("{}", universal_platform.fpga(fpga).name());
     }
     let mut universal_platform = UniversalPlatform::new();
-    println!("{}", universal_platform.fpga(&"fpga0").name());
-    match universal_platform.fpga(&"fpga0").state() {
+    println!("{}", universal_platform.fpga("fpga0").name());
+    match universal_platform.fpga("fpga0").state() {
         Err(e) => panic!("{}", e),
         Ok(_) => println!("Everything seems ok"),
     }

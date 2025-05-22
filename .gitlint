@@ -1,0 +1,34 @@
+[general]
+ignore=T3,B6
+
+# verbosity should be a value between 1 and 3, the commandline -v flags take precedence over this
+verbosity = 3
+
+# By default gitlint will ignore merge commits. Set to 'false' to disable.
+ignore-merge-commits=false
+# ignore-revert-commits=false
+ignore-fixup-commits=false
+ignore-squash-commits=false
+
+# Enable debug mode (prints more output). Disabled by default
+debug = false
+
+# Set the extra-path where gitlint will search for user defined rules
+# See http://jorisroovers.github.io/gitlint/user_defined_rules for details
+extra-path=scripts/ci/gitlint
+
+[title-max-length]
+line-length=120
+
+[title-min-length]
+min-length=5
+
+[body-max-line-length]
+line-length=120
+
+[title-starts-with-component]
+#components=wip,
+
+[title-must-not-contain-word]
+words=wip
+
