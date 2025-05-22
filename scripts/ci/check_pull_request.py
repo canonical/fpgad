@@ -9,6 +9,7 @@ import json
 def git(*args, cwd=None):
     """Helper function to use git from python
 
+
     Args:
         args: git commands and options
         cwd: current working directory information passthrough subprocess.run
