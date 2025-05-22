@@ -28,7 +28,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // if no fpga name specified fpgad will try all fpgas available under /sys/class/fpga_manager/
     // if no platform specified fpgad will use UniversalPlatform for each fpga
     // available, until it successfully loads the bitstream
-    //
     for fpga in list_fpga_managers().iter() {
         let mut universal_platform = UniversalPlatform::new();
         println!("{}", universal_platform.fpga(&fpga).name());
