@@ -18,7 +18,8 @@ use super::platform::{Fpga, OverlayHandler, Platform};
 #[derive(Debug)]
 pub struct UniversalPlatform {
     name: &'static str,
-    f_fpga: Option<UniversalFPGA>,
+    fpga: Option<UniversalFPGA>,
+    overlay_handler: Option<UniversalOverlayHandler>,
 }
 
 impl UniversalPlatform {
@@ -27,7 +28,8 @@ impl UniversalPlatform {
         trace!("creating new UniversalPlatform");
         UniversalPlatform {
             name: "Universal",
-            f_fpga: None,
+            fpga: None,
+            overlay_handler: None,
         }
     }
 }
@@ -45,18 +47,21 @@ impl Platform for UniversalPlatform {
         );
 
         // Create FPGA if not same or present
-        if self.f_fpga.as_ref().is_none_or(|f| f.name != name) {
-            self.f_fpga = Some(UniversalFPGA::new(name.to_string()));
+        if self.fpga.as_ref().is_none_or(|f| f.name != name) {
+            self.fpga = Some(UniversalFPGA::new(name.to_string()));
         }
-        self.f_fpga.as_ref().unwrap()
+        self.fpga.as_ref().unwrap()
     }
 
     fn overlay_handler(&self) -> &impl OverlayHandler {
-        self
+        self.overlay_handler.as_ref().unwrap()
     }
 }
 
-impl OverlayHandler for UniversalPlatform {
+#[derive(Debug)]
+pub struct UniversalOverlayHandler {}
+
+impl OverlayHandler for UniversalOverlayHandler {
     fn apply_devicetree(&self) -> bool {
         todo!()
     }
