@@ -1,0 +1,28 @@
+repos:
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.16.0
+    hooks:
+      - id: yamlfmt
+        args:
+          - -lint
+  - repo: local
+    hooks:
+      - id: clippy
+        name: Rust Lint
+        language: rust
+        entry: cargo
+        pass_filenames: false
+        args:
+          - clippy
+          - --all-targets
+          - --all-features
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.11.3
+    hooks:
+      # Run the linter.
+      - id: ruff
+      # Run the formatter.
+      - id: ruff-format
+        args:
+          - --check
