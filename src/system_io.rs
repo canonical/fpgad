@@ -28,6 +28,7 @@ pub fn fs_read(file_path: &str) -> Result<String, std::io::Error> {
     }
 }
 
+#[allow(dead_code)]
 pub fn fs_write(
     file_path: &str,
     create: bool,

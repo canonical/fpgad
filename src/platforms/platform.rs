@@ -50,17 +50,23 @@ pub fn list_fpga_managers() -> Vec<String> {
 pub trait Fpga {
     fn name(&self) -> &str;
     fn state(&self) -> Result<String, Error>;
+    #[allow(dead_code)]
     fn load_bitstream(&self) -> bool;
+    #[allow(dead_code)]
     fn unload_bitstream(&self) -> bool;
 }
 
 pub trait OverlayHandler {
+    #[allow(dead_code)]
     fn apply_devicetree(&self) -> bool;
+    #[allow(dead_code)]
     fn unapply_devicetree(&self) -> bool;
 }
 
 pub trait Platform {
+    #[allow(dead_code)]
     fn name(&self) -> &str;
     fn fpga(&mut self, name: &str) -> &impl Fpga;
+    #[allow(dead_code)]
     fn overlay_handler(&self) -> &impl OverlayHandler;
 }
