@@ -12,9 +12,12 @@
 
 use std::{fs::OpenOptions, io::Read};
 
+use log::trace;
 use std::io::Write as _;
+use std::path::{Path};
 
-pub fn fs_read(file_path: &str) -> Result<String, std::io::Error> {
+pub fn fs_read(file_path: &Path) -> Result<String, std::io::Error> {
+    trace!("Attempting to read from {:?}", file_path);
     let mut buf: String = String::new();
     let result = OpenOptions::new()
         .read(true)
@@ -23,21 +26,38 @@ pub fn fs_read(file_path: &str) -> Result<String, std::io::Error> {
 
     // do checks on the data we got if necessary
     match result {
-        Ok(_) => Ok(buf),
-        Err(e) => Err(e),
+        Ok(_) => {
+            trace!("Read done.");
+            Ok(buf)
+        }
+        Err(e) => Err(e), // TODO: improve error with attempted write path etc
+        //TODO: if error is permission error then this should print a hint "are you root/fpga user group"
     }
 }
 
-#[allow(dead_code)]
 pub fn fs_write(
-    file_path: &str,
+    file_path: &Path,
     create: bool,
     value: impl AsRef<str>,
 ) -> Result<(), std::io::Error> {
-    OpenOptions::new()
+    trace!(
+        "Attempting to write {:?} to {:?}",
+        value.as_ref(),
+        file_path
+    );
+    let result = OpenOptions::new()
         .create(create)
         .read(false)
         .write(true)
         .open(file_path)
-        .and_then(|mut f| write!(f, "{}", value.as_ref()))
+        .and_then(|mut f| write!(f, "{}", value.as_ref()));
+    match result {
+        Ok(_) => {
+            trace!("Write done.");
+            Ok(())
+        }
+        Err(e) => Err(e), 
+        // TODO: improve error with attempted write path etc
+        // TODO: if error is permission error then this should print a hint "are you root/fpga user group"
+    }
 }
