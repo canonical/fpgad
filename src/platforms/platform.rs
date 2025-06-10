@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::error::Error;
+use crate::error::FpgadError;
 
 pub fn list_fpga_managers() -> Vec<String> {
     std::fs::read_dir("/sys/class/fpga_manager")
@@ -49,7 +49,7 @@ pub fn list_fpga_managers() -> Vec<String> {
 ///
 pub trait Fpga {
     fn name(&self) -> &str;
-    fn state(&self) -> Result<String, Error>;
+    fn state(&self) -> Result<String, FpgadError>;
     #[allow(dead_code)]
     fn load_bitstream(&self) -> bool;
     #[allow(dead_code)]

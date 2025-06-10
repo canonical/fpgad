@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::{error::Error, system_io::fs_read};
+use crate::{error::FpgadError, system_io::fs_read};
 use log::trace;
 
 use super::platform::{Fpga, OverlayHandler, Platform};
@@ -87,12 +87,12 @@ impl Fpga for UniversalFPGA {
         &self.name
     }
 
-    fn state(&self) -> Result<String, Error> {
+    fn state(&self) -> Result<String, FpgadError> {
         trace!("reading /sys/class/fpga_manager/{}/state", self.name);
-        Ok(fs_read(&format!(
-            "/sys/class/fpga_manager/{}/state",
-            self.name
-        ))?)
+        match fs_read(&format!("/sys/class/fpga_manager/{}/state", self.name)) {
+            Ok(val) => return Ok(val),
+            Err(e) => return Err(FpgadError::Io(e)),
+        }
     }
 
     fn load_bitstream(&self) -> bool {
