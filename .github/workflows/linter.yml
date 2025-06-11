@@ -4,7 +4,7 @@ on:
 jobs:
   git-commit-check:
     name: Check Git Commit Formatting
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,7 +42,7 @@ jobs:
           gitlint --debug --commits "$commits",
   python-check:
     name: Check Python Code Formatting
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,7 +63,7 @@ jobs:
           done
   yaml-check:
     name: Check YAML Formatting
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
