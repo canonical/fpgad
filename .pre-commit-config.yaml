@@ -16,6 +16,8 @@ repos:
           - clippy
           - --all-targets
           - --all-features
+          - --
+          - -Dwarnings
   - repo: local
     hooks:
       - id: cargo-fmt

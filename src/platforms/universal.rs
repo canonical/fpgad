@@ -90,8 +90,8 @@ impl Fpga for UniversalFPGA {
     fn state(&self) -> Result<String, FpgadError> {
         trace!("reading /sys/class/fpga_manager/{}/state", self.name);
         match fs_read(&format!("/sys/class/fpga_manager/{}/state", self.name)) {
-            Ok(val) => return Ok(val),
-            Err(e) => return Err(FpgadError::Io(e)),
+            Ok(val) => Ok(val),
+            Err(e) => Err(FpgadError::Io(e)),
         }
     }
 
