@@ -16,6 +16,8 @@ repos:
           - clippy
           - --all-targets
           - --all-features
+          - --
+          - -Dwarnings
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
     rev: v0.11.3
