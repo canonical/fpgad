@@ -12,6 +12,5 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 pub mod platform;
-pub mod universal_components;
 pub mod universal;
-
+pub mod universal_components;

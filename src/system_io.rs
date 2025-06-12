@@ -100,7 +100,7 @@ pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
 
 pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
     trace!("Attempting to delete '{:?}'", path);
-    let result = remove_dir(&path);
+    let result = remove_dir(path);
     match result {
         Ok(_) => {
             trace!("Deleted {:?}", path);

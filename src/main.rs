@@ -17,7 +17,10 @@ use zbus::connection;
 mod error;
 use log::trace;
 
-use platforms::{platform::{list_fpga_managers, Fpga, Platform}, universal};
+use platforms::{
+    platform::{Fpga, Platform, list_fpga_managers},
+    universal,
+};
 
 mod comm;
 use comm::dbus::interfaces::Greeter;
@@ -55,10 +58,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Err(e) => eprintln!("Detecting FPGA failed with error: {}", e),
         Ok(_) => println!("FPGA detected and loaded as universal_platform."),
     };
-    
+
     let bitstream_path = Path::new("/lib/firmware/k26-starter-kits.bit.bin");
     let dtbo_path = Path::new("/lib/firmware/k26-starter-kits.dtbo");
-    let load_result = universal_platform.load_package(&bitstream_path, &dtbo_path);
+    let load_result = universal_platform.load_package(bitstream_path, dtbo_path);
 
     match &load_result {
         Err(e) => {
@@ -78,7 +81,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             eprintln!("Failed to unload bitstream!");
         } else {
             println!(
-                "No errors encountered when unloading bitstream.\n Waiting for dbus messages. (ctrl+C to quit)."
+                "No errors encountered when unloading bitstream.\nWaiting for dbus messages. (ctrl+C to quit)."
             );
         }
     } else {

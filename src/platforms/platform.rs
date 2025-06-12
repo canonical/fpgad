@@ -10,9 +10,8 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use std::path::Path;
 use crate::error::FpgadError;
-use crate::system_io::fs_write;
+use std::path::Path;
 
 pub fn list_fpga_managers() -> Vec<String> {
     std::fs::read_dir("/sys/class/fpga_manager")
@@ -54,6 +53,7 @@ pub trait Fpga {
     fn state(&self) -> Result<String, FpgadError>;
     fn get_flags(&self) -> Result<isize, FpgadError>;
     fn set_flags(&self, flags: isize) -> Result<(), FpgadError>;
+    #[allow(dead_code)]
     fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError>;
 }
 
@@ -72,5 +72,9 @@ pub trait Platform {
     fn name(&self) -> &str;
     fn fpga(&mut self, name: &str) -> &impl Fpga;
     #[allow(dead_code)]
-    fn overlay_handler(&mut self, bitstream_path: &Path, overlay_source_path: &Path) -> &impl OverlayHandler;
+    fn overlay_handler(
+        &mut self,
+        bitstream_path: &Path,
+        overlay_source_path: &Path,
+    ) -> &impl OverlayHandler;
 }

@@ -29,13 +29,10 @@ impl Fpga for UniversalFPGA {
     /// returns: Result<String, FpgadError>
     fn state(&self) -> Result<String, FpgadError> {
         trace!("reading /sys/class/fpga_manager/{}/state", self.name);
-        let state = match fs_read(Path::new(&format!(
+        let state = fs_read(Path::new(&format!(
             "/sys/class/fpga_manager/{}/state",
             self.name
-        ))) {
-            Ok(val) => Ok(val),
-            Err(e) => Err(e),
-        };
+        )));
         match state {
             Ok(val) => match val.as_str() {
                 "operating\n" => Ok(val),
@@ -92,6 +89,26 @@ impl Fpga for UniversalFPGA {
                 "Failed to read flags after setting to {}: {}",
                 flags, e
             ))),
+        }
+    }
+
+    /// This can be used to manually load a firmware if the overlay does not trigger the load.
+    /// Note: always load firmware before overlay.
+    fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError> {
+        fs_write(bitstream_path, false, "/sys/class/fpga_manager/{}/path")?;
+        match self.state() {
+            Ok(state) => match state.to_string().as_str() {
+                "operating\n" => Ok(()),
+                "unknown\n" => Err(FpgadError::StateError(format!(
+                    "After loading bitstream, fpgastate should be 'operating' but it is '{}'",
+                    state
+                ))),
+                _ => Err(FpgadError::StateError(format!(
+                    "After loading bitstream, fpgastate should be 'operating' but it is '{}'",
+                    state
+                ))),
+            },
+            Err(e) => Err(e),
         }
     }
 }

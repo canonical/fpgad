@@ -34,7 +34,7 @@ impl Drop for UniversalOverlayHandler {
 
 impl OverlayHandler for UniversalOverlayHandler {
     /// Checks inputs are real files (doesn't yet check they are valid)
-    /// Checks for `overlay_fs_path`. 
+    /// Checks for `overlay_fs_path`.
     /// In future this may change the firmware location through
     /// `/sys/module/firmware_class/parameters/`.
     fn prepare_for_load(&mut self) -> Result<(), FpgadError> {
@@ -71,7 +71,7 @@ impl OverlayHandler for UniversalOverlayHandler {
     }
 
     /// Attempts to apply a device tree overlay which should trigger a firmware load.
-    /// There are multiple ways to trigger a firmware load so this is not valid if the 
+    /// There are multiple ways to trigger a firmware load so this is not valid if the
     /// dtbo doesn't contain a firmware to load.
     fn apply_overlay(&self) -> Result<(), FpgadError> {
         let dtbo_file_name = self
@@ -100,7 +100,7 @@ impl OverlayHandler for UniversalOverlayHandler {
             Err(e) => Err(e),
         }
     }
-    
+
     /// Attempts to delete overlay_fs_path
     fn remove_overlay(&mut self) -> Result<(), FpgadError> {
         if self.rollback_steps.delete_configfs_dir {
@@ -110,9 +110,9 @@ impl OverlayHandler for UniversalOverlayHandler {
         }
         Ok(())
     }
-    
+
     /// WARNING NOT IMPLEMENTED:
-    /// This is where the required fpga flags will be determined from the dtbo, 
+    /// This is where the required fpga flags will be determined from the dtbo,
     /// such as compressed or encrypted.
     fn get_required_flags(&self) -> Result<isize, FpgadError> {
         Ok(0)
@@ -123,10 +123,7 @@ impl OverlayHandler for UniversalOverlayHandler {
         let status_path = self.overlay_fs_path.join("status");
 
         trace!("Reading from {:?}", status_path);
-        let state = match fs_read(&status_path) {
-            Ok(val) => Ok(val),
-            Err(e) => Err(e),
-        };
+        let state = fs_read(&status_path);
         match state {
             Ok(val) => match val.as_str() {
                 "applied\n" => Ok(val),
