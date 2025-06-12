@@ -15,7 +15,6 @@ struct OverlayRollbackSteps {
 /// Also stores the steps that need to be undone
 #[derive(Debug)]
 pub struct UniversalOverlayHandler {
-    bitstream_source_path: PathBuf,
     overlay_source_path: PathBuf,
     overlay_fs_path: PathBuf,
     rollback_steps: OverlayRollbackSteps,
@@ -38,20 +37,13 @@ impl OverlayHandler for UniversalOverlayHandler {
     /// In future this may change the firmware location through
     /// `/sys/module/firmware_class/parameters/`.
     fn prepare_for_load(&mut self) -> Result<(), FpgadError> {
-        if !self.overlay_source_path.exists() | self.overlay_fs_path.is_dir() {
+        if !self.overlay_source_path.exists() | self.overlay_source_path.is_dir() {
             return Err(ArgumentError(format!(
                 "Overlay file '{:?}' has invalid path.",
                 self.overlay_source_path
             )));
         }
-
-        if !self.bitstream_source_path.exists() | self.overlay_fs_path.is_dir() {
-            return Err(ArgumentError(format!(
-                "Bitstream file '{:?}' has invalid path.",
-                self.overlay_fs_path
-            )));
-        }
-
+        
         if self.overlay_fs_path.exists() {
             fs_remove_dir(&self.overlay_fs_path)?
         }
@@ -136,11 +128,10 @@ impl OverlayHandler for UniversalOverlayHandler {
 
 impl UniversalOverlayHandler {
     /// Scans the package dir for reqiured files
-    pub(crate) fn new(bitstream_path: &Path, overlay_source_path: &Path) -> Self {
+    pub(crate) fn new(overlay_source_path: &Path) -> Self {
         let overlay_fs = Path::new("/sys/kernel/config/device-tree/overlays/fpgad_overlay_0");
 
         UniversalOverlayHandler {
-            bitstream_source_path: bitstream_path.to_owned(),
             overlay_source_path: overlay_source_path.to_owned(),
             overlay_fs_path: overlay_fs.to_owned(),
             rollback_steps: OverlayRollbackSteps {

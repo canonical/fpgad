@@ -17,6 +17,7 @@ use log::trace;
 use crate::platforms::universal_components::universal_fgpa::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use std::path::Path;
+use crate::error::FpgadError::ArgumentError;
 
 #[derive(Debug)]
 pub struct UniversalPlatform {
@@ -42,13 +43,21 @@ impl UniversalPlatform {
         overlay_source_path: &Path,
     ) -> Result<(), FpgadError> {
         let overlay_handler = self.overlay_handler.get_or_insert_with(|| {
-            UniversalOverlayHandler::new(bitstream_path, overlay_source_path)
+            UniversalOverlayHandler::new(overlay_source_path)
         });
 
         let fpga = self
             .fpga
             .as_mut()
             .ok_or(FpgadError::Internal("FPGA not initialized".into()))?;
+        
+        // TODO: maybe this should be inside fpga?
+        if !bitstream_path.exists() | bitstream_path.is_dir() {
+            return Err(ArgumentError(format!(
+                "Bitstream file '{:?}' has invalid path.",
+                bitstream_path
+            )));
+        }
 
         trace!("overlay handler: {:?}", overlay_handler);
         trace!("FPGA: {:?}", fpga);
@@ -92,13 +101,11 @@ impl Platform for UniversalPlatform {
     /// Gets the `overlay_handler` associated with this device.
     fn overlay_handler(
         &mut self,
-        bitstream_path: &Path,
         overlay_source_path: &Path,
     ) -> &impl OverlayHandler {
         // Create FPGA if not same or present
         if self.overlay_handler.as_ref().is_none() {
             self.overlay_handler = Some(UniversalOverlayHandler::new(
-                bitstream_path,
                 overlay_source_path,
             ));
         }

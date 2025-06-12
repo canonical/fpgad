@@ -74,7 +74,6 @@ pub trait Platform {
     #[allow(dead_code)]
     fn overlay_handler(
         &mut self,
-        bitstream_path: &Path,
         overlay_source_path: &Path,
     ) -> &impl OverlayHandler;
 }
