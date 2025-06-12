@@ -12,9 +12,10 @@
 
 use super::platform::{Fpga, OverlayHandler, Platform};
 use crate::error::FpgadError::ArgumentError;
-use crate::system_io::fs_write;
-use crate::{error::FpgadError, system_io::fs_read};
+use crate::system_io::{fs_write, fs_read, fs_create_dir, fs_remove_dir};
+use crate::error::FpgadError;
 use log::trace;
+
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -43,30 +44,29 @@ impl UniversalPlatform {
         let overlay_handler = self.overlay_handler.get_or_insert_with(|| {
             UniversalOverlayHandler::new(bitstream_path, overlay_source_path)
         });
+
         let fpga = self
             .fpga
             .as_mut()
             .ok_or(FpgadError::Internal("FPGA not initialized".into()))?;
+
         trace!("overlay handler: {:?}", overlay_handler);
         trace!("FPGA: {:?}", fpga);
+
         if let Ok(flags) = overlay_handler.get_required_flags() {
-            fpga.set_flags(flags).expect("TODO: panic message");
+            fpga.set_flags(flags)?;
         }
-        fpga.state().expect("TODO: panic message");
+        fpga.state()?;
 
         overlay_handler
-            .prepare_for_load()
-            .expect("TODO: panic message");
+            .prepare_for_load()?;
         overlay_handler
-            .apply_overlay()
-            .expect("TODO: panic message");
+            .apply_overlay()?;
         Ok(())
     }
 
+    /// Removes the overlay, undoing any extra steps, and then deletes the overlay_handler
     pub(crate) fn unload_package(&mut self) -> Result<(), FpgadError> {
-        // overlay_handler is dropped here automatically and calls
-        // `impl Drop for UniversalOverlayHandler`
-        // which will undo all steps in UniversalOverlayHandler::rollback_steps
         self.overlay_handler.take();
         Ok(())
     }
@@ -154,18 +154,16 @@ impl OverlayHandler for UniversalOverlayHandler {
         }
 
         if self.overlay_fs_path.exists() {
-            trace!("Attempting to delete '{:?}'", self.overlay_fs_path);
-            std::fs::remove_dir(&self.overlay_fs_path)?;
-            trace!("Delete done.");
+            fs_remove_dir(&self.overlay_fs_path)?
         }
 
-        trace!("Checking for configfs");
+        trace!("Checking configfs path exists.");
         if !self.overlay_fs_path.parent().unwrap().exists() {
             eprintln!("NOOOOO! no path {:?}", self.overlay_fs_path.parent())
         }
 
         trace!("Attempting to create '{:?}'", self.overlay_fs_path);
-        std::fs::create_dir_all(&self.overlay_fs_path)?;
+        fs_create_dir(&self.overlay_fs_path)?;
         trace!("Created dir {:?}", self.overlay_fs_path);
 
         self.rollback_steps.delete_overlay_in_fw = true;
@@ -189,11 +187,10 @@ impl OverlayHandler for UniversalOverlayHandler {
                 );
             }
             Err(e) => {
-                eprintln!(
+                return Err(FpgadError::IO(format!(
                     "Failed to write overlay path {} to {:?} : {}",
                     dtbo_file_name, overlay_path_file, e
-                );
-                return Err(FpgadError::IO(e));
+                )));
             }
         }
         match self.status() {
@@ -202,13 +199,7 @@ impl OverlayHandler for UniversalOverlayHandler {
         }
     }
     fn remove_overlay(&self) -> Result<(), FpgadError> {
-        trace!("Attempting to delete {:?}.", self.overlay_fs_path);
-        let res = match std::fs::remove_dir(&self.overlay_fs_path) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(FpgadError::IO(e)),
-        };
-        trace!("Deleted?");
-        res
+        Ok(fs_remove_dir(&self.overlay_fs_path)?)
     }
 
     fn get_required_flags(&self) -> Result<isize, FpgadError> {
@@ -221,7 +212,7 @@ impl OverlayHandler for UniversalOverlayHandler {
         trace!("Reading from {:?}", status_path);
         let state = match fs_read(&status_path) {
             Ok(val) => Ok(val),
-            Err(e) => Err(FpgadError::IO(e)),
+            Err(e) => Err(e),
         };
         match state {
             Ok(val) => match val.as_str() {
@@ -279,7 +270,7 @@ impl Fpga for UniversalFPGA {
             self.name
         ))) {
             Ok(val) => Ok(val),
-            Err(e) => Err(FpgadError::IO(e)),
+            Err(e) => Err(e),
         };
         match state {
             Ok(val) => match val.as_str() {
@@ -298,7 +289,7 @@ impl Fpga for UniversalFPGA {
 
     fn get_flags(&self) -> Result<isize, FpgadError> {
         let path = format!("/sys/class/fpga_manager/{}/flags", self.name);
-        let contents = fs_read(&PathBuf::from(&path)).map_err(FpgadError::IO)?;
+        let contents = fs_read(&PathBuf::from(&path))?;
         let trimmed = contents.trim().trim_start_matches("0x");
         isize::from_str_radix(trimmed, 16)
             .map_err(|_| FpgadError::FlagError("Parsing flags failed".into()))
@@ -317,7 +308,7 @@ impl Fpga for UniversalFPGA {
             Ok(_) => {}
             Err(e) => {
                 eprintln!("Failed to read state.");
-                return Err(FpgadError::IO(e));
+                return Err(e);
             }
         };
 

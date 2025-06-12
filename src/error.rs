@@ -20,8 +20,8 @@ pub enum FpgadError {
     StateError(String),
     #[error("ArgumentError: {0}")]
     ArgumentError(String),
-    #[error("an IO error occurred: {0}")]
-    IO(#[from] std::io::Error),
+    #[error("An IO error occurred: {0}")]
+    IO(String),
     #[error("An Internal error occurred: {0}")]
     Internal(String),
 }

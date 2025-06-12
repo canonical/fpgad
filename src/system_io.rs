@@ -10,13 +10,14 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::error::FpgadError;
+use log::trace;
+use std::fs::{create_dir_all, remove_dir};
+use std::io::{ErrorKind, Write as _};
+use std::path::Path;
 use std::{fs::OpenOptions, io::Read};
 
-use log::trace;
-use std::io::Write as _;
-use std::path::{Path};
-
-pub fn fs_read(file_path: &Path) -> Result<String, std::io::Error> {
+pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
     trace!("Attempting to read from {:?}", file_path);
     let mut buf: String = String::new();
     let result = OpenOptions::new()
@@ -30,16 +31,21 @@ pub fn fs_read(file_path: &Path) -> Result<String, std::io::Error> {
             trace!("Read done.");
             Ok(buf)
         }
-        Err(e) => Err(e), // TODO: improve error with attempted write path etc
-        //TODO: if error is permission error then this should print a hint "are you root/fpga user group"
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "File {:?} not found: {}",
+                file_path, e
+            ))),
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied for file {:?}: {}",
+                file_path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
     }
 }
 
-pub fn fs_write(
-    file_path: &Path,
-    create: bool,
-    value: impl AsRef<str>,
-) -> Result<(), std::io::Error> {
+pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Result<(), FpgadError> {
     trace!(
         "Attempting to write {:?} to {:?}",
         value.as_ref(),
@@ -56,8 +62,64 @@ pub fn fs_write(
             trace!("Write done.");
             Ok(())
         }
-        Err(e) => Err(e), 
-        // TODO: improve error with attempted write path etc
-        // TODO: if error is permission error then this should print a hint "are you root/fpga user group"
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "File {:?} not found: {}",
+                file_path, e
+            ))),
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied for file {:?}: {}",
+                file_path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
+    }
+}
+
+pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
+    trace!("Attempting to Create '{:?}'", path);
+    let result = create_dir_all(path);
+    match result {
+        Ok(_) => {
+            trace!("Directory created at {:?}.", path);
+            Ok(())
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied when creating directory {:?}: {}",
+                path, e
+            ))),
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "Attempted to create a directory but the base path could not be found {:?}: {}",
+                path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
+    }
+}
+
+pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
+    trace!("Attempting to delete '{:?}'", path);
+    let result = remove_dir(&path);
+    match result {
+        Ok(_) => {
+            trace!("Deleted {:?}", path);
+            Ok(())
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied when deleting directory {:?}: {}",
+                path, e
+            ))),
+            ErrorKind::DirectoryNotEmpty => Err(FpgadError::IO(format!(
+                "Attempted to delete a directory it is not empty {:?}: {}",
+                path, e
+            ))),
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "Attempted to delete a directory that does not exist {:?}: {}",
+                path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
     }
 }

@@ -53,25 +53,39 @@ async fn main() -> Result<(), Box<dyn Error>> {
     trace!("{}", universal_platform.fpga("fpga0").name());
     let myfpga = universal_platform.fpga("fpga0");
     match myfpga.state() {
-        Err(e) => panic!("{}", e),
+        Err(e) => eprintln!("Detecting FPGA failed with error: {}", e),
         Ok(_) => println!("FPGA detected and loaded as universal_platform."),
     };
-    
 
-    // TODO: panic is unnacceptable in daemon so need to handle errors properly. 
+    // TODO: panic is unnacceptable in daemon so need to handle errors properly.
     let bitstream_path = Path::new("/lib/firmware/k26-starter-kits.bit.bin");
     let dtbo_path = Path::new("/lib/firmware/k26-starter-kits.dtbo");
-    universal_platform.load_package(&bitstream_path, &dtbo_path).expect("TODO: panic message");
-    
-    // 
-    // println!("Attempting to load bitstream from {:?}", bitstream_path);
-    // myfpga.load_bitstream(bitstream_name, &bitstream_path, dtbo_name)?;
-    // println!("Successfully loaded bitstream and its operational? Waiting 5s.");
-    // 
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    println!("The wait is over prepare to be unloaded!");
-    universal_platform.unload_package().expect("TODO: panic message");
-    println!("Successfully unloaded bitstream? Waiting for dbus messages. (ctrl+C to quit).");
+    let load_result = universal_platform.load_package(&bitstream_path, &dtbo_path);
+
+    match &load_result {
+        Err(e) => {
+            eprintln!(
+                "Failed to load bitstream using files: {:?} for bitstream and {:?} for dtbo: {}",
+                bitstream_path, dtbo_path, e
+            );
+        }
+        Ok(_) => println!("Bitstream appears to be successfully loaded."),
+    };
+
+    if load_result.is_ok() {
+        println!("Waiting 5s.");
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        println!("The wait is over prepare to be unloaded!");
+        if universal_platform.unload_package().is_err() {
+            eprintln!("Failed to unload bitstream!");
+        } else {
+            println!(
+                "No errors encountered when unloading bitstream.\n Waiting for dbus messages. (ctrl+C to quit)."
+            );
+        }
+    } else {
+        eprintln!("Failed to load bitstream!\nWaiting for dbus messages. (ctrl+C to quit).");
+    }
 
     // Do other things or go to wait forever
     pending::<()>().await;
