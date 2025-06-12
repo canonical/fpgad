@@ -16,7 +16,7 @@ pub enum FpgadError {
     FlagError(String),
     #[error("Overlay status is not 'applied': {0}")]
     OverlayStatusError(String),
-    #[error("FPGA state is not 'operating': {0}")]
+    #[error("FPGA state is not as expected: {0}")]
     StateError(String),
     #[error("ArgumentError: {0}")]
     ArgumentError(String),

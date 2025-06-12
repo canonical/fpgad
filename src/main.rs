@@ -17,13 +17,12 @@ use zbus::connection;
 mod error;
 use log::trace;
 
-use platforms::{
-    platform::{list_fpga_managers, Fpga, Platform},
-    universal::UniversalPlatform,
-};
+use platforms::{platform::{list_fpga_managers, Fpga, Platform}, universal};
 
 mod comm;
 use comm::dbus::interfaces::Greeter;
+use universal::UniversalPlatform;
+
 mod platforms;
 mod system_io;
 
@@ -41,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // client will send a request to load bitstream to fpga
     // if no fpga name specified fpgad will try all fpgas available under /sys/class/fpga_manager/
-    // if no platform specified fpgad will use UniversalPlatform for each fpga
+    // if no platform specified fpgad will use universal_platform for each fpga
     // available, until it successfully loads the bitstream
     //
     for fpga in list_fpga_managers().iter() {
@@ -56,8 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Err(e) => eprintln!("Detecting FPGA failed with error: {}", e),
         Ok(_) => println!("FPGA detected and loaded as universal_platform."),
     };
-
-    // TODO: panic is unnacceptable in daemon so need to handle errors properly.
+    
     let bitstream_path = Path::new("/lib/firmware/k26-starter-kits.bit.bin");
     let dtbo_path = Path::new("/lib/firmware/k26-starter-kits.dtbo");
     let load_result = universal_platform.load_package(&bitstream_path, &dtbo_path);
