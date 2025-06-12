@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
-use log::trace;
 use crate::error::FpgadError;
 use crate::platforms::platform::Fpga;
 use crate::system_io::{fs_read, fs_write};
+use log::trace;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct UniversalFPGA {
@@ -10,6 +10,7 @@ pub struct UniversalFPGA {
 }
 
 impl UniversalFPGA {
+    /// Constructor simply stores an owned version of the provided name.
     pub(crate) fn new(name: &str) -> Self {
         UniversalFPGA {
             name: name.to_owned(),
@@ -17,9 +18,8 @@ impl UniversalFPGA {
     }
 }
 
-
 impl Fpga for UniversalFPGA {
-    /// Name of this FPGA device e.g. fpga0.
+    /// Get the name of this FPGA device e.g. fpga0.
     fn name(&self) -> &str {
         &self.name
     }
@@ -51,6 +51,8 @@ impl Fpga for UniversalFPGA {
         }
     }
 
+    /// Gets the flags from the hex string stored in the sysfs flags file
+    /// e.g. sys/class/fpga_manager/fpga0/flags
     fn get_flags(&self) -> Result<isize, FpgadError> {
         let path = format!("/sys/class/fpga_manager/{}/flags", self.name);
         let contents = fs_read(&PathBuf::from(&path))?;
@@ -59,6 +61,8 @@ impl Fpga for UniversalFPGA {
             .map_err(|_| FpgadError::FlagError("Parsing flags failed".into()))
     }
 
+    /// Sets the flags in the sysfs flags file (e.g. sys/class/fpga_manager/fpga0/flags)
+    /// and verifies the the write stuck by reading it back.
     fn set_flags(&self, flags: isize) -> Result<(), FpgadError> {
         trace!(
             "Writing {} to '/sys/class/fpga_manager/{}/flags'",
@@ -76,11 +80,7 @@ impl Fpga for UniversalFPGA {
             }
         };
 
-        match self.state() {
-            Ok(..) => Ok(()),
-            Err(e) => Err(e),
-        }
-            .expect("TODO: panic message");
+        self.state()?;
 
         match self.get_flags() {
             Ok(returned_flags) if returned_flags == flags => Ok(()),

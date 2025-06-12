@@ -1,41 +1,42 @@
-use std::path::{Path, PathBuf};
-use log::trace;
 use crate::error::FpgadError;
 use crate::error::FpgadError::ArgumentError;
 use crate::platforms::platform::OverlayHandler;
 use crate::system_io::{fs_create_dir, fs_read, fs_remove_dir, fs_write};
+use log::trace;
+use std::path::{Path, PathBuf};
 
+/// Store the steps that need to be undone on delete/failure.
 #[derive(Debug)]
 struct OverlayRollbackSteps {
-    delete_overlay_in_fw: bool,
-    reset_firmware_path: bool,
+    delete_configfs_dir: bool,
 }
+/// Stores the three relevant paths: source files for dtbo/bitstream and the overlayfs dir to which
+/// the dtbo path was written.
+/// Also stores the steps that need to be undone
 #[derive(Debug)]
 pub struct UniversalOverlayHandler {
-    // we have the source directory, the overlayfs directory, and the name of the relevant files
     bitstream_source_path: PathBuf,
     overlay_source_path: PathBuf,
     overlay_fs_path: PathBuf,
     rollback_steps: OverlayRollbackSteps,
 }
 
-
 impl Drop for UniversalOverlayHandler {
+    /// Upon deletion of the overlay handler, it should undo any applications .e.g on failure.
     fn drop(&mut self) {
-        if self.rollback_steps.delete_overlay_in_fw {
-            self.remove_overlay().expect("Failed to remove overlay");
+        trace!("Dropping UniversalOverlayHandler!");
+        // check for necessary is inside the function.
+        if self.remove_overlay().is_err() {
+            eprintln!("Failed to remove overlay")
         }
-        if self.rollback_steps.reset_firmware_path {
-            println!("NOT IMPLEMENTED: UniversalOverlayHandler::reset_firmware_path()");
-        }
-
-        println!("Dropping MyStruct!");
-        // TODO: go through steps which are true in self.rollback_steps.
     }
 }
 
 impl OverlayHandler for UniversalOverlayHandler {
-    /// `/sys/module/firmware_class/parameters/path`
+    /// Checks inputs are real files (doesn't yet check they are valid)
+    /// Checks for `overlay_fs_path`. 
+    /// In future this may change the firmware location through
+    /// `/sys/module/firmware_class/parameters/`.
     fn prepare_for_load(&mut self) -> Result<(), FpgadError> {
         if !self.overlay_source_path.exists() | self.overlay_fs_path.is_dir() {
             return Err(ArgumentError(format!(
@@ -64,11 +65,14 @@ impl OverlayHandler for UniversalOverlayHandler {
         fs_create_dir(&self.overlay_fs_path)?;
         trace!("Created dir {:?}", self.overlay_fs_path);
 
-        self.rollback_steps.delete_overlay_in_fw = true;
+        self.rollback_steps.delete_configfs_dir = true;
 
         Ok(())
     }
 
+    /// Attempts to apply a device tree overlay which should trigger a firmware load.
+    /// There are multiple ways to trigger a firmware load so this is not valid if the 
+    /// dtbo doesn't contain a firmware to load.
     fn apply_overlay(&self) -> Result<(), FpgadError> {
         let dtbo_file_name = self
             .overlay_source_path
@@ -96,14 +100,25 @@ impl OverlayHandler for UniversalOverlayHandler {
             Err(e) => Err(e),
         }
     }
-    fn remove_overlay(&self) -> Result<(), FpgadError> {
-        Ok(fs_remove_dir(&self.overlay_fs_path)?)
+    
+    /// Attempts to delete overlay_fs_path
+    fn remove_overlay(&mut self) -> Result<(), FpgadError> {
+        if self.rollback_steps.delete_configfs_dir {
+            let removed = fs_remove_dir(&self.overlay_fs_path);
+            self.rollback_steps.delete_configfs_dir = false;
+            removed?
+        }
+        Ok(())
     }
-
+    
+    /// WARNING NOT IMPLEMENTED:
+    /// This is where the required fpga flags will be determined from the dtbo, 
+    /// such as compressed or encrypted.
     fn get_required_flags(&self) -> Result<isize, FpgadError> {
         Ok(0)
     }
 
+    /// Read status from <overlay_fs_path>/status file and verify that it is "applied"
     fn status(&self) -> Result<String, FpgadError> {
         let status_path = self.overlay_fs_path.join("status");
 
@@ -122,7 +137,6 @@ impl OverlayHandler for UniversalOverlayHandler {
     }
 }
 
-
 impl UniversalOverlayHandler {
     /// Scans the package dir for reqiured files
     pub(crate) fn new(bitstream_path: &Path, overlay_source_path: &Path) -> Self {
@@ -133,10 +147,8 @@ impl UniversalOverlayHandler {
             overlay_source_path: overlay_source_path.to_owned(),
             overlay_fs_path: overlay_fs.to_owned(),
             rollback_steps: OverlayRollbackSteps {
-                delete_overlay_in_fw: false,
-                reset_firmware_path: false,
+                delete_configfs_dir: false,
             },
         }
     }
 }
-

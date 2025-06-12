@@ -12,6 +12,7 @@
 
 use std::path::Path;
 use crate::error::FpgadError;
+use crate::system_io::fs_write;
 
 pub fn list_fpga_managers() -> Vec<String> {
     std::fs::read_dir("/sys/class/fpga_manager")
@@ -53,6 +54,7 @@ pub trait Fpga {
     fn state(&self) -> Result<String, FpgadError>;
     fn get_flags(&self) -> Result<isize, FpgadError>;
     fn set_flags(&self, flags: isize) -> Result<(), FpgadError>;
+    fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError>;
 }
 
 pub trait OverlayHandler {
@@ -60,7 +62,7 @@ pub trait OverlayHandler {
 
     fn apply_overlay(&self) -> Result<(), FpgadError>;
 
-    fn remove_overlay(&self) -> Result<(), FpgadError>;
+    fn remove_overlay(&mut self) -> Result<(), FpgadError>;
     fn get_required_flags(&self) -> Result<isize, FpgadError>;
     fn status(&self) -> Result<String, FpgadError>;
 }
