@@ -24,6 +24,25 @@ impl Fpga for UniversalFPGA {
         &self.name
     }
 
+    /// Reads the current fpga state file.
+    /// Only succeeds if the state is 'operating'.
+    /// Should only be used after bitstream loading.
+    fn assert_state(&self) -> Result<(), FpgadError> {
+        match self.state() {
+            Ok(state) => match state.to_string().as_str() {
+                "operating" => {
+                    println!("{}'s state is 'operating'", self.name);
+                    Ok(())
+                },
+                _ => Err(FpgadError::StateError(format!(
+                    "After loading bitstream, {}'s state should be should be 'operating' but it is '{}'",
+                    self.name, state
+                ))),
+            },
+            Err(e) => Err(e),
+        }
+    }
+
     /// Reads and returns contents of `/sys/class/fpga_manager/self.name/state` or FpgadError::IO.
     ///
     /// returns: Result<String, FpgadError>
@@ -34,15 +53,9 @@ impl Fpga for UniversalFPGA {
             self.name
         )));
         match state {
-            Ok(val) => match val.as_str() {
-                "operating\n" => Ok(val),
-                "unknown\n" => {
-                    trace!(
-                        "fpga state shows an 'unknown'> Fine if this is first boot, sketchy otherwise."
-                    );
-                    Ok(val)
-                }
-                _ => Err(FpgadError::StateError(val)),
+            Ok(val) => {
+                let trimmed = val.strip_suffix('\n').unwrap_or(&val);
+                Ok(trimmed.to_string())
             },
             Err(e) => Err(e),
         }
@@ -62,7 +75,7 @@ impl Fpga for UniversalFPGA {
     /// and verifies the the write stuck by reading it back.
     fn set_flags(&self, flags: isize) -> Result<(), FpgadError> {
         trace!(
-            "Writing {} to '/sys/class/fpga_manager/{}/flags'",
+            "Writing '{}' to '/sys/class/fpga_manager/{}/flags'",
             flags, self.name
         );
         match fs_write(
@@ -77,17 +90,27 @@ impl Fpga for UniversalFPGA {
             }
         };
 
-        self.state()?;
+        match self.state() {
+            Ok(state) => match state.as_str() {
+                "operating" => {
+                    println!("{}'s state is 'operating' after writing flags.", self.name)
+                }
+                _ => {
+                    eprintln!("{}'s state is '{}' after writing flags.", self.name, state);
+                }
+            },
+            Err(e) => return Err(e),
+        };
 
         match self.get_flags() {
             Ok(returned_flags) if returned_flags == flags => Ok(()),
             Ok(returned_flags) => Err(FpgadError::FlagError(format!(
-                "Setting flags to {} failed. Returned flag was {}",
-                flags, returned_flags
+                "Setting {}'s flags to '{}' failed. Resulting flag was '{}'",
+                self.name, flags, returned_flags
             ))),
             Err(e) => Err(FpgadError::FlagError(format!(
-                "Failed to read flags after setting to {}: {}",
-                flags, e
+                "Failed to read {}'s  flags after setting to '{}': {}",
+                self.name, flags, e
             ))),
         }
     }
@@ -96,19 +119,6 @@ impl Fpga for UniversalFPGA {
     /// Note: always load firmware before overlay.
     fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError> {
         fs_write(bitstream_path, false, "/sys/class/fpga_manager/{}/path")?;
-        match self.state() {
-            Ok(state) => match state.to_string().as_str() {
-                "operating\n" => Ok(()),
-                "unknown\n" => Err(FpgadError::StateError(format!(
-                    "After loading bitstream, fpgastate should be 'operating' but it is '{}'",
-                    state
-                ))),
-                _ => Err(FpgadError::StateError(format!(
-                    "After loading bitstream, fpgastate should be 'operating' but it is '{}'",
-                    state
-                ))),
-            },
-            Err(e) => Err(e),
-        }
+        Ok(self.assert_state()?)
     }
 }

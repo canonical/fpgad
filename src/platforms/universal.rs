@@ -14,10 +14,10 @@ use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use log::trace;
 
+use crate::error::FpgadError::ArgumentError;
 use crate::platforms::universal_components::universal_fgpa::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use std::path::Path;
-use crate::error::FpgadError::ArgumentError;
 
 #[derive(Debug)]
 pub struct UniversalPlatform {
@@ -42,15 +42,16 @@ impl UniversalPlatform {
         bitstream_path: &Path,
         overlay_source_path: &Path,
     ) -> Result<(), FpgadError> {
-        let overlay_handler = self.overlay_handler.get_or_insert_with(|| {
-            UniversalOverlayHandler::new(overlay_source_path)
-        });
+        println!("Attempting to load {:?}, using overlayfs with {:?}", bitstream_path, overlay_source_path);
+        let overlay_handler = self
+            .overlay_handler
+            .get_or_insert_with(|| UniversalOverlayHandler::new(overlay_source_path));
 
         let fpga = self
             .fpga
             .as_mut()
             .ok_or(FpgadError::Internal("FPGA not initialized".into()))?;
-        
+
         // TODO: maybe this should be inside fpga?
         if !bitstream_path.exists() | bitstream_path.is_dir() {
             return Err(ArgumentError(format!(
@@ -65,10 +66,12 @@ impl UniversalPlatform {
         if let Ok(flags) = overlay_handler.get_required_flags() {
             fpga.set_flags(flags)?;
         }
-        fpga.state()?;
 
         overlay_handler.prepare_for_load()?;
         overlay_handler.apply_overlay()?;
+
+        fpga.assert_state()?;
+        println!("Done loading {:?}.", bitstream_path);
         Ok(())
     }
 
@@ -99,15 +102,10 @@ impl Platform for UniversalPlatform {
     }
 
     /// Gets the `overlay_handler` associated with this device.
-    fn overlay_handler(
-        &mut self,
-        overlay_source_path: &Path,
-    ) -> &impl OverlayHandler {
+    fn overlay_handler(&mut self, overlay_source_path: &Path) -> &impl OverlayHandler {
         // Create FPGA if not same or present
         if self.overlay_handler.as_ref().is_none() {
-            self.overlay_handler = Some(UniversalOverlayHandler::new(
-                overlay_source_path,
-            ));
+            self.overlay_handler = Some(UniversalOverlayHandler::new(overlay_source_path));
         }
         self.overlay_handler.as_ref().unwrap()
     }

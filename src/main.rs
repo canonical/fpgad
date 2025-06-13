@@ -48,15 +48,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //
     for fpga in list_fpga_managers().iter() {
         let mut universal_platform = UniversalPlatform::new();
-        println!("{}", universal_platform.fpga(fpga).name());
+        println!("Detected {}", universal_platform.fpga(fpga).name());
     }
-    trace!("FPGAmanagers scraped.");
+    trace!("FPGA managers scraped.");
     let mut universal_platform = UniversalPlatform::new();
-    trace!("{}", universal_platform.fpga("fpga0").name());
+    trace!("Initializing {}", universal_platform.fpga("fpga0").name());
     let myfpga = universal_platform.fpga("fpga0");
     match myfpga.state() {
-        Err(e) => eprintln!("Detecting FPGA failed with error: {}", e),
-        Ok(_) => println!("FPGA detected and loaded as universal_platform."),
+        Err(e) => eprintln!("Initialising FPGA failed with error: '{}'", e),
+        Ok(val) => println!("{} initialised with initial state of '{}' at time of detection.", myfpga.name(), val),
     };
 
     let bitstream_path = Path::new("/lib/firmware/k26-starter-kits.bit.bin");
@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match &load_result {
         Err(e) => {
             eprintln!(
-                "Failed to load bitstream using files: {:?} for bitstream and {:?} for dtbo: {}",
+                "Failed to load bitstream using files: '{:?}' for bitstream and '{:?}' for dtbo: '{}'",
                 bitstream_path, dtbo_path, e
             );
         }

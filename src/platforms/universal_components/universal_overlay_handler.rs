@@ -76,13 +76,13 @@ impl OverlayHandler for UniversalOverlayHandler {
         match fs_write(&overlay_path_file, false, dtbo_file_name) {
             Ok(_) => {
                 trace!(
-                    "{} succesfully written to {:?}",
+                    "'{}' succesfully written to {:?}",
                     dtbo_file_name, overlay_path_file
                 );
             }
             Err(e) => {
                 return Err(FpgadError::IO(format!(
-                    "Failed to write overlay path {} to {:?} : {}",
+                    "Failed to write overlay path '{}' to '{:?}' : '{}'",
                     dtbo_file_name, overlay_path_file, e
                 )));
             }
@@ -115,8 +115,8 @@ impl OverlayHandler for UniversalOverlayHandler {
         let status_path = self.overlay_fs_path.join("status");
 
         trace!("Reading from {:?}", status_path);
-        let state = fs_read(&status_path);
-        match state {
+        let status = fs_read(&status_path);
+        match status {
             Ok(val) => match val.as_str() {
                 "applied\n" => Ok(val),
                 _ => Err(FpgadError::OverlayStatusError(val)),

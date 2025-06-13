@@ -10,6 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+
 use crate::error::FpgadError;
 use std::path::Path;
 
@@ -50,6 +51,7 @@ pub fn list_fpga_managers() -> Vec<String> {
 ///
 pub trait Fpga {
     fn name(&self) -> &str;
+    fn assert_state(&self) -> Result<(), FpgadError>;
     fn state(&self) -> Result<String, FpgadError>;
     fn get_flags(&self) -> Result<isize, FpgadError>;
     fn set_flags(&self, flags: isize) -> Result<(), FpgadError>;
@@ -59,9 +61,7 @@ pub trait Fpga {
 
 pub trait OverlayHandler {
     fn prepare_for_load(&mut self) -> Result<(), FpgadError>;
-
     fn apply_overlay(&self) -> Result<(), FpgadError>;
-
     fn remove_overlay(&mut self) -> Result<(), FpgadError>;
     fn get_required_flags(&self) -> Result<isize, FpgadError>;
     fn status(&self) -> Result<String, FpgadError>;
