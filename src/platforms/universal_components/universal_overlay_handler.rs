@@ -48,9 +48,19 @@ impl OverlayHandler for UniversalOverlayHandler {
             fs_remove_dir(&self.overlay_fs_path)?
         }
 
-        trace!("Checking configfs path exists.");
-        if !self.overlay_fs_path.parent().unwrap().exists() {
-            eprintln!("NOOOOO! no path {:?}", self.overlay_fs_path.parent())
+        trace!("Checking configfs path exists at {:?}", self.overlay_fs_path);
+        if let Some(parent_path) = self.overlay_fs_path.parent() {
+            if !parent_path.exists() {
+                return Err(FpgadError::IO(format!(
+                    "The path {:?} doesn't seem to exist.",
+                    parent_path
+                )));
+            }
+        } else {
+            return Err(FpgadError::IO(format!(
+                "The path {:?} has no parent directory.",
+                self.overlay_fs_path
+            )));
         }
 
         trace!("Attempting to create '{:?}'", self.overlay_fs_path);
