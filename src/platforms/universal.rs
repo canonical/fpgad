@@ -1,4 +1,4 @@
-// This file is part of fpgad, an application to manage FPGA subsystem together with devicetree and kernel modules.
+// This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
 //
 // Copyright 2025 Canonical Ltd.
 //
@@ -15,7 +15,7 @@ use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use log::trace;
 
 use crate::error::FpgadError::ArgumentError;
-use crate::platforms::universal_components::universal_fgpa::UniversalFPGA;
+use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use std::path::Path;
 

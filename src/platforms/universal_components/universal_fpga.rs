@@ -72,7 +72,7 @@ impl Fpga for UniversalFPGA {
     }
 
     /// Sets the flags in the sysfs flags file (e.g. sys/class/fpga_manager/fpga0/flags)
-    /// and verifies the the write stuck by reading it back.
+    /// and verifies the write command stuck by reading it back.
     fn set_flags(&self, flags: isize) -> Result<(), FpgadError> {
         trace!(
             "Writing '{}' to '/sys/class/fpga_manager/{}/flags'",

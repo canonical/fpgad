@@ -86,7 +86,7 @@ impl OverlayHandler for UniversalOverlayHandler {
         match fs_write(&overlay_path_file, false, dtbo_file_name) {
             Ok(_) => {
                 trace!(
-                    "'{}' succesfully written to {:?}",
+                    "'{}' successfully written to {:?}",
                     dtbo_file_name, overlay_path_file
                 );
             }
@@ -137,7 +137,7 @@ impl OverlayHandler for UniversalOverlayHandler {
 }
 
 impl UniversalOverlayHandler {
-    /// Scans the package dir for reqiured files
+    /// Scans the package dir for required files
     pub(crate) fn new(overlay_source_path: &Path) -> Self {
         let overlay_fs = Path::new("/sys/kernel/config/device-tree/overlays/fpgad_overlay_0");
 

@@ -1,4 +1,4 @@
-// This file is part of fpgad, an application to manage FPGA subsystem together with devicetree and kernel modules.
+// This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
 //
 // Copyright 2025 Canonical Ltd.
 //
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await?;
 
     // client will send a request to load bitstream to fpga
-    // if no fpga name specified fpgad will try all fpgas available under /sys/class/fpga_manager/
+    // if no fpga name specified fpgad will try all FPGAs available under /sys/class/fpga_manager/
     // if no platform specified fpgad will use universal_platform for each fpga
     // available, until it successfully loads the bitstream
     //
@@ -53,10 +53,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     trace!("FPGA managers scraped.");
     let mut universal_platform = UniversalPlatform::new();
     trace!("Initializing {}", universal_platform.fpga("fpga0").name());
-    let myfpga = universal_platform.fpga("fpga0");
-    match myfpga.state() {
+    let fpga = universal_platform.fpga("fpga0");
+    match fpga.state() {
         Err(e) => eprintln!("Initialising FPGA failed with error: '{}'", e),
-        Ok(val) => println!("{} initialised with initial state of '{}' at time of detection.", myfpga.name(), val),
+        Ok(val) => println!("{} initialised with initial state of '{}' at time of detection.", fpga.name(), val),
     };
 
     let bitstream_path = Path::new("/lib/firmware/k26-starter-kits.bit.bin");
