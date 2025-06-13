@@ -1,4 +1,4 @@
-// This file is part of fpgad, an application to manage FPGA subsystem together with devicetree and kernel modules.
+// This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
 //
 // Copyright 2025 Canonical Ltd.
 //
@@ -12,6 +12,16 @@
 
 #[derive(Debug, thiserror::Error)]
 pub enum FpgadError {
-    #[error("an IO error occured: {0}")]
-    Io(#[from] std::io::Error),
+    #[error("Failed to read flags: {0}")]
+    FlagError(String),
+    #[error("Overlay status is not 'applied': {0}")]
+    OverlayStatusError(String),
+    #[error("FPGA state is not as expected: {0}")]
+    StateError(String),
+    #[error("ArgumentError: {0}")]
+    ArgumentError(String),
+    #[error("An IO error occurred: {0}")]
+    IO(String),
+    #[error("An Internal error occurred: {0}")]
+    Internal(String),
 }

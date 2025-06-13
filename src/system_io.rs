@@ -1,4 +1,4 @@
-// This file is part of fpgad, an application to manage FPGA subsystem together with devicetree and kernel modules.
+// This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
 //
 // Copyright 2025 Canonical Ltd.
 //
@@ -10,11 +10,15 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::error::FpgadError;
+use log::trace;
+use std::fs::{create_dir_all, remove_dir};
+use std::io::{ErrorKind, Write as _};
+use std::path::Path;
 use std::{fs::OpenOptions, io::Read};
 
-use std::io::Write as _;
-
-pub fn fs_read(file_path: &str) -> Result<String, std::io::Error> {
+pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
+    trace!("Attempting to read from {:?}", file_path);
     let mut buf: String = String::new();
     let result = OpenOptions::new()
         .read(true)
@@ -23,21 +27,99 @@ pub fn fs_read(file_path: &str) -> Result<String, std::io::Error> {
 
     // do checks on the data we got if necessary
     match result {
-        Ok(_) => Ok(buf),
-        Err(e) => Err(e),
+        Ok(_) => {
+            trace!("Read done.");
+            Ok(buf)
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "File {:?} not found: {}",
+                file_path, e
+            ))),
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied for file {:?}: {}",
+                file_path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
     }
 }
 
-#[allow(dead_code)]
-pub fn fs_write(
-    file_path: &str,
-    create: bool,
-    value: impl AsRef<str>,
-) -> Result<(), std::io::Error> {
-    OpenOptions::new()
+pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Result<(), FpgadError> {
+    trace!(
+        "Attempting to write {:?} to {:?}",
+        value.as_ref(),
+        file_path
+    );
+    let result = OpenOptions::new()
         .create(create)
         .read(false)
         .write(true)
         .open(file_path)
-        .and_then(|mut f| write!(f, "{}", value.as_ref()))
+        .and_then(|mut f| write!(f, "{}", value.as_ref()));
+    match result {
+        Ok(_) => {
+            trace!("Write done.");
+            Ok(())
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "File {:?} not found: {}",
+                file_path, e
+            ))),
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied for file {:?}: {}",
+                file_path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
+    }
+}
+
+pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
+    trace!("Attempting to Create '{:?}'", path);
+    let result = create_dir_all(path);
+    match result {
+        Ok(_) => {
+            trace!("Directory created at {:?}.", path);
+            Ok(())
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied when creating directory {:?}: {}",
+                path, e
+            ))),
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "Attempted to create a directory but the base path could not be found {:?}: {}",
+                path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
+    }
+}
+
+pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
+    trace!("Attempting to delete '{:?}'", path);
+    let result = remove_dir(path);
+    match result {
+        Ok(_) => {
+            trace!("Deleted {:?}", path);
+            Ok(())
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied when deleting directory {:?}: {}",
+                path, e
+            ))),
+            ErrorKind::DirectoryNotEmpty => Err(FpgadError::IO(format!(
+                "Attempted to delete a directory it is not empty {:?}: {}",
+                path, e
+            ))),
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "Attempted to delete a directory that does not exist {:?}: {}",
+                path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
+    }
 }

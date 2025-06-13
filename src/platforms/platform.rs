@@ -1,4 +1,4 @@
-// This file is part of fpgad, an application to manage FPGA subsystem together with devicetree and kernel modules.
+// This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
 //
 // Copyright 2025 Canonical Ltd.
 //
@@ -10,7 +10,9 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+
 use crate::error::FpgadError;
+use std::path::Path;
 
 pub fn list_fpga_managers() -> Vec<String> {
     std::fs::read_dir("/sys/class/fpga_manager")
@@ -49,18 +51,20 @@ pub fn list_fpga_managers() -> Vec<String> {
 ///
 pub trait Fpga {
     fn name(&self) -> &str;
+    fn assert_state(&self) -> Result<(), FpgadError>;
     fn state(&self) -> Result<String, FpgadError>;
+    fn get_flags(&self) -> Result<isize, FpgadError>;
+    fn set_flags(&self, flags: isize) -> Result<(), FpgadError>;
     #[allow(dead_code)]
-    fn load_bitstream(&self) -> bool;
-    #[allow(dead_code)]
-    fn unload_bitstream(&self) -> bool;
+    fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError>;
 }
 
 pub trait OverlayHandler {
-    #[allow(dead_code)]
-    fn apply_devicetree(&self) -> bool;
-    #[allow(dead_code)]
-    fn unapply_devicetree(&self) -> bool;
+    fn prepare_for_load(&mut self) -> Result<(), FpgadError>;
+    fn apply_overlay(&self) -> Result<(), FpgadError>;
+    fn remove_overlay(&mut self) -> Result<(), FpgadError>;
+    fn get_required_flags(&self) -> Result<isize, FpgadError>;
+    fn status(&self) -> Result<String, FpgadError>;
 }
 
 pub trait Platform {
@@ -68,5 +72,8 @@ pub trait Platform {
     fn name(&self) -> &str;
     fn fpga(&mut self, name: &str) -> &impl Fpga;
     #[allow(dead_code)]
-    fn overlay_handler(&self) -> &impl OverlayHandler;
+    fn overlay_handler(
+        &mut self,
+        overlay_source_path: &Path,
+    ) -> &impl OverlayHandler;
 }
