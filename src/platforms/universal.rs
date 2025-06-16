@@ -10,10 +10,14 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::{error::FpgadError, system_io::fs_read};
+use crate::error::FpgadError;
+use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use log::trace;
 
-use super::platform::{Fpga, OverlayHandler, Platform};
+use crate::error::FpgadError::ArgumentError;
+use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
+use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
+use std::path::Path;
 
 #[derive(Debug)]
 pub struct UniversalPlatform {
@@ -24,13 +28,60 @@ pub struct UniversalPlatform {
 
 impl UniversalPlatform {
     /// Creates a new [`UniversalPlatform`].
-    pub(crate) fn new() -> Self {
-        trace!("creating new UniversalPlatform");
+    pub fn new() -> Self {
+        trace!("creating new universal_platform");
         UniversalPlatform {
             name: "Universal",
             fpga: None,
             overlay_handler: None,
         }
+    }
+
+    pub(crate) fn load_package(
+        &mut self,
+        bitstream_path: &Path,
+        overlay_source_path: &Path,
+    ) -> Result<(), FpgadError> {
+        println!(
+            "Attempting to load {:?}, using overlayfs with {:?}",
+            bitstream_path, overlay_source_path
+        );
+        let overlay_handler = self
+            .overlay_handler
+            .get_or_insert_with(|| UniversalOverlayHandler::new(overlay_source_path));
+
+        let fpga = self
+            .fpga
+            .as_mut()
+            .ok_or(FpgadError::Internal("FPGA not initialized".into()))?;
+
+        // TODO: maybe this should be inside fpga?
+        if !bitstream_path.exists() | bitstream_path.is_dir() {
+            return Err(ArgumentError(format!(
+                "Bitstream file '{:?}' has invalid path. Please ensure the path exists.",
+                bitstream_path
+            )));
+        }
+
+        trace!("overlay handler: {:?}", overlay_handler);
+        trace!("FPGA: {:?}", fpga);
+
+        if let Ok(flags) = overlay_handler.get_required_flags() {
+            fpga.set_flags(flags)?;
+        }
+
+        overlay_handler.prepare_for_load()?;
+        overlay_handler.apply_overlay()?;
+
+        fpga.assert_state()?;
+        println!("Done loading {:?}.", bitstream_path);
+        Ok(())
+    }
+
+    /// Removes the overlay, undoing any extra steps, and then deletes the overlay_handler
+    pub(crate) fn unload_package(&mut self) -> Result<(), FpgadError> {
+        self.overlay_handler.take();
+        Ok(())
     }
 }
 
@@ -39,7 +90,7 @@ impl Platform for UniversalPlatform {
     fn name(&self) -> &str {
         self.name
     }
-
+    /// Initialises or get the fpga object called `name`
     fn fpga(&mut self, name: &str) -> &impl Fpga {
         assert!(
             !name.is_empty() && name.is_ascii(),
@@ -48,58 +99,17 @@ impl Platform for UniversalPlatform {
 
         // Create FPGA if not same or present
         if self.fpga.as_ref().is_none_or(|f| f.name != name) {
-            self.fpga = Some(UniversalFPGA::new(name.to_string()));
+            self.fpga = Some(UniversalFPGA::new(name));
         }
         self.fpga.as_ref().unwrap()
     }
 
-    fn overlay_handler(&self) -> &impl OverlayHandler {
-        self.overlay_handler.as_ref().unwrap()
-    }
-}
-
-#[derive(Debug)]
-pub struct UniversalOverlayHandler {}
-
-impl OverlayHandler for UniversalOverlayHandler {
-    fn apply_devicetree(&self) -> bool {
-        todo!()
-    }
-
-    fn unapply_devicetree(&self) -> bool {
-        todo!()
-    }
-}
-
-#[derive(Debug)]
-pub struct UniversalFPGA {
-    name: String,
-}
-
-impl UniversalFPGA {
-    pub(crate) fn new(name: String) -> Self {
-        UniversalFPGA { name }
-    }
-}
-
-impl Fpga for UniversalFPGA {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn state(&self) -> Result<String, FpgadError> {
-        trace!("reading /sys/class/fpga_manager/{}/state", self.name);
-        match fs_read(&format!("/sys/class/fpga_manager/{}/state", self.name)) {
-            Ok(val) => Ok(val),
-            Err(e) => Err(FpgadError::Io(e)),
+    /// Gets the `overlay_handler` associated with this device.
+    fn overlay_handler(&mut self, overlay_source_path: &Path) -> &impl OverlayHandler {
+        // Create FPGA if not same or present
+        if self.overlay_handler.as_ref().is_none() {
+            self.overlay_handler = Some(UniversalOverlayHandler::new(overlay_source_path));
         }
-    }
-
-    fn load_bitstream(&self) -> bool {
-        todo!()
-    }
-
-    fn unload_bitstream(&self) -> bool {
-        todo!()
+        self.overlay_handler.as_ref().unwrap()
     }
 }
