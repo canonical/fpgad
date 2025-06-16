@@ -16,6 +16,16 @@ repos:
           - clippy
           - --all-targets
           - --all-features
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: Rust Format
+        language: rust
+        entry: cargo
+        pass_filenames: false
+        args:
+          - fmt
+          - --check
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
     rev: v0.11.3
