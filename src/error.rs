@@ -12,6 +12,16 @@
 
 #[derive(Debug, thiserror::Error)]
 pub enum FpgadError {
-    #[error("an IO error occured: {0}")]
-    Io(#[from] std::io::Error),
+    #[error("Failed to read flags: {0}")]
+    FlagError(String),
+    #[error("Overlay was not applied: {0}")]
+    OverlayStatusError(String),
+    #[error("FPGA state is not as expected: {0}")]
+    FPGAStateError(String),
+    #[error("ArgumentError: {0}")]
+    ArgumentError(String),
+    #[error("An IO error occurred: {0}")]
+    IO(String),
+    #[error("An Internal error occurred: {0}")]
+    Internal(String),
 }
