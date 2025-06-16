@@ -10,17 +10,22 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use std::{error::Error, future::pending};
+use std::error::Error;
+use std::future::pending;
+use std::path::Path;
 use zbus::connection;
 mod error;
+use log::trace;
 
 use platforms::{
     platform::{Fpga, Platform, list_fpga_managers},
-    universal::UniversalPlatform,
+    universal,
 };
 
 mod comm;
 use comm::dbus::interfaces::Greeter;
+use universal::UniversalPlatform;
+
 mod platforms;
 mod system_io;
 
@@ -37,19 +42,54 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await?;
 
     // client will send a request to load bitstream to fpga
-    // if no fpga name specified fpgad will try all fpgas available under /sys/class/fpga_manager/
-    // if no platform specified fpgad will use UniversalPlatform for each fpga
+    // if no fpga name specified fpgad will try all FPGAs available under /sys/class/fpga_manager/
+    // if no platform specified fpgad will use universal_platform for each fpga
     // available, until it successfully loads the bitstream
     //
     for fpga in list_fpga_managers().iter() {
         let mut universal_platform = UniversalPlatform::new();
-        println!("{}", universal_platform.fpga(fpga).name());
+        println!("Detected {}", universal_platform.fpga(fpga).name());
     }
+    trace!("FPGA managers scraped.");
     let mut universal_platform = UniversalPlatform::new();
-    println!("{}", universal_platform.fpga("fpga0").name());
-    match universal_platform.fpga("fpga0").state() {
-        Err(e) => panic!("{}", e),
-        Ok(_) => println!("Everything seems ok"),
+    trace!("Initializing {}", universal_platform.fpga("fpga0").name());
+    let fpga = universal_platform.fpga("fpga0");
+    match fpga.get_state() {
+        Err(e) => eprintln!("Initialising FPGA failed with error: '{}'", e),
+        Ok(val) => println!(
+            "{} initialised with initial state of '{}' at time of detection.",
+            fpga.name(),
+            val
+        ),
+    };
+
+    let bitstream_path = Path::new("/lib/firmware/k26-starter-kits.bit.bin");
+    let dtbo_path = Path::new("/lib/firmware/k26-starter-kits.dtbo");
+    let load_result = universal_platform.load_package(bitstream_path, dtbo_path);
+
+    match &load_result {
+        Err(e) => {
+            eprintln!(
+                "Failed to load bitstream using files: '{:?}' for bitstream and '{:?}' for dtbo: '{}'",
+                bitstream_path, dtbo_path, e
+            );
+        }
+        Ok(_) => println!("Bitstream appears to be successfully loaded."),
+    };
+
+    if load_result.is_ok() {
+        println!("Waiting 5s.");
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        println!("The wait is over prepare to be unloaded!");
+        if universal_platform.unload_package().is_err() {
+            eprintln!("Failed to unload bitstream!");
+        } else {
+            println!(
+                "No errors encountered when unloading bitstream.\nWaiting for dbus messages. (ctrl+C to quit)."
+            );
+        }
+    } else {
+        eprintln!("Failed to load bitstream!\nWaiting for dbus messages. (ctrl+C to quit).");
     }
 
     // Do other things or go to wait forever
