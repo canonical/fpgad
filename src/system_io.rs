@@ -12,6 +12,7 @@
 
 use crate::error::FpgadError;
 use log::trace;
+use std::fs::{create_dir_all, remove_dir};
 use std::io::{ErrorKind, Write};
 use std::path::Path;
 use std::{fs::OpenOptions, io::Read};
@@ -66,6 +67,54 @@ pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Resul
             ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
                 "Read permission denied for file {:?}: {}",
                 file_path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
+    }
+}
+
+pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
+    trace!("Attempting to Create '{:?}'", path);
+    let result = create_dir_all(path);
+    match result {
+        Ok(_) => {
+            trace!("Directory created at {:?}.", path);
+            Ok(())
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied when creating directory {:?}: {}",
+                path, e
+            ))),
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "Attempted to create a directory but the base path could not be found {:?}: {}",
+                path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
+    }
+}
+
+pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
+    trace!("Attempting to delete '{:?}'", path);
+    let result = remove_dir(path);
+    match result {
+        Ok(_) => {
+            trace!("Deleted {:?}", path);
+            Ok(())
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied when deleting directory {:?}: {}",
+                path, e
+            ))),
+            ErrorKind::DirectoryNotEmpty => Err(FpgadError::IO(format!(
+                "Attempted to delete a directory it is not empty {:?}: {}",
+                path, e
+            ))),
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "Attempted to delete a directory that does not exist {:?}: {}",
+                path, e
             ))),
             _ => Err(FpgadError::IO(format!("{}", e))),
         },
