@@ -10,11 +10,14 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::error::FpgadError;
+use log::trace;
+use std::io::{ErrorKind, Write};
+use std::path::Path;
 use std::{fs::OpenOptions, io::Read};
 
-use std::io::Write as _;
-
-pub fn fs_read(file_path: &str) -> Result<String, std::io::Error> {
+pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
+    trace!("Attempting to read from {:?}", file_path);
     let mut buf: String = String::new();
     let result = OpenOptions::new()
         .read(true)
@@ -24,20 +27,47 @@ pub fn fs_read(file_path: &str) -> Result<String, std::io::Error> {
     // do checks on the data we got if necessary
     match result {
         Ok(_) => Ok(buf),
-        Err(e) => Err(e),
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "File {:?} not found: {}",
+                file_path, e
+            ))),
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied for file {:?}: {}",
+                file_path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
     }
 }
 
-#[allow(dead_code)]
-pub fn fs_write(
-    file_path: &str,
-    create: bool,
-    value: impl AsRef<str>,
-) -> Result<(), std::io::Error> {
-    OpenOptions::new()
+pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Result<(), FpgadError> {
+    trace!(
+        "Attempting to write {:?} to {:?}",
+        value.as_ref(),
+        file_path
+    );
+    let result = OpenOptions::new()
         .create(create)
         .read(false)
         .write(true)
         .open(file_path)
-        .and_then(|mut f| write!(f, "{}", value.as_ref()))
+        .and_then(|mut f| write!(f, "{}", value.as_ref()));
+    match result {
+        Ok(_) => {
+            trace!("Write done.");
+            Ok(())
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+                "File {:?} not found: {}",
+                file_path, e
+            ))),
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+                "Read permission denied for file {:?}: {}",
+                file_path, e
+            ))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
+        },
+    }
 }
