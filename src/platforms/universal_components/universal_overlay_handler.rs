@@ -32,6 +32,13 @@ pub struct UniversalOverlayHandler {
     rollback_steps: OverlayRollbackSteps,
 }
 
+fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
+    path.file_name()
+        .ok_or_else(|| FpgadError::Internal(format!("No filename in path: {:?}", path)))?
+        .to_str()
+        .ok_or_else(|| FpgadError::Internal(format!("Filename not UTF-8: {:?}", path)))
+}
+
 impl UniversalOverlayHandler {
     fn get_vfs_status(&self) -> Result<String, FpgadError> {
         let status_path = self.overlay_fs_path.join("status");
@@ -52,12 +59,7 @@ impl UniversalOverlayHandler {
     /// be empty. Therefore, this checks both match what is expected.
     fn vfs_check_applied(&self) -> Result<(), FpgadError> {
         let path_contents = self.get_vfs_path()?;
-        let dtbo_file_name = self
-            .overlay_source_path
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap();
+        let dtbo_file_name = extract_filename(&self.overlay_source_path)?;
         match path_contents.contains(dtbo_file_name) {
             true => {
                 println!("overlay path contents is valid: '{}'", path_contents)
@@ -146,12 +148,7 @@ impl OverlayHandler for UniversalOverlayHandler {
     /// There are multiple ways to trigger a firmware load so this is not valid if the
     /// dtbo doesn't contain a firmware to load.
     fn apply_overlay(&self) -> Result<(), FpgadError> {
-        let dtbo_file_name = self
-            .overlay_source_path
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap();
+        let dtbo_file_name = extract_filename(&self.overlay_source_path)?;
         let overlay_path_file = self.overlay_fs_path.join("path");
         match fs_write(&overlay_path_file, false, dtbo_file_name) {
             Ok(_) => {

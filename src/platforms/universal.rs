@@ -55,7 +55,6 @@ impl UniversalPlatform {
             .as_mut()
             .ok_or(FpgadError::Internal("FPGA not initialized".into()))?;
 
-        // TODO: maybe this should be inside fpga?
         if !bitstream_path.exists() | bitstream_path.is_dir() {
             return Err(ArgumentError(format!(
                 "Bitstream file '{:?}' has invalid path. Please ensure the path exists.",
