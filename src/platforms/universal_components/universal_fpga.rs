@@ -28,18 +28,11 @@ impl UniversalFPGA {
             name: name.to_owned(),
         }
     }
-}
-
-impl Fpga for UniversalFPGA {
-    /// Get the name of this FPGA device e.g. fpga0.
-    fn name(&self) -> &str {
-        &self.name
-    }
 
     /// Reads the current fpga state file.
     /// Only succeeds if the state is 'operating'.
     /// Should only be used after bitstream loading.
-    fn assert_state(&self) -> Result<(), FpgadError> {
+    pub(crate) fn assert_state(&self) -> Result<(), FpgadError> {
         match self.get_state() {
             Ok(state) => match state.to_string().as_str() {
                 "operating" => {
@@ -53,6 +46,13 @@ impl Fpga for UniversalFPGA {
             },
             Err(e) => Err(e),
         }
+    }
+}
+
+impl Fpga for UniversalFPGA {
+    /// Get the name of this FPGA device e.g. fpga0.
+    fn name(&self) -> &str {
+        &self.name
     }
 
     /// Reads and returns contents of `/sys/class/fpga_manager/self.name/state` or FpgadError::IO.

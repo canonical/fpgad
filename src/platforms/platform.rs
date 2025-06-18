@@ -50,7 +50,6 @@ pub fn list_fpga_managers() -> Vec<String> {
 ///
 pub trait Fpga {
     fn name(&self) -> &str;
-    fn assert_state(&self) -> Result<(), FpgadError>;
     fn get_state(&self) -> Result<String, FpgadError>;
     fn get_flags(&self) -> Result<isize, FpgadError>;
     fn set_flags(&self, flags: isize) -> Result<(), FpgadError>;
