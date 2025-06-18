@@ -104,7 +104,7 @@ impl Platform for UniversalPlatform {
 
     /// Gets the `overlay_handler` associated with this device.
     fn overlay_handler(&mut self, overlay_source_path: &Path) -> &impl OverlayHandler {
-        // Create FPGA if not same or present
+        // Create overlay handler if not same or present
         if self.overlay_handler.as_ref().is_none() {
             self.overlay_handler = Some(UniversalOverlayHandler::new(overlay_source_path));
         }
