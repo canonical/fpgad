@@ -17,19 +17,12 @@ use crate::system_io::{fs_create_dir, fs_read, fs_remove_dir, fs_write};
 use log::{error, info, trace};
 use std::path::{Path, PathBuf};
 
-/// Store the steps that need to be undone on delete/failure.
-#[derive(Debug)]
-struct OverlayRollbackSteps {
-    delete_configfs_dir: bool,
-}
 /// Stores the three relevant paths: source files for dtbo/bitstream and the overlayfs dir to which
 /// the dtbo path was written.
-/// Also stores the steps that need to be undone
 #[derive(Debug)]
 pub struct UniversalOverlayHandler {
     overlay_source_path: PathBuf,
     overlay_fs_path: PathBuf,
-    rollback_steps: OverlayRollbackSteps,
 }
 
 fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
@@ -128,8 +121,6 @@ impl OverlayHandler for UniversalOverlayHandler {
         fs_create_dir(&self.overlay_fs_path)?;
         trace!("Created dir {:?}", self.overlay_fs_path);
 
-        self.rollback_steps.delete_configfs_dir = true;
-
         Ok(())
     }
 
@@ -158,12 +149,7 @@ impl OverlayHandler for UniversalOverlayHandler {
 
     /// Attempts to delete overlay_fs_path
     fn remove_overlay(&mut self) -> Result<(), FpgadError> {
-        if self.rollback_steps.delete_configfs_dir {
-            let removed = fs_remove_dir(&self.overlay_fs_path);
-            self.rollback_steps.delete_configfs_dir = false;
-            removed?
-        }
-        Ok(())
+        Ok(fs_remove_dir(&self.overlay_fs_path)?)
     }
 
     /// WARNING NOT IMPLEMENTED:
@@ -187,9 +173,6 @@ impl UniversalOverlayHandler {
         UniversalOverlayHandler {
             overlay_source_path: overlay_source_path.to_owned(),
             overlay_fs_path: overlay_fs.to_owned(),
-            rollback_steps: OverlayRollbackSteps {
-                delete_configfs_dir: false,
-            },
         }
     }
 }
