@@ -39,7 +39,7 @@ impl UniversalFPGA {
                     info!("{}'s state is 'operating'", self.name);
                     Ok(())
                 }
-                _ => Err(FpgadError::FPGAStateError(format!(
+                _ => Err(FpgadError::FPGAState(format!(
                     "After loading bitstream, {}'s state should be should be 'operating' but it is '{}'",
                     self.name, state
                 ))),
@@ -74,7 +74,7 @@ impl Fpga for UniversalFPGA {
         let contents = fs_read(&PathBuf::from(&path))?;
         let trimmed = contents.trim().trim_start_matches("0x");
         isize::from_str_radix(trimmed, 16)
-            .map_err(|_| FpgadError::FlagError("Parsing flags failed".into()))
+            .map_err(|_| FpgadError::Flag("Parsing flags failed".into()))
     }
 
     /// Sets the flags in the sysfs flags file (e.g. sys/class/fpga_manager/fpga0/flags)
@@ -110,11 +110,11 @@ impl Fpga for UniversalFPGA {
 
         match self.get_flags() {
             Ok(returned_flags) if returned_flags == flags => Ok(()),
-            Ok(returned_flags) => Err(FpgadError::FlagError(format!(
+            Ok(returned_flags) => Err(FpgadError::Flag(format!(
                 "Setting {}'s flags to '{}' failed. Resulting flag was '{}'",
                 self.name, flags, returned_flags
             ))),
-            Err(e) => Err(FpgadError::FlagError(format!(
+            Err(e) => Err(FpgadError::Flag(format!(
                 "Failed to read {}'s  flags after setting to '{}': {}",
                 self.name, flags, e
             ))),

@@ -13,15 +13,15 @@
 #[derive(Debug, thiserror::Error)]
 pub enum FpgadError {
     #[error("Failed to read flags: {0}")]
-    FlagError(String),
+    Flag(String),
     #[error("Overlay was not applied: {0}")]
-    OverlayStatusError(String),
+    OverlayStatus(String),
     #[error("FPGA state is not as expected: {0}")]
-    FPGAStateError(String),
+    FPGAState(String),
     #[error("ArgumentError: {0}")]
-    ArgumentError(String),
+    Argument(String),
     #[error("An IO error occurred: {0}")]
-    IOError(String),
+    IO(String),
     #[error("An Internal error occurred: {0}")]
-    InternalError(String),
+    Internal(String),
 }
