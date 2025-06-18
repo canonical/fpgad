@@ -13,7 +13,7 @@
 use crate::error::FpgadError;
 use crate::platforms::platform::Fpga;
 use crate::system_io::{fs_read, fs_write};
-use log::trace;
+use log::{error, info, trace};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -43,7 +43,7 @@ impl Fpga for UniversalFPGA {
         match self.get_state() {
             Ok(state) => match state.to_string().as_str() {
                 "operating" => {
-                    println!("{}'s state is 'operating'", self.name);
+                    info!("{}'s state is 'operating'", self.name);
                     Ok(())
                 }
                 _ => Err(FpgadError::FPGAStateError(format!(
@@ -91,7 +91,7 @@ impl Fpga for UniversalFPGA {
         ) {
             Ok(_) => {}
             Err(e) => {
-                eprintln!("Failed to read state.");
+                error!("Failed to read state.");
                 return Err(e);
             }
         };
@@ -99,10 +99,10 @@ impl Fpga for UniversalFPGA {
         match self.get_state() {
             Ok(state) => match state.as_str() {
                 "operating" => {
-                    println!("{}'s state is 'operating' after writing flags.", self.name)
+                    info!("{}'s state is 'operating' after writing flags.", self.name)
                 }
                 _ => {
-                    eprintln!("{}'s state is '{}' after writing flags.", self.name, state);
+                    error!("{}'s state is '{}' after writing flags.", self.name, state);
                 }
             },
             Err(e) => return Err(e),

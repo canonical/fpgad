@@ -14,7 +14,7 @@ use crate::error::FpgadError;
 use crate::error::FpgadError::{ArgumentError, OverlayStatusError};
 use crate::platforms::platform::OverlayHandler;
 use crate::system_io::{fs_create_dir, fs_read, fs_remove_dir, fs_write};
-use log::trace;
+use log::{error, info, trace};
 use std::path::{Path, PathBuf};
 
 /// Store the steps that need to be undone on delete/failure.
@@ -62,7 +62,7 @@ impl UniversalOverlayHandler {
         let dtbo_file_name = extract_filename(&self.overlay_source_path)?;
         match path_contents.contains(dtbo_file_name) {
             true => {
-                println!("overlay path contents is valid: '{}'", path_contents)
+                info!("overlay path contents is valid: '{}'", path_contents)
             }
             false => {
                 return Err(OverlayStatusError(format!(
@@ -75,7 +75,7 @@ impl UniversalOverlayHandler {
         let status = self.get_status()?;
         match status.contains("applied") {
             true => {
-                println!("overlay status is 'applied'")
+                info!("overlay status is 'applied'")
             }
             false => {
                 return Err(OverlayStatusError(format!(
@@ -95,7 +95,7 @@ impl Drop for UniversalOverlayHandler {
         trace!("Dropping UniversalOverlayHandler!");
         // check for necessary is inside the function.
         if self.remove_overlay().is_err() {
-            eprintln!("Failed to remove overlay")
+            error!("Failed to remove overlay")
         }
     }
 }
