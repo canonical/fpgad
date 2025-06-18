@@ -4,7 +4,7 @@ root:
 workflows:
   - changed-files:
       - any-glob-to-any-file: .github/workflows/**
-app:
+daemon:
   - changed-files:
       - any-glob-to-any-file: src/*
 comm:
@@ -19,3 +19,6 @@ platforms:
 softeners:
   - changed-files:
       - any-glob-to-any-file: src/softeners/**
+cli:
+  - changed-files:
+      - any-glob-to-any-file: cli/**

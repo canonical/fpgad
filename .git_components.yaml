@@ -22,3 +22,6 @@ softeners:
 workflows:
   owners:
     - talhaHavadar
+cli:
+  owners:
+    - talhaHavadar
