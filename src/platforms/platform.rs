@@ -60,14 +60,17 @@ pub trait Fpga {
 pub trait OverlayHandler {
     fn apply_overlay(&self) -> Result<(), FpgadError>;
     fn remove_overlay(&self) -> Result<(), FpgadError>;
+    #[allow(dead_code)]
     fn get_required_flags(&self) -> Result<isize, FpgadError>;
     fn get_status(&self) -> Result<String, FpgadError>;
+
+    fn set_source_path(&mut self, source_path: &Path) -> Result<(), FpgadError>;
+    fn set_overlay_fs_path(&mut self, overlay_handle: &str);
 }
 
 pub trait Platform {
     #[allow(dead_code)]
     fn name(&self) -> &str;
     fn fpga(&mut self, name: &str) -> &impl Fpga;
-    #[allow(dead_code)]
-    fn overlay_handler(&mut self, overlay_source_path: &Path) -> &impl OverlayHandler;
+    fn overlay_handler(&mut self) -> &mut dyn OverlayHandler;
 }
