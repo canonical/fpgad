@@ -48,12 +48,12 @@ pub(crate) fn load_package(
         .overlay_handler()
         .set_source_path(overlay_source_path)?;
 
-    Ok(platform.overlay_handler().apply_overlay()?)
+    platform.overlay_handler().apply_overlay()
 }
 
 /// Removes the overlay, undoing any extra steps, and then deletes the overlay_handler
 fn unload_package(platform: &mut impl Platform) -> Result<(), FpgadError> {
-    Ok(platform.overlay_handler().remove_overlay()?)
+    platform.overlay_handler().remove_overlay()
 }
 
 #[tokio::main]
