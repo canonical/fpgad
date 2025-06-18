@@ -33,6 +33,47 @@ fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
 }
 
 impl UniversalOverlayHandler {
+    /// Checks inputs are real files (doesn't yet check they are valid)
+    /// Checks for `overlay_fs_path`.
+    /// In future this may change the firmware location through
+    /// `/sys/module/firmware_class/parameters/`.
+    fn prepare_for_load(&self) -> Result<(), FpgadError> {
+        if !self.overlay_source_path.exists() | self.overlay_source_path.is_dir() {
+            return Err(ArgumentError(format!(
+                "Overlay file '{:?}' has invalid path.",
+                self.overlay_source_path
+            )));
+        }
+
+        if self.overlay_fs_path.exists() {
+            fs_remove_dir(&self.overlay_fs_path)?
+        }
+
+        trace!(
+            "Checking configfs path exists at {:?}",
+            self.overlay_fs_path
+        );
+        if let Some(parent_path) = self.overlay_fs_path.parent() {
+            if !parent_path.exists() {
+                return Err(ArgumentError(format!(
+                    "The path {:?} doesn't seem to exist.",
+                    parent_path
+                )));
+            }
+        } else {
+            return Err(ArgumentError(format!(
+                "The path {:?} has no parent directory.",
+                self.overlay_fs_path
+            )));
+        }
+
+        trace!("Attempting to create '{:?}'", self.overlay_fs_path);
+        fs_create_dir(&self.overlay_fs_path)?;
+        trace!("Created dir {:?}", self.overlay_fs_path);
+
+        Ok(())
+    }
+
     fn get_vfs_status(&self) -> Result<String, FpgadError> {
         let status_path = self.overlay_fs_path.join("status");
 
@@ -83,51 +124,11 @@ impl UniversalOverlayHandler {
 }
 
 impl OverlayHandler for UniversalOverlayHandler {
-    /// Checks inputs are real files (doesn't yet check they are valid)
-    /// Checks for `overlay_fs_path`.
-    /// In future this may change the firmware location through
-    /// `/sys/module/firmware_class/parameters/`.
-    fn prepare_for_load(&mut self) -> Result<(), FpgadError> {
-        if !self.overlay_source_path.exists() | self.overlay_source_path.is_dir() {
-            return Err(ArgumentError(format!(
-                "Overlay file '{:?}' has invalid path.",
-                self.overlay_source_path
-            )));
-        }
-
-        if self.overlay_fs_path.exists() {
-            fs_remove_dir(&self.overlay_fs_path)?
-        }
-
-        trace!(
-            "Checking configfs path exists at {:?}",
-            self.overlay_fs_path
-        );
-        if let Some(parent_path) = self.overlay_fs_path.parent() {
-            if !parent_path.exists() {
-                return Err(ArgumentError(format!(
-                    "The path {:?} doesn't seem to exist.",
-                    parent_path
-                )));
-            }
-        } else {
-            return Err(ArgumentError(format!(
-                "The path {:?} has no parent directory.",
-                self.overlay_fs_path
-            )));
-        }
-
-        trace!("Attempting to create '{:?}'", self.overlay_fs_path);
-        fs_create_dir(&self.overlay_fs_path)?;
-        trace!("Created dir {:?}", self.overlay_fs_path);
-
-        Ok(())
-    }
-
     /// Attempts to apply a device tree overlay which should trigger a firmware load.
     /// There are multiple ways to trigger a firmware load so this is not valid if the
     /// dtbo doesn't contain a firmware to load.
     fn apply_overlay(&self) -> Result<(), FpgadError> {
+        self.prepare_for_load()?;
         let dtbo_file_name = extract_filename(&self.overlay_source_path)?;
         let overlay_path_file = self.overlay_fs_path.join("path");
         match fs_write(&overlay_path_file, false, dtbo_file_name) {
@@ -148,7 +149,7 @@ impl OverlayHandler for UniversalOverlayHandler {
     }
 
     /// Attempts to delete overlay_fs_path
-    fn remove_overlay(&mut self) -> Result<(), FpgadError> {
+    fn remove_overlay(&self) -> Result<(), FpgadError> {
         Ok(fs_remove_dir(&self.overlay_fs_path)?)
     }
 
