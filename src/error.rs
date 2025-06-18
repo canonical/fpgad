@@ -21,7 +21,7 @@ pub enum FpgadError {
     #[error("ArgumentError: {0}")]
     ArgumentError(String),
     #[error("An IO error occurred: {0}")]
-    IO(String),
+    IOError(String),
     #[error("An Internal error occurred: {0}")]
-    Internal(String),
+    InternalError(String),
 }

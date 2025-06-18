@@ -53,7 +53,7 @@ impl UniversalPlatform {
         let fpga = self
             .fpga
             .as_mut()
-            .ok_or(FpgadError::Internal("FPGA not initialized".into()))?;
+            .ok_or(FpgadError::InternalError("FPGA not initialized".into()))?;
 
         if !bitstream_path.exists() | bitstream_path.is_dir() {
             return Err(ArgumentError(format!(
