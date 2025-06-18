@@ -12,7 +12,7 @@
 
 use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
-use log::trace;
+use log::{info, trace};
 
 use crate::error::FpgadError::ArgumentError;
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
@@ -42,7 +42,7 @@ impl UniversalPlatform {
         bitstream_path: &Path,
         overlay_source_path: &Path,
     ) -> Result<(), FpgadError> {
-        println!(
+        info!(
             "Attempting to load {:?}, using overlayfs with {:?}",
             bitstream_path, overlay_source_path
         );
@@ -73,7 +73,7 @@ impl UniversalPlatform {
         overlay_handler.apply_overlay()?;
 
         fpga.assert_state()?;
-        println!("Done loading {:?}.", bitstream_path);
+        info!("Done loading {:?}.", bitstream_path);
         Ok(())
     }
 

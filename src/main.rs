@@ -15,10 +15,10 @@ use std::future::pending;
 use std::path::Path;
 use zbus::connection;
 mod error;
-use log::trace;
+use log::{error, info, trace};
 
 use platforms::{
-    platform::{Fpga, Platform, list_fpga_managers},
+    platform::{list_fpga_managers, Fpga, Platform},
     universal,
 };
 
@@ -48,15 +48,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //
     for fpga in list_fpga_managers().iter() {
         let mut universal_platform = UniversalPlatform::new();
-        println!("Detected {}", universal_platform.fpga(fpga).name());
+        info!("Detected {}", universal_platform.fpga(fpga).name());
     }
     trace!("FPGA managers scraped.");
     let mut universal_platform = UniversalPlatform::new();
     trace!("Initializing {}", universal_platform.fpga("fpga0").name());
     let fpga = universal_platform.fpga("fpga0");
     match fpga.get_state() {
-        Err(e) => eprintln!("Initialising FPGA failed with error: '{}'", e),
-        Ok(val) => println!(
+        Err(e) => error!("Initialising FPGA failed with error: '{}'", e),
+        Ok(val) => info!(
             "{} initialised with initial state of '{}' at time of detection.",
             fpga.name(),
             val
@@ -69,27 +69,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     match &load_result {
         Err(e) => {
-            eprintln!(
+            error!(
                 "Failed to load bitstream using files: '{:?}' for bitstream and '{:?}' for dtbo: '{}'",
                 bitstream_path, dtbo_path, e
             );
         }
-        Ok(_) => println!("Bitstream appears to be successfully loaded."),
+        Ok(_) => info!("Bitstream appears to be successfully loaded."),
     };
 
     if load_result.is_ok() {
-        println!("Waiting 5s.");
+        info!("Waiting 5s.");
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-        println!("The wait is over prepare to be unloaded!");
+        info!("The wait is over prepare to be unloaded!");
         if universal_platform.unload_package().is_err() {
-            eprintln!("Failed to unload bitstream!");
+            error!("Failed to unload bitstream!");
         } else {
-            println!(
+            info!(
                 "No errors encountered when unloading bitstream.\nWaiting for dbus messages. (ctrl+C to quit)."
             );
         }
     } else {
-        eprintln!("Failed to load bitstream!\nWaiting for dbus messages. (ctrl+C to quit).");
+        error!("Failed to load bitstream!\nWaiting for dbus messages. (ctrl+C to quit).");
     }
 
     // Do other things or go to wait forever
