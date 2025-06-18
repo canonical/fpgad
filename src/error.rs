@@ -10,6 +10,8 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use std::path::PathBuf;
+
 #[derive(Debug, thiserror::Error)]
 pub enum FpgadError {
     #[error("Failed to read flags: {0}")]
@@ -20,8 +22,18 @@ pub enum FpgadError {
     FPGAState(String),
     #[error("ArgumentError: {0}")]
     Argument(String),
-    #[error("An IO error occurred: {0}")]
-    IO(String),
+    #[error("FpgadError::IORead: An IO error occurred when reading from {file:?}: {e}")]
+    IORead { file: PathBuf, e: std::io::Error },
+    #[error("An IO error occurred when writing {data:?} to {file:?}: {e}")]
+    IOWrite {
+        data: String,
+        file: PathBuf,
+        e: std::io::Error,
+    },
+    #[error("An IO error occurred when creating {file:?}: {e}")]
+    IOCreate { file: PathBuf, e: std::io::Error },
+    #[error("An IO error occurred when deleting {file:?}: {e}")]
+    IODelete { file: PathBuf, e: std::io::Error },
     #[error("An Internal error occurred: {0}")]
     Internal(String),
 }

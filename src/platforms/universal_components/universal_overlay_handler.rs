@@ -185,12 +185,7 @@ impl OverlayHandler for UniversalOverlayHandler {
                     dtbo_file_name, overlay_path_file
                 );
             }
-            Err(e) => {
-                return Err(FpgadError::IO(format!(
-                    "Failed to write overlay path '{}' to '{:?}' : '{}'",
-                    dtbo_file_name, overlay_path_file, e
-                )));
-            }
+            Err(e) => return Err(e),
         }
         self.vfs_check_applied()
     }
