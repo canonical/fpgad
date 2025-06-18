@@ -13,7 +13,7 @@
 use crate::error::FpgadError;
 use crate::platforms::platform::OverlayHandler;
 use crate::system_io::{extract_filename, fs_create_dir, fs_read, fs_remove_dir, fs_write};
-use log::trace;
+use log::{info, trace};
 use std::path::{Path, PathBuf};
 
 /// Stores the three relevant paths: source files for dtbo/bitstream and the overlayfs dir to which
@@ -126,22 +126,19 @@ impl UniversalOverlayHandler {
             )))?;
         // TODO: these unwraps are unsafe.
         let dtbo_file_name = extract_filename(&source_path)?;
-        match path_contents.contains(dtbo_file_name) {
-            true => {
-                println!("overlay path contents is valid: '{}'", path_contents)
-            }
-            false => {
-                return Err(FpgadError::OverlayStatus(format!(
-                    "When trying to apply overlay '{}', the resulting vfs path contained '{}'",
-                    dtbo_file_name, path_contents
-                )));
-            }
+        if path_contents.contains(dtbo_file_name) {
+            info!("overlay path contents is valid: '{}'", path_contents);
+        } else {
+            return Err(FpgadError::OverlayStatus(format!(
+                "When trying to apply overlay '{}', the resulting vfs path contained '{}'",
+                dtbo_file_name, path_contents
+            )));
         }
 
         let status = self.get_status()?;
         match status.contains("applied") {
             true => {
-                println!("overlay status is 'applied'")
+                info!("overlay status is 'applied'")
             }
             false => {
                 return Err(FpgadError::OverlayStatus(format!(
