@@ -89,17 +89,6 @@ impl UniversalOverlayHandler {
     }
 }
 
-impl Drop for UniversalOverlayHandler {
-    /// Upon deletion of the overlay handler, it should undo any applications .e.g on failure.
-    fn drop(&mut self) {
-        trace!("Dropping UniversalOverlayHandler!");
-        // check for necessary is inside the function.
-        if self.remove_overlay().is_err() {
-            error!("Failed to remove overlay")
-        }
-    }
-}
-
 impl OverlayHandler for UniversalOverlayHandler {
     /// Checks inputs are real files (doesn't yet check they are valid)
     /// Checks for `overlay_fs_path`.
