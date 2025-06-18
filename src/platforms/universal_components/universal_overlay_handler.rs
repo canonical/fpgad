@@ -11,7 +11,6 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::error::FpgadError;
-use crate::error::FpgadError::{ArgumentError, InternalError, OverlayStatusError};
 use crate::platforms::platform::OverlayHandler;
 use crate::system_io::{extract_filename, fs_create_dir, fs_read, fs_remove_dir, fs_write};
 use log::trace;
@@ -34,20 +33,23 @@ impl UniversalOverlayHandler {
         let source_path = self
             .overlay_source_path
             .clone()
-            .ok_or(InternalError(format!(
+            .ok_or(FpgadError::Internal(format!(
                 "Attempting to get vfs application state failed because UniversalOverlayHandler is \
                 not initialised with an appropriate overlay source path: {:?}",
                 self
             )))?;
         if !source_path.exists() | source_path.is_dir() {
-            return Err(ArgumentError(format!(
+            return Err(FpgadError::Argument(format!(
                 "Overlay file '{:?}' has invalid path.",
                 self.overlay_source_path
             )));
         }
 
-        let overlay_fs_path = self.overlay_fs_path.clone().ok_or(InternalError(format!(
-            "Failed when preparing to load overlay because UniversalOverlayHandler is \
+        let overlay_fs_path = self
+            .overlay_fs_path
+            .clone()
+            .ok_or(FpgadError::Internal(format!(
+                "Failed when preparing to load overlay because UniversalOverlayHandler is \
                 not initialised with an appropriate overlayfs path: {:?}",
             self
         )))?;
@@ -58,13 +60,13 @@ impl UniversalOverlayHandler {
         trace!("Checking configfs path exists at {:?}", overlay_fs_path);
         if let Some(parent_path) = source_path.parent() {
             if !parent_path.exists() {
-                return Err(ArgumentError(format!(
+                return Err(FpgadError::Argument(format!(
                     "The path {:?} doesn't seem to exist.",
                     parent_path
                 )));
             }
         } else {
-            return Err(ArgumentError(format!(
+            return Err(FpgadError::Argument(format!(
                 "The path {:?} has no parent directory.",
                 overlay_fs_path
             )));
@@ -80,7 +82,7 @@ impl UniversalOverlayHandler {
     fn get_vfs_status(&self) -> Result<String, FpgadError> {
         let status_path = self.overlay_fs_path.clone().map_or_else(
             || {
-                Err(InternalError(format!(
+                Err(FpgadError::Internal(format!(
                     "Attempting to get vfs path failed because UniversalOverlayHandler is not \
                     initialised with an appropriate overlayfs directory: {:?}",
                     self
@@ -97,7 +99,7 @@ impl UniversalOverlayHandler {
     fn get_vfs_path(&self) -> Result<String, FpgadError> {
         let path_path = self.overlay_fs_path.clone().map_or_else(
             || {
-                Err(InternalError(format!(
+                Err(FpgadError::Internal(format!(
                     "Attempting to get vfs path failed because UniversalOverlayHandler is not \
                     initialised with an appropriate overlayfs directory: {:?}",
                     self
@@ -117,7 +119,7 @@ impl UniversalOverlayHandler {
         let source_path = self
             .overlay_source_path
             .clone()
-            .ok_or(InternalError(format!(
+            .ok_or(FpgadError::Internal(format!(
                 "Attempting to get vfs application state failed because UniversalOverlayHandler is \
                 not initialised with an appropriate overlay source path: {:?}",
                 self
@@ -129,7 +131,7 @@ impl UniversalOverlayHandler {
                 println!("overlay path contents is valid: '{}'", path_contents)
             }
             false => {
-                return Err(OverlayStatusError(format!(
+                return Err(FpgadError::OverlayStatus(format!(
                     "When trying to apply overlay '{}', the resulting vfs path contained '{}'",
                     dtbo_file_name, path_contents
                 )));
@@ -142,7 +144,7 @@ impl UniversalOverlayHandler {
                 println!("overlay status is 'applied'")
             }
             false => {
-                return Err(OverlayStatusError(format!(
+                return Err(FpgadError::OverlayStatus(format!(
                     "After writing to configfs, overlay status does not show 'applied'. Instead it is '{}'",
                     status
                 )));
@@ -163,14 +165,14 @@ impl OverlayHandler for UniversalOverlayHandler {
         let source_path = self
             .overlay_source_path
             .clone()
-            .ok_or(InternalError(format!(
+            .ok_or(FpgadError::Internal(format!(
                 "Attempting to apply overlay failed because UniversalOverlayHandler is \
                 not initialised with an appropriate overlay source path: {:?}",
                 self
             )))?;
         let overlay_path_file = self.overlay_fs_path.clone().map_or_else(
             || {
-                Err(InternalError(format!(
+                Err(FpgadError::Internal(format!(
                     "Attempting to apply overlay failed because UniversalOverlayHandler is not \
                     initialised with an appropriate overlayfs directory: {:?}",
                     self
@@ -187,7 +189,7 @@ impl OverlayHandler for UniversalOverlayHandler {
                 );
             }
             Err(e) => {
-                return Err(FpgadError::IOError(format!(
+                return Err(FpgadError::IO(format!(
                     "Failed to write overlay path '{}' to '{:?}' : '{}'",
                     dtbo_file_name, overlay_path_file, e
                 )));
@@ -198,8 +200,11 @@ impl OverlayHandler for UniversalOverlayHandler {
 
     /// Attempts to delete overlay_fs_path
     fn remove_overlay(&self) -> Result<(), FpgadError> {
-        let overlay_fs_path = self.overlay_fs_path.clone().ok_or(InternalError(format!(
-            "Attempting to remove overlay failed because UniversalOverlayHandler is \
+        let overlay_fs_path = self
+            .overlay_fs_path
+            .clone()
+            .ok_or(FpgadError::Internal(format!(
+                "Attempting to remove overlay failed because UniversalOverlayHandler is \
                 not initialised with an appropriate overlay fs path: {:?}",
             self
         )))?;

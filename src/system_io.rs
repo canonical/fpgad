@@ -11,7 +11,6 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::error::FpgadError;
-use crate::error::FpgadError::InternalError;
 use log::trace;
 use std::fs::{create_dir_all, remove_dir};
 use std::io::{ErrorKind, Write};
@@ -30,15 +29,15 @@ pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
     match result {
         Ok(_) => Ok(buf),
         Err(e) => match e.kind() {
-            ErrorKind::NotFound => Err(FpgadError::IOError(format!(
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
                 "File {:?} not found: {}",
                 file_path, e
             ))),
-            ErrorKind::PermissionDenied => Err(FpgadError::IOError(format!(
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
                 "Read permission denied for file {:?}: {}",
                 file_path, e
             ))),
-            _ => Err(FpgadError::IOError(format!("{}", e))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
         },
     }
 }
@@ -61,15 +60,15 @@ pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Resul
             Ok(())
         }
         Err(e) => match e.kind() {
-            ErrorKind::NotFound => Err(FpgadError::IOError(format!(
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
                 "File {:?} not found: {}",
                 file_path, e
             ))),
-            ErrorKind::PermissionDenied => Err(FpgadError::IOError(format!(
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
                 "Read permission denied for file {:?}: {}",
                 file_path, e
             ))),
-            _ => Err(FpgadError::IOError(format!("{}", e))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
         },
     }
 }
@@ -83,15 +82,15 @@ pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
             Ok(())
         }
         Err(e) => match e.kind() {
-            ErrorKind::PermissionDenied => Err(FpgadError::IOError(format!(
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
                 "Read permission denied when creating directory {:?}: {}",
                 path, e
             ))),
-            ErrorKind::NotFound => Err(FpgadError::IOError(format!(
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
                 "Attempted to create a directory but the base path could not be found {:?}: {}",
                 path, e
             ))),
-            _ => Err(FpgadError::IOError(format!("{}", e))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
         },
     }
 }
@@ -105,26 +104,26 @@ pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
             Ok(())
         }
         Err(e) => match e.kind() {
-            ErrorKind::PermissionDenied => Err(FpgadError::IOError(format!(
+            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
                 "Read permission denied when deleting directory {:?}: {}",
                 path, e
             ))),
-            ErrorKind::DirectoryNotEmpty => Err(FpgadError::IOError(format!(
+            ErrorKind::DirectoryNotEmpty => Err(FpgadError::IO(format!(
                 "Attempted to delete a directory it is not empty {:?}: {}",
                 path, e
             ))),
-            ErrorKind::NotFound => Err(FpgadError::IOError(format!(
+            ErrorKind::NotFound => Err(FpgadError::IO(format!(
                 "Attempted to delete a directory that does not exist {:?}: {}",
                 path, e
             ))),
-            _ => Err(FpgadError::IOError(format!("{}", e))),
+            _ => Err(FpgadError::IO(format!("{}", e))),
         },
     }
 }
 
 pub fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
     path.file_name()
-        .ok_or_else(|| InternalError(format!("No filename in path: {:?}", path)))?
+        .ok_or_else(|| FpgadError::Internal(format!("No filename in path: {:?}", path)))?
         .to_str()
-        .ok_or_else(|| InternalError(format!("Filename not UTF-8: {:?}", path)))
+        .ok_or_else(|| FpgadError::Internal(format!("Filename not UTF-8: {:?}", path)))
 }
