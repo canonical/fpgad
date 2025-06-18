@@ -51,8 +51,8 @@ impl UniversalOverlayHandler {
             .ok_or(FpgadError::Internal(format!(
                 "Failed when preparing to load overlay because UniversalOverlayHandler is \
                 not initialised with an appropriate overlayfs path: {:?}",
-            self
-        )))?;
+                self
+            )))?;
         if overlay_fs_path.exists() {
             fs_remove_dir(&overlay_fs_path)?
         }
@@ -206,11 +206,10 @@ impl OverlayHandler for UniversalOverlayHandler {
             .ok_or(FpgadError::Internal(format!(
                 "Attempting to remove overlay failed because UniversalOverlayHandler is \
                 not initialised with an appropriate overlay fs path: {:?}",
-            self
-        )))?;
+                self
+            )))?;
 
-        let removed = fs_remove_dir(&overlay_fs_path);
-        removed
+        fs_remove_dir(&overlay_fs_path)
     }
 
     /// WARNING NOT IMPLEMENTED:
@@ -226,7 +225,8 @@ impl OverlayHandler for UniversalOverlayHandler {
     }
 
     fn set_source_path(&mut self, source_path: &Path) -> Result<(), FpgadError> {
-        Ok(self.overlay_source_path = Option::from(source_path.to_owned()))
+        self.overlay_source_path = Option::from(source_path.to_owned());
+        Ok(())
     }
 
     fn set_overlay_fs_path(&mut self, overlay_handle: &str) {
