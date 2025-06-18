@@ -11,6 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::error::FpgadError;
+use crate::error::FpgadError::InternalError;
 use log::trace;
 use std::fs::{create_dir_all, remove_dir};
 use std::io::{ErrorKind, Write};
@@ -119,4 +120,11 @@ pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
             _ => Err(FpgadError::IOError(format!("{}", e))),
         },
     }
+}
+
+pub fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
+    path.file_name()
+        .ok_or_else(|| InternalError(format!("No filename in path: {:?}", path)))?
+        .to_str()
+        .ok_or_else(|| InternalError(format!("Filename not UTF-8: {:?}", path)))
 }

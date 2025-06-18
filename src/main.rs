@@ -23,11 +23,38 @@ use platforms::{
 };
 
 mod comm;
+use crate::error::FpgadError;
 use comm::dbus::interfaces::Greeter;
 use universal::UniversalPlatform;
 
 mod platforms;
 mod system_io;
+
+pub(crate) fn load_package(
+    platform: &mut impl Platform,
+    overlay_handle: &str,
+    bitstream_path: &Path,
+    overlay_source_path: &Path,
+) -> Result<(), FpgadError> {
+    trace!(
+        "Load package called with bitstream_path: {:?} and overlay_path: {:?}",
+        bitstream_path, overlay_source_path
+    );
+    platform.fpga("fpga0").set_flags(0)?;
+    platform
+        .overlay_handler()
+        .set_overlay_fs_path(overlay_handle);
+    platform
+        .overlay_handler()
+        .set_source_path(overlay_source_path)?;
+
+    Ok(platform.overlay_handler().apply_overlay()?)
+}
+
+/// Removes the overlay, undoing any extra steps, and then deletes the overlay_handler
+fn unload_package(platform: &mut impl Platform) -> Result<(), FpgadError> {
+    Ok(platform.overlay_handler().remove_overlay()?)
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -65,7 +92,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let bitstream_path = Path::new("/lib/firmware/k26-starter-kits.bit.bin");
     let dtbo_path = Path::new("/lib/firmware/k26-starter-kits.dtbo");
-    let load_result = universal_platform.load_package(bitstream_path, dtbo_path);
+    let load_result = load_package(&mut universal_platform, "fpga0", bitstream_path, dtbo_path);
 
     match &load_result {
         Err(e) => {
@@ -81,7 +108,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         info!("Waiting 5s.");
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         info!("The wait is over prepare to be unloaded!");
-        if universal_platform.unload_package().is_err() {
+        if unload_package(&mut universal_platform).is_err() {
             error!("Failed to unload bitstream!");
         } else {
             info!(
