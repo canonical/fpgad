@@ -69,7 +69,6 @@ impl UniversalPlatform {
             fpga.set_flags(flags)?;
         }
 
-        overlay_handler.prepare_for_load()?;
         overlay_handler.apply_overlay()?;
 
         fpga.assert_state()?;

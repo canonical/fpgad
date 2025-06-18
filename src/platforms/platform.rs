@@ -59,9 +59,8 @@ pub trait Fpga {
 }
 
 pub trait OverlayHandler {
-    fn prepare_for_load(&mut self) -> Result<(), FpgadError>;
     fn apply_overlay(&self) -> Result<(), FpgadError>;
-    fn remove_overlay(&mut self) -> Result<(), FpgadError>;
+    fn remove_overlay(&self) -> Result<(), FpgadError>;
     fn get_required_flags(&self) -> Result<isize, FpgadError>;
     fn get_status(&self) -> Result<String, FpgadError>;
 }
