@@ -29,15 +29,15 @@ pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
     match result {
         Ok(_) => Ok(buf),
         Err(e) => match e.kind() {
-            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+            ErrorKind::NotFound => Err(FpgadError::IOError(format!(
                 "File {:?} not found: {}",
                 file_path, e
             ))),
-            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+            ErrorKind::PermissionDenied => Err(FpgadError::IOError(format!(
                 "Read permission denied for file {:?}: {}",
                 file_path, e
             ))),
-            _ => Err(FpgadError::IO(format!("{}", e))),
+            _ => Err(FpgadError::IOError(format!("{}", e))),
         },
     }
 }
@@ -60,15 +60,15 @@ pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Resul
             Ok(())
         }
         Err(e) => match e.kind() {
-            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+            ErrorKind::NotFound => Err(FpgadError::IOError(format!(
                 "File {:?} not found: {}",
                 file_path, e
             ))),
-            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+            ErrorKind::PermissionDenied => Err(FpgadError::IOError(format!(
                 "Read permission denied for file {:?}: {}",
                 file_path, e
             ))),
-            _ => Err(FpgadError::IO(format!("{}", e))),
+            _ => Err(FpgadError::IOError(format!("{}", e))),
         },
     }
 }
@@ -82,15 +82,15 @@ pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
             Ok(())
         }
         Err(e) => match e.kind() {
-            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+            ErrorKind::PermissionDenied => Err(FpgadError::IOError(format!(
                 "Read permission denied when creating directory {:?}: {}",
                 path, e
             ))),
-            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+            ErrorKind::NotFound => Err(FpgadError::IOError(format!(
                 "Attempted to create a directory but the base path could not be found {:?}: {}",
                 path, e
             ))),
-            _ => Err(FpgadError::IO(format!("{}", e))),
+            _ => Err(FpgadError::IOError(format!("{}", e))),
         },
     }
 }
@@ -104,19 +104,19 @@ pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
             Ok(())
         }
         Err(e) => match e.kind() {
-            ErrorKind::PermissionDenied => Err(FpgadError::IO(format!(
+            ErrorKind::PermissionDenied => Err(FpgadError::IOError(format!(
                 "Read permission denied when deleting directory {:?}: {}",
                 path, e
             ))),
-            ErrorKind::DirectoryNotEmpty => Err(FpgadError::IO(format!(
+            ErrorKind::DirectoryNotEmpty => Err(FpgadError::IOError(format!(
                 "Attempted to delete a directory it is not empty {:?}: {}",
                 path, e
             ))),
-            ErrorKind::NotFound => Err(FpgadError::IO(format!(
+            ErrorKind::NotFound => Err(FpgadError::IOError(format!(
                 "Attempted to delete a directory that does not exist {:?}: {}",
                 path, e
             ))),
-            _ => Err(FpgadError::IO(format!("{}", e))),
+            _ => Err(FpgadError::IOError(format!("{}", e))),
         },
     }
 }

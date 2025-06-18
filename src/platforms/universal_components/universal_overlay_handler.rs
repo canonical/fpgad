@@ -27,9 +27,9 @@ pub struct UniversalOverlayHandler {
 
 fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
     path.file_name()
-        .ok_or_else(|| FpgadError::Internal(format!("No filename in path: {:?}", path)))?
+        .ok_or_else(|| FpgadError::InternalError(format!("No filename in path: {:?}", path)))?
         .to_str()
-        .ok_or_else(|| FpgadError::Internal(format!("Filename not UTF-8: {:?}", path)))
+        .ok_or_else(|| FpgadError::InternalError(format!("Filename not UTF-8: {:?}", path)))
 }
 
 impl UniversalOverlayHandler {
@@ -139,7 +139,7 @@ impl OverlayHandler for UniversalOverlayHandler {
                 );
             }
             Err(e) => {
-                return Err(FpgadError::IO(format!(
+                return Err(FpgadError::IOError(format!(
                     "Failed to write overlay path '{}' to '{:?}' : '{}'",
                     dtbo_file_name, overlay_path_file, e
                 )));
