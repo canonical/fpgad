@@ -18,7 +18,7 @@ mod error;
 use log::{error, info, trace};
 
 use platforms::{
-    platform::{list_fpga_managers, Fpga, Platform},
+    platform::{Fpga, Platform, list_fpga_managers},
     universal,
 };
 
