@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::error::FpgadError;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
 pub fn list_fpga_managers() -> Vec<String> {
@@ -76,7 +76,9 @@ pub trait OverlayHandler {
     /// internally stores the source path for the overlay to be applied/inspected
     fn set_source_path(&mut self, source_path: &Path) -> Result<(), FpgadError>;
     /// constructs the internal overlayfs path for a given overlay handle e.g. my_overlay_0
-    fn set_overlay_fs_path(&mut self, overlay_handle: &str);
+    fn set_overlay_fs_path(&mut self, overlay_handle: &str) -> Result<(), FpgadError>;
+    fn get_overlay_fs_path(&self) -> Result<&PathBuf, FpgadError>;
+    fn get_overlay_source_path(&self) -> Result<&PathBuf, FpgadError>;
 }
 
 pub trait Platform {
