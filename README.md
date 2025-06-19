@@ -17,6 +17,10 @@ To do this, device tree of the system must be changed (overlaid).
 This device tree tells Ubuntu a lot of information about the device, such as how much ram the system has.
 It should be clear to see, then, that compromising the device tree is very powerful.
 
+# Anticipated Architecture
+
+![anticipated_architecture.png](docs/assets/anticipated_architecture.png)
+
 # To Run Daemon
 
 ```
