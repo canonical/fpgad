@@ -10,6 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use log::trace;
 
@@ -41,17 +42,15 @@ impl Platform for UniversalPlatform {
         self.platform_type
     }
     /// Initialises or get the fpga object called `name`
-    fn fpga(&mut self, name: &str) -> &impl Fpga {
-        assert!(
-            !name.is_empty() && name.is_ascii(),
-            "fpga name must be compliant with sysfs rules."
-        );
-
-        // Create FPGA if not same or present
-        if self.fpga.as_ref().is_none_or(|f| f.device_handle != name) {
-            self.fpga = Some(UniversalFPGA::new(name));
+    fn fpga(&mut self, device_handle: &str) -> Result<&impl Fpga, FpgadError> {
+        if self
+            .fpga
+            .as_ref()
+            .is_none_or(|f| f.device_handle != device_handle)
+        {
+            self.fpga = Option::from(UniversalFPGA::new(device_handle)?);
         }
-        self.fpga.as_ref().unwrap()
+        Ok(self.fpga.as_ref().unwrap())
     }
 
     /// Gets the `overlay_handler` associated with this device.
