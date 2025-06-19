@@ -18,7 +18,7 @@ use crate::platforms::universal_components::universal_overlay_handler::Universal
 
 #[derive(Debug)]
 pub struct UniversalPlatform {
-    name: &'static str,
+    platform_type: &'static str,
     fpga: Option<UniversalFPGA>,
     overlay_handler: Option<UniversalOverlayHandler>,
 }
@@ -28,7 +28,7 @@ impl UniversalPlatform {
     pub fn new() -> Self {
         trace!("creating new universal_platform");
         UniversalPlatform {
-            name: "Universal",
+            platform_type: "Universal",
             fpga: None,
             overlay_handler: None,
         }
@@ -37,8 +37,8 @@ impl UniversalPlatform {
 
 impl Platform for UniversalPlatform {
     /// Returns the `name` of the [`UniversalPlatform`]
-    fn name(&self) -> &str {
-        self.name
+    fn platform_type(&self) -> &str {
+        self.platform_type
     }
     /// Initialises or get the fpga object called `name`
     fn fpga(&mut self, name: &str) -> &impl Fpga {
@@ -48,7 +48,7 @@ impl Platform for UniversalPlatform {
         );
 
         // Create FPGA if not same or present
-        if self.fpga.as_ref().is_none_or(|f| f.name != name) {
+        if self.fpga.as_ref().is_none_or(|f| f.device_handle != name) {
             self.fpga = Some(UniversalFPGA::new(name));
         }
         self.fpga.as_ref().unwrap()

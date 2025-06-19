@@ -75,17 +75,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //
     for fpga in list_fpga_managers().iter() {
         let mut universal_platform = UniversalPlatform::new();
-        info!("Detected {}", universal_platform.fpga(fpga).name());
+        info!("Detected {}", universal_platform.fpga(fpga).device_handle());
     }
     trace!("FPGA managers scraped.");
     let mut universal_platform = UniversalPlatform::new();
-    trace!("Initializing {}", universal_platform.fpga("fpga0").name());
+    trace!(
+        "Initializing {}",
+        universal_platform.fpga("fpga0").device_handle()
+    );
     let fpga = universal_platform.fpga("fpga0");
     match fpga.get_state() {
         Err(e) => error!("Initialising FPGA failed with error: '{}'", e),
         Ok(val) => info!(
             "{} initialised with initial state of '{}' at time of detection.",
-            fpga.name(),
+            fpga.device_handle(),
             val
         ),
     };

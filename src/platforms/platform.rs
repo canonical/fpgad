@@ -49,7 +49,7 @@ pub fn list_fpga_managers() -> Vec<String> {
 /// └── uevent
 ///
 pub trait Fpga {
-    fn name(&self) -> &str;
+    fn device_handle(&self) -> &str;
     fn get_state(&self) -> Result<String, FpgadError>;
     fn get_flags(&self) -> Result<isize, FpgadError>;
     fn set_flags(&self, flags: isize) -> Result<(), FpgadError>;
@@ -70,7 +70,7 @@ pub trait OverlayHandler {
 
 pub trait Platform {
     #[allow(dead_code)]
-    fn name(&self) -> &str;
-    fn fpga(&mut self, name: &str) -> &impl Fpga;
+    fn platform_type(&self) -> &str;
+    fn fpga(&mut self, device_handle: &str) -> &impl Fpga;
     fn overlay_handler(&mut self) -> &mut dyn OverlayHandler;
 }
