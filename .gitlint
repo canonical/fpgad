@@ -1,6 +1,4 @@
 [general]
-ignore=T3,B6
-
 # verbosity should be a value between 1 and 3, the commandline -v flags take precedence over this
 verbosity = 3
 
@@ -10,12 +8,16 @@ ignore-merge-commits=false
 ignore-fixup-commits=false
 ignore-squash-commits=false
 
+contrib = contrib-body-requires-signed-off-by,CC1
+
 # Enable debug mode (prints more output). Disabled by default
 debug = false
 
 # Set the extra-path where gitlint will search for user defined rules
 # See http://jorisroovers.github.io/gitlint/user_defined_rules for details
 extra-path=scripts/ci/gitlint
+
+[contrib-body-requires-signed-off-by]
 
 [title-max-length]
 line-length=120
