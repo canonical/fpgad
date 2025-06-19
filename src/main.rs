@@ -43,7 +43,7 @@ pub(crate) fn load_package(
     platform.fpga("fpga0").set_flags(0)?;
     platform
         .overlay_handler()
-        .set_overlay_fs_path(overlay_handle);
+        .set_overlay_fs_path(overlay_handle)?;
     platform
         .overlay_handler()
         .set_source_path(overlay_source_path)?;
