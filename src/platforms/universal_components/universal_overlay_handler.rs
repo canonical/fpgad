@@ -118,6 +118,9 @@ impl OverlayHandler for UniversalOverlayHandler {
 
     /// Read status from <overlay_fs_path>/status file and verify that it is "applied"
     fn get_status(&self) -> Result<String, FpgadError> {
+        if !self.get_overlay_fs_path()?.exists() {
+            return Ok("not present".into());
+        };
         let path = self.get_vfs_path()?;
         let status = self.get_vfs_status()?;
         Ok(format!("{:?} {}", path, status))
