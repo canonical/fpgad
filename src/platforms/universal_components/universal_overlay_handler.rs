@@ -29,6 +29,7 @@ impl UniversalOverlayHandler {
     /// Checks for `overlay_fs_path`.
     /// In future this may change the firmware location through
     /// `/sys/module/firmware_class/parameters/`.
+    /// This is called by apply_overlay.
     fn prepare_for_load(&self) -> Result<(), FpgadError> {
         let source_path = self
             .overlay_source_path
@@ -156,6 +157,7 @@ impl OverlayHandler for UniversalOverlayHandler {
     /// Attempts to apply a device tree overlay which should trigger a firmware load.
     /// There are multiple ways to trigger a firmware load so this is not valid if the
     /// dtbo doesn't contain a firmware to load.
+    /// Calls prepare_for_load to ensure paths are valid etc beforehand.
     fn apply_overlay(&self) -> Result<(), FpgadError> {
         self.prepare_for_load()?;
 
@@ -211,16 +213,22 @@ impl OverlayHandler for UniversalOverlayHandler {
         Ok(0)
     }
 
-    /// Read status from <overlay_fs_path>/status file and verify that it is "applied"
+    /// Read status from <overlay_fs_path>/status file
     fn get_status(&self) -> Result<String, FpgadError> {
         self.get_vfs_status()
     }
 
+    /// setter for the stored overlay_source_path. No checks are performed until "prepare_for_load
+    /// is called, which happens during apply_overlay.
     fn set_source_path(&mut self, source_path: &Path) -> Result<(), FpgadError> {
         self.overlay_source_path = Option::from(source_path.to_owned());
         Ok(())
     }
 
+    /// Takes a handle and creates and stores an appropriate overlay_fs_path in this object.
+    /// The overlay_fs_path is static apart from the handle associated with each
+    /// device, overlay or bitstream, and so the handle is specified by the user here and the rest
+    /// is fixed.
     fn set_overlay_fs_path(&mut self, overlay_handle: &str) {
         self.overlay_fs_path = Option::from(
             PathBuf::from("/sys/kernel/config/device-tree/overlays/").join(overlay_handle),

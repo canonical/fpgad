@@ -17,6 +17,7 @@ use std::io::Write;
 use std::path::Path;
 use std::{fs::OpenOptions, io::Read};
 
+/// Convenient wrapper for reading the contents of `file_path` to String
 pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
     trace!("Attempting to read from {:?}", file_path);
     let mut buf: String = String::new();
@@ -35,6 +36,7 @@ pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
     }
 }
 
+/// Convenient wrapper for writing `value` to `file_path`
 pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Result<(), FpgadError> {
     trace!(
         "Attempting to write {:?} to {:?}",
@@ -60,6 +62,7 @@ pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Resul
     }
 }
 
+/// Convenient wrapper for recursively creating directories up to `path`
 pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
     trace!("Attempting to Create '{:?}'", path);
     let result = create_dir_all(path);
@@ -75,6 +78,7 @@ pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
     }
 }
 
+/// Convenient wrapper for deleting an "empty" directory - works for overlayfs
 pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
     trace!("Attempting to delete '{:?}'", path);
     let result = remove_dir(path);
@@ -90,6 +94,7 @@ pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
     }
 }
 
+/// Helper function to extract the filename from a path and wrap the errors
 pub fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
     path.file_name()
         .ok_or_else(|| FpgadError::Internal(format!("No filename in path: {:?}", path)))?
