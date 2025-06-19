@@ -23,6 +23,7 @@ pub struct UniversalFPGA {
 
 impl UniversalFPGA {
     /// Constructor simply stores an owned version of the provided name.
+    /// This should probably be where we actually check if the device exists in the sysfs
     pub(crate) fn new(device_handle: &str) -> Self {
         UniversalFPGA {
             device_handle: device_handle.to_owned(),
