@@ -24,10 +24,23 @@ pub struct UniversalFPGA {
 impl UniversalFPGA {
     /// Constructor simply stores an owned version of the provided name.
     /// This should probably be where we actually check if the device exists in the sysfs
-    pub(crate) fn new(device_handle: &str) -> Self {
-        UniversalFPGA {
-            device_handle: device_handle.to_owned(),
+    pub(crate) fn new(device_handle: &str) -> Result<UniversalFPGA, FpgadError> {
+        if device_handle.is_empty() || !device_handle.is_ascii() {
+            return Err(FpgadError::Argument(format!(
+                "{} is invalid name for fpga device.\
+                fpga name must be compliant with sysfs rules.",
+                device_handle
+            )));
         }
+        if !PathBuf::from(format!("/sys/class/fpga_manager/{}/", device_handle)).exists() {
+            return Err(FpgadError::Argument(format!(
+                "Device {} not found.",
+                device_handle
+            )));
+        }
+        Ok(UniversalFPGA {
+            device_handle: device_handle.to_owned(),
+        })
     }
 
     /// Reads the current fpga state file.

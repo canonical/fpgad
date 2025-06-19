@@ -40,7 +40,7 @@ pub(crate) fn load_package(
         "Load package called with bitstream_path: {:?} and overlay_path: {:?}",
         bitstream_path, overlay_source_path
     );
-    platform.fpga("fpga0").set_flags(0)?;
+    platform.fpga("fpga0")?.set_flags(0)?;
     platform
         .overlay_handler()
         .set_overlay_fs_path(overlay_handle)?;
@@ -75,20 +75,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //
     for fpga in list_fpga_managers().iter() {
         let mut universal_platform = UniversalPlatform::new();
-        info!("Detected {}", universal_platform.fpga(fpga).device_handle());
+        info!(
+            "Detected {}",
+            universal_platform.fpga(fpga)?.device_handle()
+        );
     }
     trace!("FPGA managers scraped.");
     let mut universal_platform = UniversalPlatform::new();
     trace!(
         "Initializing {}",
-        universal_platform.fpga("fpga0").device_handle()
+        universal_platform.fpga("fpga0")?.device_handle()
     );
-    let fpga = universal_platform.fpga("fpga0");
-    match fpga.get_state() {
+    universal_platform.fpga("fpga0")?;
+    match universal_platform.fpga("fpga0")?.get_state() {
         Err(e) => error!("Initialising FPGA failed with error: '{}'", e),
         Ok(val) => info!(
             "{} initialised with initial state of '{}' at time of detection.",
-            fpga.device_handle(),
+            universal_platform.fpga("fpga0")?.device_handle(),
             val
         ),
     };
