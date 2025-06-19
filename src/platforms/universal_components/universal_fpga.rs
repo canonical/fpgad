@@ -88,7 +88,7 @@ impl Fpga for UniversalFPGA {
             "Writing '{}' to '/sys/class/fpga_manager/{}/flags'",
             flags, self.device_handle
         );
-        match fs_write(
+        if let Err(e) = fs_write(
             &PathBuf::from(&format!(
                 "/sys/class/fpga_manager/{}/flags",
                 self.device_handle
@@ -96,12 +96,9 @@ impl Fpga for UniversalFPGA {
             false,
             flags.to_string(),
         ) {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Failed to read state.");
-                return Err(e);
-            }
-        };
+            error!("Failed to read state.");
+            return Err(e);
+        }
 
         match self.get_state() {
             Ok(state) => match state.as_str() {
