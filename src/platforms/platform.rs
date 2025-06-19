@@ -11,9 +11,11 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::error::FpgadError;
+use crate::platforms::universal::UniversalPlatform;
 use std::path::{Path, PathBuf};
 
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
+#[allow(dead_code)]
 pub fn list_fpga_managers() -> Vec<String> {
     std::fs::read_dir("/sys/class/fpga_manager")
         .map(|iter| {
@@ -50,6 +52,7 @@ pub fn list_fpga_managers() -> Vec<String> {
 /// └── uevent
 ///
 pub trait Fpga {
+    #[allow(dead_code)]
     /// get the device handle for this fpga device
     fn device_handle(&self) -> &str;
     /// get the state of the fpga device
@@ -81,12 +84,22 @@ pub trait OverlayHandler {
     fn get_overlay_source_path(&self) -> Result<&PathBuf, FpgadError>;
 }
 
+fn get_platform_type(_platform_type: &str) -> &str {
+    "Universal"
+}
+
+pub fn get_platform(platform_type: &str) -> impl Platform {
+    match get_platform_type(platform_type) {
+        "Universal" => UniversalPlatform::new(),
+        _ => UniversalPlatform::new(),
+    }
+}
 pub trait Platform {
     #[allow(dead_code)]
     /// gets the name of the Platform type e.g. Universal or ZynqMP
     fn platform_type(&self) -> &str;
     /// creates and inits an Fpga if not present otherwise gets the instance
-    fn fpga(&mut self, device_handle: &str) -> &impl Fpga;
+    fn fpga(&mut self, device_handle: &str) -> Result<&impl Fpga, FpgadError>;
     /// creates and inits an OverlayHandler if not present otherwise gets the instance
     fn overlay_handler(&mut self) -> &mut dyn OverlayHandler;
 }
