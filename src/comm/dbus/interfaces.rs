@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::platforms::platform::{Fpga, Platform, get_platform};
+use crate::platforms::platform::{Fpga, Platform, new_platform};
 use log::trace;
 use std::path::Path;
 use zbus::fdo::Error;
@@ -23,16 +23,16 @@ pub struct ControlInterface {}
 impl StatusInterface {
     async fn get_fpga_state(&self, device_handle: &str) -> Result<String, Error> {
         trace!("get_fpga_state called with name: {}", device_handle);
-        let mut platform = get_platform("");
+        let mut platform = new_platform("");
         let fpga = platform.fpga(device_handle)?;
-        Ok(fpga.get_state()?)
+        Ok(fpga.state()?)
     }
 
     async fn get_fpga_flags(&self, device_handle: &str) -> Result<String, Error> {
         trace!("get_fpga_flags called with name: {}", device_handle);
-        let mut platform = get_platform("");
+        let mut platform = new_platform("");
         let fpga = platform.fpga(device_handle)?;
-        Ok(fpga.get_flags().map(|flags| flags.to_string())?)
+        Ok(fpga.flags().map(|flags| flags.to_string())?)
     }
 
     async fn get_overlay_status(&self, overlay_handle: &str) -> Result<String, Error> {
@@ -40,11 +40,11 @@ impl StatusInterface {
             "get_overlay_status called with overlay_handle: {}",
             overlay_handle
         );
-        let mut platform = get_platform("");
+        let mut platform = new_platform("");
         platform
             .overlay_handler()
             .set_overlay_fs_path(overlay_handle)?;
-        Ok(platform.overlay_handler().get_status()?)
+        Ok(platform.overlay_handler().status()?)
     }
 }
 
@@ -55,7 +55,7 @@ impl ControlInterface {
             "set_fpga_flags called with name: {} and flags: {}",
             device_handle, flags
         );
-        let mut platform = get_platform("");
+        let mut platform = new_platform("");
         let fpga = platform.fpga(device_handle)?;
         fpga.set_flags(flags)?;
         Ok(format!("Flags set to {} for {}", flags, device_handle))
@@ -70,7 +70,7 @@ impl ControlInterface {
             "load_firmware called with name: {} and path_str: {}",
             device_handle, bitstream_path_str
         );
-        let mut platform = get_platform("");
+        let mut platform = new_platform("");
         let fpga = platform.fpga(device_handle)?;
         let path = Path::new(bitstream_path_str);
         if !path.exists() || path.is_dir() {
@@ -94,11 +94,11 @@ impl ControlInterface {
             "apply_overlay called with overlay_handle: {} and overlay_path: {}",
             overlay_handle, overlay_source_path
         );
-        let mut platform = get_platform("");
+        let mut platform = new_platform("");
         let overlay_handler = platform.overlay_handler();
         overlay_handler.set_overlay_fs_path(overlay_handle)?;
         overlay_handler.set_source_path(Path::new(overlay_source_path))?;
-        let overlay_fs_path = overlay_handler.get_overlay_fs_path()?;
+        let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.apply_overlay()?;
         Ok(format!(
             "{overlay_source_path} loaded via {overlay_fs_path:?}"
@@ -110,11 +110,11 @@ impl ControlInterface {
             "remove_overlay called with overlay_handle: {}",
             overlay_handle
         );
-        let mut platform = get_platform("");
+        let mut platform = new_platform("");
         let overlay_handler = platform.overlay_handler();
         overlay_handler.set_overlay_fs_path(overlay_handle)?;
 
-        let overlay_fs_path = overlay_handler.get_overlay_fs_path()?;
+        let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.remove_overlay()?;
         Ok(format!(
             "{overlay_handle} removed by deleting {overlay_fs_path:?}"
