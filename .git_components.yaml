@@ -12,6 +12,7 @@ comm:
     - talhaHavadar
 dbus:
   owners:
+    - artiepoole
     - talhaHavadar
 platforms:
   owners:

@@ -12,6 +12,7 @@
 
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use log::trace;
+use std::cell::OnceCell;
 
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
@@ -19,8 +20,8 @@ use crate::platforms::universal_components::universal_overlay_handler::Universal
 #[derive(Debug)]
 pub struct UniversalPlatform {
     platform_type: &'static str,
-    fpga: Option<UniversalFPGA>,
-    overlay_handler: Option<UniversalOverlayHandler>,
+    fpga: OnceCell<UniversalFPGA>,
+    overlay_handler: OnceCell<UniversalOverlayHandler>,
 }
 
 impl UniversalPlatform {
@@ -29,8 +30,8 @@ impl UniversalPlatform {
         trace!("creating new universal_platform");
         UniversalPlatform {
             platform_type: "Universal",
-            fpga: None,
-            overlay_handler: None,
+            fpga: OnceCell::new(),
+            overlay_handler: OnceCell::new(),
         }
     }
 }
@@ -40,26 +41,15 @@ impl Platform for UniversalPlatform {
     fn platform_type(&self) -> &str {
         self.platform_type
     }
-    /// Initialises or get the fpga object called `name`
-    fn fpga(&mut self, name: &str) -> &impl Fpga {
-        assert!(
-            !name.is_empty() && name.is_ascii(),
-            "fpga name must be compliant with sysfs rules."
-        );
 
-        // Create FPGA if not same or present
-        if self.fpga.as_ref().is_none_or(|f| f.device_handle != name) {
-            self.fpga = Some(UniversalFPGA::new(name));
-        }
-        self.fpga.as_ref().unwrap()
+    /// Initialises or get the fpga object called `name`
+    fn fpga(&self, device_handle: &str) -> &impl Fpga {
+        self.fpga.get_or_init(|| UniversalFPGA::new(device_handle))
     }
 
     /// Gets the `overlay_handler` associated with this device.
-    fn overlay_handler(&mut self) -> &mut dyn OverlayHandler {
-        // Create overlay handler if not same or present
-        if self.overlay_handler.as_ref().is_none() {
-            self.overlay_handler = Some(UniversalOverlayHandler::new());
-        }
-        self.overlay_handler.as_mut().unwrap()
+    fn overlay_handler(&self) -> &impl OverlayHandler {
+        self.overlay_handler
+            .get_or_init(UniversalOverlayHandler::new)
     }
 }

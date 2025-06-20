@@ -10,7 +10,9 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use log::error;
 use std::path::PathBuf;
+use zbus::fdo;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FpgadError {
@@ -36,4 +38,18 @@ pub enum FpgadError {
     IODelete { file: PathBuf, e: std::io::Error },
     #[error("FpgadError::Internal: An Internal error occurred: {0}")]
     Internal(String),
+}
+
+impl From<FpgadError> for fdo::Error {
+    fn from(err: FpgadError) -> Self {
+        error!("{}", err);
+        match err {
+            FpgadError::Argument(..) => fdo::Error::InvalidArgs(err.to_string()),
+            FpgadError::IORead { .. } => fdo::Error::IOError(err.to_string()),
+            FpgadError::IOWrite { .. } => fdo::Error::IOError(err.to_string()),
+            FpgadError::IOCreate { .. } => fdo::Error::IOError(err.to_string()),
+            FpgadError::IODelete { .. } => fdo::Error::IOError(err.to_string()),
+            _ => fdo::Error::Failed(err.to_string()),
+        }
+    }
 }

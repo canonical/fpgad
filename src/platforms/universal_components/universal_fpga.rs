@@ -24,7 +24,7 @@ pub struct UniversalFPGA {
 impl UniversalFPGA {
     /// Constructor simply stores an owned version of the provided name.
     /// This should probably be where we actually check if the device exists in the sysfs
-    pub(crate) fn new(device_handle: &str) -> Self {
+    pub(crate) fn new(device_handle: &str) -> UniversalFPGA {
         UniversalFPGA {
             device_handle: device_handle.to_owned(),
         }
@@ -34,7 +34,7 @@ impl UniversalFPGA {
     /// Only succeeds if the state is 'operating'.
     /// Should only be used after bitstream loading.
     pub(crate) fn assert_state(&self) -> Result<(), FpgadError> {
-        match self.get_state() {
+        match self.state() {
             Ok(state) => match state.to_string().as_str() {
                 "operating" => {
                     info!("{}'s state is 'operating'", self.device_handle);
@@ -59,7 +59,7 @@ impl Fpga for UniversalFPGA {
     /// Reads and returns contents of `/sys/class/fpga_manager/self.name/state` or FpgadError::IO.
     ///
     /// returns: Result<String, FpgadError>
-    fn get_state(&self) -> Result<String, FpgadError> {
+    fn state(&self) -> Result<String, FpgadError> {
         trace!(
             "reading /sys/class/fpga_manager/{}/state",
             self.device_handle
@@ -73,7 +73,7 @@ impl Fpga for UniversalFPGA {
 
     /// Gets the flags from the hex string stored in the sysfs flags file
     /// e.g. sys/class/fpga_manager/fpga0/flags
-    fn get_flags(&self) -> Result<isize, FpgadError> {
+    fn flags(&self) -> Result<isize, FpgadError> {
         let path = format!("/sys/class/fpga_manager/{}/flags", self.device_handle);
         let contents = fs_read(&PathBuf::from(&path))?;
         let trimmed = contents.trim().trim_start_matches("0x");
@@ -100,7 +100,7 @@ impl Fpga for UniversalFPGA {
             return Err(e);
         }
 
-        match self.get_state() {
+        match self.state() {
             Ok(state) => match state.as_str() {
                 "operating" => {
                     info!(
@@ -118,7 +118,7 @@ impl Fpga for UniversalFPGA {
             Err(e) => return Err(e),
         };
 
-        match self.get_flags() {
+        match self.flags() {
             Ok(returned_flags) if returned_flags == flags => Ok(()),
             Ok(returned_flags) => Err(FpgadError::Flag(format!(
                 "Setting {}'s flags to '{}' failed. Resulting flag was '{}'",
