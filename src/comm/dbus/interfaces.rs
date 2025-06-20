@@ -57,9 +57,8 @@ impl ControlInterface {
         );
         let mut platform = get_platform("");
         let fpga = platform.fpga(device_handle)?;
-        Ok(fpga
-            .set_flags(flags)
-            .map(|_| format!("Flags set to {} for {}", flags, device_handle))?)
+        fpga.set_flags(flags)?;
+        Ok(format!("Flags set to {} for {}", flags, device_handle))
     }
 
     async fn write_bitstream_direct(
@@ -80,9 +79,8 @@ impl ControlInterface {
                 bitstream_path_str
             )));
         }
-        Ok(fpga
-            .load_firmware(path)
-            .map(|_| format!("{} loaded to {}", bitstream_path_str, device_handle))?)
+        fpga.load_firmware(path)?;
+        Ok(format!("{bitstream_path_str} loaded to {device_handle}"))
     }
 
     async fn apply_overlay(
@@ -97,20 +95,14 @@ impl ControlInterface {
             overlay_handle, overlay_source_path
         );
         let mut platform = get_platform("");
-        platform
-            .overlay_handler()
-            .set_overlay_fs_path(overlay_handle)?;
-        platform
-            .overlay_handler()
-            .set_source_path(Path::new(overlay_source_path))?;
-
-        Ok(platform.overlay_handler().apply_overlay().map(|_| {
-            format!(
-                "{} loaded via {:?}",
-                overlay_source_path,
-                platform.overlay_handler().get_overlay_fs_path()
-            )
-        })?)
+        let overlay_handler = platform.overlay_handler();
+        overlay_handler.set_overlay_fs_path(overlay_handle)?;
+        overlay_handler.set_source_path(Path::new(overlay_source_path))?;
+        let overlay_fs_path = overlay_handler.get_overlay_fs_path()?;
+        overlay_handler.apply_overlay()?;
+        Ok(format!(
+            "{overlay_source_path} loaded via {overlay_fs_path:?}"
+        ))
     }
 
     async fn remove_overlay(&self, overlay_handle: &str) -> Result<String, Error> {
@@ -119,15 +111,13 @@ impl ControlInterface {
             overlay_handle
         );
         let mut platform = get_platform("");
-        platform
-            .overlay_handler()
-            .set_overlay_fs_path(overlay_handle)?;
-        Ok(platform.overlay_handler().remove_overlay().map(|_| {
-            format!(
-                "{} removed by deleting {:?}",
-                overlay_handle,
-                platform.overlay_handler().get_overlay_fs_path()
-            )
-        })?)
+        let overlay_handler = platform.overlay_handler();
+        overlay_handler.set_overlay_fs_path(overlay_handle)?;
+
+        let overlay_fs_path = overlay_handler.get_overlay_fs_path()?;
+        overlay_handler.remove_overlay()?;
+        Ok(format!(
+            "{overlay_handle} removed by deleting {overlay_fs_path:?}"
+        ))
     }
 }
