@@ -12,7 +12,7 @@
 
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
 #[allow(dead_code)]
@@ -77,9 +77,9 @@ pub trait OverlayHandler {
     /// gets the overlay application status
     fn status(&self) -> Result<String, FpgadError>;
     /// internally stores the source path for the overlay to be applied/inspected
-    fn set_source_path(&mut self, source_path: &Path) -> Result<(), FpgadError>;
+    fn set_source_path(&self, source_path: &Path) -> Result<(), FpgadError>;
     /// constructs the internal overlayfs path for a given overlay handle e.g. my_overlay_0
-    fn set_overlay_fs_path(&mut self, overlay_handle: &str) -> Result<(), FpgadError>;
+    fn set_overlay_fs_path(&self, overlay_handle: &str) -> Result<(), FpgadError>;
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError>;
     fn overlay_source_path(&self) -> Result<&Path, FpgadError>;
 }
@@ -99,7 +99,7 @@ pub trait Platform {
     /// gets the name of the Platform type e.g. Universal or ZynqMP
     fn platform_type(&self) -> &str;
     /// creates and inits an Fpga if not present otherwise gets the instance
-    fn fpga(&mut self, device_handle: &str) -> Result<&impl Fpga, FpgadError>;
+    fn fpga(&self, device_handle: &str) -> &impl Fpga;
     /// creates and inits an OverlayHandler if not present otherwise gets the instance
-    fn overlay_handler(&mut self) -> &mut dyn OverlayHandler;
+    fn overlay_handler(&self) -> &impl OverlayHandler;
 }

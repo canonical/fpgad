@@ -14,6 +14,7 @@ use crate::error::FpgadError;
 use crate::platforms::platform::OverlayHandler;
 use crate::system_io::{extract_filename, fs_create_dir, fs_read, fs_remove_dir, fs_write};
 use log::{info, trace};
+use std::cell::OnceCell;
 use std::path::{Path, PathBuf};
 
 /// Stores the three relevant paths: source files for dtbo/bitstream and the overlayfs dir to which
@@ -21,10 +22,10 @@ use std::path::{Path, PathBuf};
 #[derive(Debug)]
 pub struct UniversalOverlayHandler {
     /// The path which points to the overlay file (dtbo), probably to be applied
-    overlay_source_path: Option<PathBuf>,
+    overlay_source_path: OnceCell<PathBuf>,
     /// The path which points to the overlay virtual filesystem's dir which contains
     /// `path`, `status` and `dtbo` virtual files for overlay control. `dtbo` appears unused?
-    overlay_fs_path: Option<PathBuf>,
+    overlay_fs_path: OnceCell<PathBuf>,
 }
 
 impl UniversalOverlayHandler {
@@ -127,14 +128,23 @@ impl OverlayHandler for UniversalOverlayHandler {
     }
 
     /// setter for the stored overlay_source_path. Checks the file exists directly after assignment.
-    fn set_source_path(&mut self, source_path: &Path) -> Result<(), FpgadError> {
+    fn set_source_path(&self, source_path: &Path) -> Result<(), FpgadError> {
         if !source_path.exists() | source_path.is_dir() {
             return Err(FpgadError::Argument(format!(
                 "Overlay file '{:?}' has invalid path.",
                 self.overlay_source_path
             )));
         }
-        self.overlay_source_path = Option::from(source_path.to_owned());
+        if self
+            .overlay_source_path
+            .set(source_path.to_owned())
+            .is_err()
+        {
+            return Err(FpgadError::Internal(format!(
+                "Error encountered when trying to set overlay_source_path to {source_path:?} \
+                because it is already set."
+            )));
+        }
         Ok(())
     }
 
@@ -142,7 +152,7 @@ impl OverlayHandler for UniversalOverlayHandler {
     /// The overlay_fs_path is static apart from the handle associated with each
     /// device, overlay or bitstream, and so the handle is specified by the user here and the rest
     /// is fixed.
-    fn set_overlay_fs_path(&mut self, overlay_handle: &str) -> Result<(), FpgadError> {
+    fn set_overlay_fs_path(&self, overlay_handle: &str) -> Result<(), FpgadError> {
         let overlay_fs_path =
             PathBuf::from("/sys/kernel/config/device-tree/overlays/").join(overlay_handle);
         // This path is hardcoded here so the parent path is always a valid string...
@@ -160,33 +170,44 @@ impl OverlayHandler for UniversalOverlayHandler {
             )));
         }
 
-        self.overlay_fs_path = Option::from(
-            PathBuf::from("/sys/kernel/config/device-tree/overlays/").join(overlay_handle),
-        );
+        if self
+            .overlay_fs_path
+            .set(PathBuf::from("/sys/kernel/config/device-tree/overlays/").join(overlay_handle))
+            .is_err()
+        {
+            return Err(FpgadError::Internal(format!(
+                "Error encountered when trying to set overlay_fs_path for overlay \
+                 handle {overlay_handle} because it is already set."
+            )));
+        }
 
         Ok(())
     }
 
     /// Checks that the overlay_fs_path is stored at time of call and returns it if so (unwraps Option into Result)
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError> {
-        self.overlay_fs_path
-            .as_deref()
+        let path_buf = self
+            .overlay_fs_path
+            .get()
             .ok_or(FpgadError::Internal(format!(
                 "Failed to get overlay_fs_path because UniversalOverlayHandler is \
-                not initialised with an appropriate overlay_fs_path: {:?}",
+            not initialised with an appropriate overlay_fs_path: {:?}",
                 self
-            )))
+            )))?;
+        Ok(path_buf.as_path())
     }
 
     /// checks that the overlay_source path is stored at time of call and returns it if so (unwraps Option into Result)
     fn overlay_source_path(&self) -> Result<&Path, FpgadError> {
-        self.overlay_source_path
-            .as_deref()
+        let path_buf = self
+            .overlay_source_path
+            .get()
             .ok_or(FpgadError::Internal(format!(
                 "Failed to get overlay_source_path because UniversalOverlayHandler is \
                 not initialised with an appropriate overlay_source_path: {:?}",
                 self
-            )))
+            )))?;
+        Ok(path_buf.as_path())
     }
 }
 
@@ -194,8 +215,8 @@ impl UniversalOverlayHandler {
     /// Scans the package dir for required files
     pub(crate) fn new() -> Self {
         UniversalOverlayHandler {
-            overlay_source_path: None,
-            overlay_fs_path: None,
+            overlay_source_path: OnceCell::new(),
+            overlay_fs_path: OnceCell::new(),
         }
     }
 }
