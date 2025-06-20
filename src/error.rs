@@ -1,4 +1,4 @@
-// This file is part of fpgad, an application to manage FPGA subsystem together with devicetree and kernel modules.
+// This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
 //
 // Copyright 2025 Canonical Ltd.
 //
@@ -10,8 +10,30 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use std::path::PathBuf;
+
 #[derive(Debug, thiserror::Error)]
 pub enum FpgadError {
-    #[error("an IO error occured: {0}")]
-    Io(#[from] std::io::Error),
+    #[error("FpgadError::Flag: Failed to read flags: {0}")]
+    Flag(String),
+    #[error("FpgadError::OverlayStatus: Overlay was not applied: {0}")]
+    OverlayStatus(String),
+    #[error("FpgadError::FPGAState: FPGA state is not as expected: {0}")]
+    FPGAState(String),
+    #[error("FpgadError::Argument: {0}")]
+    Argument(String),
+    #[error("FpgadError::IORead: An IO error occurred when reading from {file:?}: {e}")]
+    IORead { file: PathBuf, e: std::io::Error },
+    #[error("FpgadError::IOWrite: An IO error occurred when writing {data:?} to {file:?}: {e}")]
+    IOWrite {
+        data: String,
+        file: PathBuf,
+        e: std::io::Error,
+    },
+    #[error("FpgadError::IOCreate: An IO error occurred when creating {file:?}: {e}")]
+    IOCreate { file: PathBuf, e: std::io::Error },
+    #[error("FpgadError::IODelete: An IO error occurred when deleting {file:?}: {e}")]
+    IODelete { file: PathBuf, e: std::io::Error },
+    #[error("FpgadError::Internal: An Internal error occurred: {0}")]
+    Internal(String),
 }

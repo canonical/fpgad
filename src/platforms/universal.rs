@@ -1,4 +1,4 @@
-// This file is part of fpgad, an application to manage FPGA subsystem together with devicetree and kernel modules.
+// This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
 //
 // Copyright 2025 Canonical Ltd.
 //
@@ -10,24 +10,25 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::{error::FpgadError, system_io::fs_read};
+use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use log::trace;
 
-use super::platform::{Fpga, OverlayHandler, Platform};
+use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
+use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 
 #[derive(Debug)]
 pub struct UniversalPlatform {
-    name: &'static str,
+    platform_type: &'static str,
     fpga: Option<UniversalFPGA>,
     overlay_handler: Option<UniversalOverlayHandler>,
 }
 
 impl UniversalPlatform {
     /// Creates a new [`UniversalPlatform`].
-    pub(crate) fn new() -> Self {
-        trace!("creating new UniversalPlatform");
+    pub fn new() -> Self {
+        trace!("creating new universal_platform");
         UniversalPlatform {
-            name: "Universal",
+            platform_type: "Universal",
             fpga: None,
             overlay_handler: None,
         }
@@ -36,10 +37,10 @@ impl UniversalPlatform {
 
 impl Platform for UniversalPlatform {
     /// Returns the `name` of the [`UniversalPlatform`]
-    fn name(&self) -> &str {
-        self.name
+    fn platform_type(&self) -> &str {
+        self.platform_type
     }
-
+    /// Initialises or get the fpga object called `name`
     fn fpga(&mut self, name: &str) -> &impl Fpga {
         assert!(
             !name.is_empty() && name.is_ascii(),
@@ -47,59 +48,18 @@ impl Platform for UniversalPlatform {
         );
 
         // Create FPGA if not same or present
-        if self.fpga.as_ref().is_none_or(|f| f.name != name) {
-            self.fpga = Some(UniversalFPGA::new(name.to_string()));
+        if self.fpga.as_ref().is_none_or(|f| f.device_handle != name) {
+            self.fpga = Some(UniversalFPGA::new(name));
         }
         self.fpga.as_ref().unwrap()
     }
 
-    fn overlay_handler(&self) -> &impl OverlayHandler {
-        self.overlay_handler.as_ref().unwrap()
-    }
-}
-
-#[derive(Debug)]
-pub struct UniversalOverlayHandler {}
-
-impl OverlayHandler for UniversalOverlayHandler {
-    fn apply_devicetree(&self) -> bool {
-        todo!()
-    }
-
-    fn unapply_devicetree(&self) -> bool {
-        todo!()
-    }
-}
-
-#[derive(Debug)]
-pub struct UniversalFPGA {
-    name: String,
-}
-
-impl UniversalFPGA {
-    pub(crate) fn new(name: String) -> Self {
-        UniversalFPGA { name }
-    }
-}
-
-impl Fpga for UniversalFPGA {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn state(&self) -> Result<String, FpgadError> {
-        trace!("reading /sys/class/fpga_manager/{}/state", self.name);
-        match fs_read(&format!("/sys/class/fpga_manager/{}/state", self.name)) {
-            Ok(val) => Ok(val),
-            Err(e) => Err(FpgadError::Io(e)),
+    /// Gets the `overlay_handler` associated with this device.
+    fn overlay_handler(&mut self) -> &mut dyn OverlayHandler {
+        // Create overlay handler if not same or present
+        if self.overlay_handler.as_ref().is_none() {
+            self.overlay_handler = Some(UniversalOverlayHandler::new());
         }
-    }
-
-    fn load_bitstream(&self) -> bool {
-        todo!()
-    }
-
-    fn unload_bitstream(&self) -> bool {
-        todo!()
+        self.overlay_handler.as_mut().unwrap()
     }
 }

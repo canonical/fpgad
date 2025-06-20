@@ -16,6 +16,7 @@ dbus:
 platforms:
   owners:
     - talhaHavadar
+    - artiepoole
 softeners:
   owners:
     - talhaHavadar
