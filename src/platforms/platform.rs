@@ -56,9 +56,9 @@ pub trait Fpga {
     /// get the device handle for this fpga device
     fn device_handle(&self) -> &str;
     /// get the state of the fpga device
-    fn get_state(&self) -> Result<String, FpgadError>;
+    fn state(&self) -> Result<String, FpgadError>;
     /// get the current flags of the fpga device
-    fn get_flags(&self) -> Result<isize, FpgadError>;
+    fn flags(&self) -> Result<isize, FpgadError>;
     /// attempt to set the flags of an fpga device
     fn set_flags(&self, flags: isize) -> Result<(), FpgadError>;
     #[allow(dead_code)]
@@ -73,23 +73,23 @@ pub trait OverlayHandler {
     fn remove_overlay(&self) -> Result<(), FpgadError>;
     /// Gets the required fpga flags from an overlay file
     #[allow(dead_code)]
-    fn get_required_flags(&self) -> Result<isize, FpgadError>;
+    fn required_flags(&self) -> Result<isize, FpgadError>;
     /// gets the overlay application status
-    fn get_status(&self) -> Result<String, FpgadError>;
+    fn status(&self) -> Result<String, FpgadError>;
     /// internally stores the source path for the overlay to be applied/inspected
     fn set_source_path(&mut self, source_path: &Path) -> Result<(), FpgadError>;
     /// constructs the internal overlayfs path for a given overlay handle e.g. my_overlay_0
     fn set_overlay_fs_path(&mut self, overlay_handle: &str) -> Result<(), FpgadError>;
-    fn get_overlay_fs_path(&self) -> Result<&PathBuf, FpgadError>;
-    fn get_overlay_source_path(&self) -> Result<&PathBuf, FpgadError>;
+    fn overlay_fs_path(&self) -> Result<&Path, FpgadError>;
+    fn overlay_source_path(&self) -> Result<&Path, FpgadError>;
 }
 
-fn get_platform_type(_platform_type: &str) -> &str {
+fn discover_platform_type(_device_handle: &str) -> &str {
     "Universal"
 }
 
-pub fn get_platform(platform_type: &str) -> impl Platform {
-    match get_platform_type(platform_type) {
+pub fn new_platform(device_handle: &str) -> impl Platform {
+    match discover_platform_type(device_handle) {
         "Universal" => UniversalPlatform::new(),
         _ => UniversalPlatform::new(),
     }
