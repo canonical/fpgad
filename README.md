@@ -33,6 +33,37 @@ sudo RUST_LOG=trace RUST_BACKTRACE=full ./target/debug/fpgad
 sudo cp ./data/dbus/com.canonical.fpgad.conf /etc/dbus-1/system.d/
 ```
 
+# Typical control sequence
+
+#### FPGA only:
+
+1) control.SetFpgaFlags(fpga_handle, flags)
+2) control.WriteBitstreamDirect(fpga_handle, bitstream_path)
+
+#### Overlay only:
+
+1) status.GetOverlayStatus(overlay_handle) <- check doesn't exist
+2) control.SetFpgaFlags(device_handle, flags) <- does check for sticking internally
+3) control.CreateOverlay(overlay_handle) <- just makes a dir and checks the subsystem created the internal files
+4) control.ApplyOverlay(overlay_handle, dtbo_path) <- writes dtbo_path to overlay and asserts overlay status
+5) status.GetFpgaState(fpga_handle) <- check it is `operating`
+
+#### Combined:
+
+1) control.SetFpgaFlags(device_handle, flags) <- >does check for sticking internally
+2) control.WriteBitstreamDirect
+3) control.CreateOverlay(overlay_handle) <- just makes a dir and checks the subsystem created the internal files
+4) control.ApplyOverlay(overlay_handle, dtbo_path) <- writes dtbo_path to overlay and asserts overlay status
+5) status.GetFpgaState(fpga_handle) <- check it is `operating`
+
+#### Removing:
+
+The FPGA subsystem does not have a way to remove an overlay. Instead, you must write a new one.
+
+To remove an overlay simply call:
+
+1) control.RemoveOverlay(overlay_handle)
+
 # Busctrl Call Examples
 
 ### Status (unprivileged)
