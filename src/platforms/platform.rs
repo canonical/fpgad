@@ -67,7 +67,7 @@ pub trait Fpga {
 }
 
 pub trait OverlayHandler {
-    /// Applies an overlay to an already existing overlayfs dir, 
+    /// Applies an overlay to an already existing overlayfs dir,
     /// which may or may not also write a bitstream to an fpga device.
     fn apply_overlay(&self) -> Result<(), FpgadError>;
     /// Removes an overlayfs directory from the configfs.
