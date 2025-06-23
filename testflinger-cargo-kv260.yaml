@@ -1,0 +1,15 @@
+job_queue: 202405-34038
+test_data:
+  test_cmds: |
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
+    sudo curl https://sh.rustup.rs -sSf | sudo sh -s -- -y
+    DEBIAN_FRONTEND=noninteractive sudo apt update
+    sudo DEBIAN_FRONTEND=noninteractive apt install build-essential -y
+    sudo cp /lib/firmware/xilinx/k26-starter-kits/k26_starter_kits.bit.bin /lib/firmware/k26-starter-kits.bit.bin
+    sudo cp /lib/firmware/xilinx/k26-starter-kits/k26_starter_kits.dtbo /lib/firmware/k26-starter-kits.dtbo
+    sudo dfx-mgr-client -remove
+    sudo DEBIAN_FRONTEND=noninteractive apt remove dfx-mgr -y
+reserve_data:
+  ssh_keys:
+    - 'lp:artiepoole'
+  timeout: 21600

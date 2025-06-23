@@ -1,0 +1,8 @@
+job_queue: 202405-34038
+test_data:
+  test_cmds: |
+    ls
+reserve_data:
+  ssh_keys:
+    - 'lp:artiepoole'
+  timeout: 21600
