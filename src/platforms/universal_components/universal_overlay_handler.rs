@@ -82,15 +82,23 @@ impl OverlayHandler for UniversalOverlayHandler {
     fn apply_overlay(&self) -> Result<(), FpgadError> {
         let overlay_fs_path = self.overlay_fs_path()?;
         let source_path = self.overlay_source_path()?;
-
         if overlay_fs_path.exists() {
-            fs_remove_dir(overlay_fs_path)?;
+            return Err(FpgadError::Argument(format!(
+                "Overlay with this handle already exists at {overlay_fs_path:?}. \
+                 Remove the overlay and try again."
+            )));
         }
-
         fs_create_dir(overlay_fs_path)?;
         trace!("Created dir {:?}", overlay_fs_path);
-
         let overlay_path_file = overlay_fs_path.join("path");
+        if !overlay_path_file.exists() {
+            // TODO: consider different error type?
+            return Err(FpgadError::Internal(format!(
+                "Overlay at {overlay_fs_path:?} did not initialise a new overlay: \
+                the `path` virtual file did not get created by the kernel. \
+                Is the parent dir mounted as a configfs directory?"
+            )));
+        }
         let dtbo_file_name = extract_filename(source_path)?;
         match fs_write(&overlay_path_file, false, dtbo_file_name) {
             Ok(_) => {
@@ -132,7 +140,7 @@ impl OverlayHandler for UniversalOverlayHandler {
         if !source_path.exists() | source_path.is_dir() {
             return Err(FpgadError::Argument(format!(
                 "Overlay file '{:?}' has invalid path.",
-                self.overlay_source_path
+                source_path
             )));
         }
         if self
@@ -145,6 +153,7 @@ impl OverlayHandler for UniversalOverlayHandler {
                 because it is already set."
             )));
         }
+        trace!("overlay_source_path set to {:?}", source_path);
         Ok(())
     }
 
@@ -180,7 +189,7 @@ impl OverlayHandler for UniversalOverlayHandler {
                  handle {overlay_handle} because it is already set."
             )));
         }
-
+        trace!("overlay_fs_path set to {overlay_fs_path:?}");
         Ok(())
     }
 
