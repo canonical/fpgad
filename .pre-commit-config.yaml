@@ -3,6 +3,8 @@ repos:
     rev: v0.19.1
     hooks:
       - id: gitlint
+        additional_dependencies:
+          - PyYAML==6.0.2
   - repo: https://github.com/google/yamlfmt
     rev: v0.16.0
     hooks:
