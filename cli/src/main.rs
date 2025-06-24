@@ -5,13 +5,10 @@ use log::debug;
 #[command(name = "fpga")]
 #[command(bin_name = "fpga")]
 struct Cli {
-    #[arg(
-        long = "handle",
-        help = r#"fpga device handle to be used for operations.
-Default value for this option is calculated in runtime and application
-picks first available fpga in the system (under /sys/class/fpga_manager).
-        "#
-    )]
+    /// fpga device `HANDLE` to be used for the operations.
+    /// Default value for this option is calculated in runtime and the application
+    /// picks the first available fpga in the system (under /sys/class/fpga_manager)
+    #[arg(long = "handle")]
     handle: Option<String>,
     #[command(subcommand)]
     command: Commands,
@@ -19,6 +16,7 @@ picks first available fpga in the system (under /sys/class/fpga_manager).
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Get the status information for the given device handle
     Status,
 }
 
