@@ -42,25 +42,30 @@ impl StatusInterface {
     async fn get_fpga_state(&self, device_handle: &str) -> Result<String, fdo::Error> {
         trace!("get_fpga_state called with name: {}", device_handle);
         validate_device_handle(device_handle)?;
-        let platform = new_platform("");
+        let platform = new_platform(device_handle);
         let fpga = platform.fpga(device_handle);
         Ok(fpga.state()?)
     }
 
     async fn get_fpga_flags(&self, device_handle: &str) -> Result<String, fdo::Error> {
-        validate_device_handle(device_handle)?;
         trace!("get_fpga_flags called with name: {}", device_handle);
-        let platform = new_platform("");
+        validate_device_handle(device_handle)?;
+        let platform = new_platform(device_handle);
         let fpga = platform.fpga(device_handle);
         Ok(fpga.flags().map(|flags| flags.to_string())?)
     }
 
-    async fn get_overlay_status(&self, overlay_handle: &str) -> Result<String, fdo::Error> {
+    async fn get_overlay_status(
+        &self,
+        device_handle: &str,
+        overlay_handle: &str,
+    ) -> Result<String, fdo::Error> {
         trace!(
-            "get_overlay_status called with overlay_handle: {}",
-            overlay_handle
+            "get_overlay_status called with device_handle: {device_handle} and overlay_handle:\
+             {overlay_handle}"
         );
-        let platform = new_platform("");
+        validate_device_handle(device_handle)?;
+        let platform = new_platform(device_handle);
         let overlay_handler = platform.overlay_handler();
         overlay_handler.set_overlay_fs_path(overlay_handle)?;
         Ok(overlay_handler.status()?)
@@ -79,7 +84,7 @@ impl ControlInterface {
             device_handle, flags
         );
         validate_device_handle(device_handle)?;
-        let platform = new_platform("");
+        let platform = new_platform(device_handle);
         let fpga = platform.fpga(device_handle);
         fpga.set_flags(flags)?;
         Ok(format!("Flags set to {} for {}", flags, device_handle))
@@ -91,11 +96,10 @@ impl ControlInterface {
         bitstream_path_str: &str,
     ) -> Result<String, fdo::Error> {
         trace!(
-            "load_firmware called with name: {} and path_str: {}",
-            device_handle, bitstream_path_str
+            "load_firmware called with name: {device_handle} and path_str: {bitstream_path_str}"
         );
         validate_device_handle(device_handle)?;
-        let platform = new_platform("");
+        let platform = new_platform(device_handle);
         let fpga = platform.fpga(device_handle);
         let path = Path::new(bitstream_path_str);
         if !path.exists() || path.is_dir() {
@@ -110,16 +114,16 @@ impl ControlInterface {
 
     async fn apply_overlay(
         &self,
+        device_handle: &str,
         overlay_handle: &str,
         overlay_source_path: &str,
     ) -> Result<String, fdo::Error> {
-        // TODO: this doesn't take target fpga device which means that we don't check
-        // fpga0/state at all
         trace!(
-            "apply_overlay called with overlay_handle: {} and overlay_path: {}",
-            overlay_handle, overlay_source_path
+            "apply_overlay called with device_handle:{device_handle}, overlay_handle: \
+            {overlay_handle} and overlay_path: {overlay_source_path}",
         );
-        let platform = new_platform("");
+        validate_device_handle(device_handle)?;
+        let platform = new_platform(device_handle);
         let overlay_handler = platform.overlay_handler();
         overlay_handler.set_overlay_fs_path(overlay_handle)?;
         overlay_handler.set_source_path(Path::new(overlay_source_path))?;
@@ -130,12 +134,17 @@ impl ControlInterface {
         ))
     }
 
-    async fn remove_overlay(&self, overlay_handle: &str) -> Result<String, fdo::Error> {
+    async fn remove_overlay(
+        &self,
+        device_handle: &str,
+        overlay_handle: &str,
+    ) -> Result<String, fdo::Error> {
         trace!(
-            "remove_overlay called with overlay_handle: {}",
-            overlay_handle
+            "remove_overlay called with device_handle: {device_handle} and overlay_handle:\
+             {overlay_handle}"
         );
-        let platform = new_platform("");
+        validate_device_handle(device_handle)?;
+        let platform = new_platform(device_handle);
         let overlay_handler = platform.overlay_handler();
         overlay_handler.set_overlay_fs_path(overlay_handle)?;
 
