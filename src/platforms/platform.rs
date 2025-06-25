@@ -69,7 +69,7 @@ pub trait Fpga {
 pub trait OverlayHandler {
     /// Applies an overlay to an already existing overlayfs dir,
     /// which may or may not also write a bitstream to an fpga device.
-    fn apply_overlay(&self) -> Result<(), FpgadError>;
+    fn apply_overlay(&self, source_path: &Path) -> Result<(), FpgadError>;
     /// Removes an overlayfs directory from the configfs.
     fn remove_overlay(&self) -> Result<(), FpgadError>;
     /// Gets the required fpga flags from an overlay file
@@ -77,10 +77,7 @@ pub trait OverlayHandler {
     fn required_flags(&self) -> Result<isize, FpgadError>;
     /// gets the overlay application status
     fn status(&self) -> Result<String, FpgadError>;
-    /// internally stores the source path for the overlay to be applied/inspected
-    fn set_source_path(&self, source_path: &Path) -> Result<(), FpgadError>;
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError>;
-    fn overlay_source_path(&self) -> Result<&Path, FpgadError>;
 }
 
 fn discover_platform_type(_device_handle: &str) -> &str {

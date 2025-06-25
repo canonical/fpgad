@@ -124,9 +124,8 @@ impl ControlInterface {
 
         let platform = new_platform(device_handle);
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
-        overlay_handler.set_source_path(Path::new(overlay_source_path))?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
-        overlay_handler.apply_overlay()?;
+        overlay_handler.apply_overlay(Path::new(overlay_source_path))?;
         Ok(format!(
             "{overlay_source_path} loaded via {overlay_fs_path:?}"
         ))
