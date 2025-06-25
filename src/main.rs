@@ -22,7 +22,7 @@ mod config;
 mod platforms;
 mod system_io;
 
-use crate::comm::dbus::interfaces::{ControlInterface, StatusInterface};
+use crate::comm::dbus::interfaces::{ConfigureInterface, ControlInterface, StatusInterface};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -32,11 +32,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // based on its name in /sys/class/fpga_manager/{device}/name
     let status_interface = StatusInterface {};
     let control_interface = ControlInterface {};
+    let configure_interface = ConfigureInterface {};
 
     let _conn = connection::Builder::system()?
         .name("com.canonical.fpgad")?
         .serve_at("/com/canonical/fpgad/status", status_interface)?
         .serve_at("/com/canonical/fpgad/control", control_interface)?
+        .serve_at("/com/canonical/fpgad/configure", configure_interface)?
         .build()
         .await?;
 

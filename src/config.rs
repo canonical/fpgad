@@ -56,5 +56,5 @@ fn init_system_config() -> SystemConfig {
 }
 
 pub fn system_config() -> &'static SystemConfig {
-    CONFIG.get_or_init(|| init_system_config())
+    CONFIG.get_or_init(init_system_config)
 }

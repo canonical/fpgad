@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config;
+use crate::config::system_config;
 use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform, new_platform};
 use log::trace;
@@ -21,21 +21,21 @@ use zbus::interface;
 pub struct StatusInterface {}
 pub struct ControlInterface {}
 
+pub struct ConfigureInterface {}
+
 fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
     if device_handle.is_empty() || !device_handle.is_ascii() {
         return Err(FpgadError::Argument(format!(
-            "{} is invalid name for fpga device.\
-                fpga name must be compliant with sysfs rules.",
-            device_handle
+            "{device_handle} is invalid name for fpga device.\
+                fpga name must be compliant with sysfs rules."
         )));
     }
-    if !PathBuf::from(config::SYSFS_PREFIX)
+    if !PathBuf::from(system_config().sys_fs_prefix())
         .join(device_handle)
         .exists()
     {
         return Err(FpgadError::Argument(format!(
-            "Device {} not found.",
-            device_handle
+            "Device {device_handle} not found."
         )));
     };
     Ok(())
@@ -44,13 +44,13 @@ fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
 #[interface(name = "com.canonical.fpgad.status")]
 impl StatusInterface {
     async fn get_fpga_state(&self, device_handle: &str) -> Result<String, fdo::Error> {
-        trace!("get_fpga_state called with name: {}", device_handle);
+        trace!("get_fpga_state called with name: {device_handle}");
         validate_device_handle(device_handle)?;
         Ok(new_platform(device_handle).fpga(device_handle)?.state()?)
     }
 
     async fn get_fpga_flags(&self, device_handle: &str) -> Result<String, fdo::Error> {
-        trace!("get_fpga_flags called with name: {}", device_handle);
+        trace!("get_fpga_flags called with name: {device_handle}");
         validate_device_handle(device_handle)?;
         Ok(new_platform(device_handle)
             .fpga(device_handle)?
@@ -81,15 +81,12 @@ impl ControlInterface {
         device_handle: &str,
         flags: isize,
     ) -> Result<String, fdo::Error> {
-        trace!(
-            "set_fpga_flags called with name: {} and flags: {}",
-            device_handle, flags
-        );
+        trace!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
         new_platform(device_handle)
             .fpga(device_handle)?
             .set_flags(flags)?;
-        Ok(format!("Flags set to {} for {}", flags, device_handle))
+        Ok(format!("Flags set to {flags} for {device_handle}"))
     }
 
     async fn write_bitstream_direct(
@@ -104,8 +101,7 @@ impl ControlInterface {
         let path = Path::new(bitstream_path_str);
         if !path.exists() || path.is_dir() {
             return Err(fdo::Error::InvalidArgs(format!(
-                "{} is not a valid path to a bitstream file.",
-                bitstream_path_str
+                "{bitstream_path_str} is not a valid path to a bitstream file."
             )));
         }
         new_platform(device_handle)
@@ -152,5 +148,32 @@ impl ControlInterface {
         Ok(format!(
             "{overlay_handle} removed by deleting {overlay_fs_path:?}"
         ))
+    }
+}
+
+#[interface(name = "com.canonical.fpgad.configure")]
+impl ConfigureInterface {
+    async fn set_firmware_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
+        trace!("set_firmware_prefix called with prefix: {prefix}");
+        Ok("Yeah, nah, assigning to static OnceCell isn't possible so this is WIP, sorry.".into())
+    }
+    async fn set_sys_fs_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
+        trace!("set_sys_fs_prefix called with prefix: {prefix}");
+        Ok("Yeah, nah, assigning to static OnceCell isn't possible so this is WIP, sorry.".into())
+    }
+    async fn set_config_fs_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
+        trace!("set_config_fs_prefix called with prefix: {prefix}");
+        Ok("Yeah, nah, assigning to static OnceCell isn't possible so this is WIP, sorry.".into())
+    }
+
+    async fn get_config_fs_prefix(&self) -> Result<String, fdo::Error> {
+        Ok(system_config().config_fs_prefix())
+    }
+    async fn get_firmware_prefix(&self) -> Result<String, fdo::Error> {
+        Ok(system_config().firmware_prefix())
+    }
+
+    async fn get_sys_fs_prefix(&self) -> Result<String, fdo::Error> {
+        Ok(system_config().sys_fs_prefix())
     }
 }
