@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 /// device, overlay or bitstream, and so the handle is specified by the user here and the rest
 /// is fixed.
 fn construct_overlay_fs_path(overlay_handle: &str) -> PathBuf {
-    let overlay_fs_path = PathBuf::from(config::CONFIGFS_PREFIX).join(overlay_handle);
+    let overlay_fs_path = PathBuf::from(config::system_config().config_fs_prefix()).join(overlay_handle);
     trace!("overlay_fs_path will be {overlay_fs_path:?}");
     overlay_fs_path
 }

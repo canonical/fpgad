@@ -15,13 +15,14 @@ use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use log::trace;
-use std::cell::OnceCell;
+// use tokio::sync::OnceCell;
+use std::sync::{OnceLock};
 
 #[derive(Debug)]
 pub struct UniversalPlatform {
     platform_type: &'static str,
-    fpga: OnceCell<UniversalFPGA>,
-    overlay_handler: OnceCell<UniversalOverlayHandler>,
+    fpga: OnceLock<UniversalFPGA>,
+    overlay_handler: OnceLock<UniversalOverlayHandler>,
 }
 
 impl UniversalPlatform {
@@ -30,8 +31,8 @@ impl UniversalPlatform {
         trace!("creating new universal_platform");
         UniversalPlatform {
             platform_type: "Universal",
-            fpga: OnceCell::new(),
-            overlay_handler: OnceCell::new(),
+            fpga: OnceLock::new(),
+            overlay_handler: OnceLock::new(),
         }
     }
 }
