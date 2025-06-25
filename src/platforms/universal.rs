@@ -16,7 +16,7 @@ use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use log::trace;
 // use tokio::sync::OnceCell;
-use std::sync::{OnceLock};
+use std::sync::OnceLock;
 
 #[derive(Debug)]
 pub struct UniversalPlatform {
@@ -62,8 +62,7 @@ impl Platform for UniversalPlatform {
 
         if !parent_path.exists() {
             return Err(FpgadError::Argument(format!(
-                "The overlayfs path {:?} doesn't seem to exist.",
-                parent_path
+                "The overlayfs path {parent_path:?} doesn't seem to exist."
             )));
         }
         Ok(handler)
