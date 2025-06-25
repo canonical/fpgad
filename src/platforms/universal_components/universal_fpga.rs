@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config;
+use crate::config::system_config;
 use crate::error::FpgadError;
 use crate::platforms::platform::Fpga;
 use crate::system_io::{fs_read, fs_write};
@@ -61,7 +61,7 @@ impl Fpga for UniversalFPGA {
     ///
     /// returns: Result<String, FpgadError>
     fn state(&self) -> Result<String, FpgadError> {
-        let state_path = Path::new(config::SYSFS_PREFIX)
+        let state_path = Path::new(&system_config().sys_fs_prefix())
             .join(self.device_handle.clone())
             .join("state");
         trace!("reading {state_path:?}");
@@ -71,7 +71,7 @@ impl Fpga for UniversalFPGA {
     /// Gets the flags from the hex string stored in the sysfs flags file
     /// e.g. sys/class/fpga_manager/fpga0/flags
     fn flags(&self) -> Result<isize, FpgadError> {
-        let flag_path = Path::new(config::SYSFS_PREFIX)
+        let flag_path = Path::new(&system_config().sys_fs_prefix())
             .join(self.device_handle.clone())
             .join("flags");
         let contents = fs_read(&flag_path)?;
@@ -83,7 +83,7 @@ impl Fpga for UniversalFPGA {
     /// Sets the flags in the sysfs flags file (e.g. sys/class/fpga_manager/fpga0/flags)
     /// and verifies the write command stuck by reading it back.
     fn set_flags(&self, flags: isize) -> Result<(), FpgadError> {
-        let flag_path = Path::new(config::SYSFS_PREFIX)
+        let flag_path = Path::new(&system_config().sys_fs_prefix())
             .join(self.device_handle.clone())
             .join("flags");
         trace!("Writing '{flags}' to '{flag_path:?}");
@@ -127,12 +127,12 @@ impl Fpga for UniversalFPGA {
     /// Note: always load firmware before overlay.
     fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError> {
         let stripped_path = bitstream_path
-            .strip_prefix(config::FW_PREFIX)
+            .strip_prefix(system_config().firmware_prefix())
             .map_err(|_| {
                 FpgadError::Argument(format!(
                     "Bitstream path {:?} is not under the configured firmware directory '{}'",
                     bitstream_path,
-                    config::FW_PREFIX
+                    system_config().firmware_prefix()
                 ))
             })?;
 
@@ -143,7 +143,7 @@ impl Fpga for UniversalFPGA {
             ))
         })?;
 
-        let control_path = Path::new(config::SYSFS_PREFIX)
+        let control_path = Path::new(&system_config().sys_fs_prefix())
             .join(self.device_handle())
             .join("firmware");
         fs_write(&control_path, false, relative_path)?;

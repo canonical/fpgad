@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config;
+use crate::config::system_config;
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
 use crate::system_io::fs_read;
@@ -31,8 +31,8 @@ const PLATFORM_SUBSTRINGS: &[(&str, PlatformType)] = &[
 
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
 #[allow(dead_code)]
-pub fn list_fpga_managers() -> Vec<String> {
-    std::fs::read_dir(config::SYSFS_PREFIX)
+pub async fn list_fpga_managers() -> Vec<String> {
+    std::fs::read_dir(system_config().sys_fs_prefix())
         .map(|iter| {
             iter.filter_map(Result::ok)
                 .map(|entry| entry.file_name().to_string_lossy().into_owned())
@@ -97,7 +97,7 @@ pub trait OverlayHandler {
 
 fn discover_platform_type(device_handle: &str) -> PlatformType {
     let compat_string = match fs_read(
-        &Path::new(config::SYSFS_PREFIX)
+        &Path::new(&system_config().sys_fs_prefix())
             .join(device_handle)
             .join("of_node/compatible"),
     ) {
