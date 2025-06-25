@@ -42,17 +42,16 @@ impl StatusInterface {
     async fn get_fpga_state(&self, device_handle: &str) -> Result<String, fdo::Error> {
         trace!("get_fpga_state called with name: {}", device_handle);
         validate_device_handle(device_handle)?;
-        let platform = new_platform(device_handle);
-        let fpga = platform.fpga(device_handle)?;
-        Ok(fpga.state()?)
+        Ok(new_platform(device_handle).fpga(device_handle)?.state()?)
     }
 
     async fn get_fpga_flags(&self, device_handle: &str) -> Result<String, fdo::Error> {
         trace!("get_fpga_flags called with name: {}", device_handle);
         validate_device_handle(device_handle)?;
-        let platform = new_platform(device_handle);
-        let fpga = platform.fpga(device_handle)?;
-        Ok(fpga.flags().map(|flags| flags.to_string())?)
+        Ok(new_platform(device_handle)
+            .fpga(device_handle)?
+            .flags()
+            .map(|flags| flags.to_string())?)
     }
 
     async fn get_overlay_status(
@@ -65,9 +64,9 @@ impl StatusInterface {
              {overlay_handle}"
         );
         validate_device_handle(device_handle)?;
-        let platform = new_platform(device_handle);
-        let overlay_handler = platform.overlay_handler(overlay_handle)?;
-        Ok(overlay_handler.status()?)
+        Ok(new_platform(device_handle)
+            .overlay_handler(overlay_handle)?
+            .status()?)
     }
 }
 
@@ -83,9 +82,9 @@ impl ControlInterface {
             device_handle, flags
         );
         validate_device_handle(device_handle)?;
-        let platform = new_platform(device_handle);
-        let fpga = platform.fpga(device_handle)?;
-        fpga.set_flags(flags)?;
+        new_platform(device_handle)
+            .fpga(device_handle)?
+            .set_flags(flags)?;
         Ok(format!("Flags set to {} for {}", flags, device_handle))
     }
 
@@ -98,8 +97,6 @@ impl ControlInterface {
             "load_firmware called with name: {device_handle} and path_str: {bitstream_path_str}"
         );
         validate_device_handle(device_handle)?;
-        let platform = new_platform(device_handle);
-        let fpga = platform.fpga(device_handle)?;
         let path = Path::new(bitstream_path_str);
         if !path.exists() || path.is_dir() {
             return Err(fdo::Error::InvalidArgs(format!(
@@ -107,7 +104,9 @@ impl ControlInterface {
                 bitstream_path_str
             )));
         }
-        fpga.load_firmware(path)?;
+        new_platform(device_handle)
+            .fpga(device_handle)?
+            .load_firmware(path)?;
         Ok(format!("{bitstream_path_str} loaded to {device_handle}"))
     }
 
@@ -122,6 +121,7 @@ impl ControlInterface {
             {overlay_handle} and overlay_path: {overlay_source_path}",
         );
         validate_device_handle(device_handle)?;
+
         let platform = new_platform(device_handle);
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         overlay_handler.set_source_path(Path::new(overlay_source_path))?;
