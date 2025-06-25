@@ -19,10 +19,10 @@ classDiagram
         load_firmware()
     }
     class OverlayHandler {
+        new(overlay_handle)
         get_required_flags() <- FPGA requires?
         get_status()
         set_source_path(source_path)
-        set_overlay_fs_path(overlay_handle)
         get_overlay_fs_path()
         apply_overlay()
         remove_overlay()

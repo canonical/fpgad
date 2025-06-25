@@ -43,7 +43,7 @@ impl StatusInterface {
         trace!("get_fpga_state called with name: {}", device_handle);
         validate_device_handle(device_handle)?;
         let platform = new_platform(device_handle);
-        let fpga = platform.fpga(device_handle);
+        let fpga = platform.fpga(device_handle)?;
         Ok(fpga.state()?)
     }
 
@@ -51,7 +51,7 @@ impl StatusInterface {
         trace!("get_fpga_flags called with name: {}", device_handle);
         validate_device_handle(device_handle)?;
         let platform = new_platform(device_handle);
-        let fpga = platform.fpga(device_handle);
+        let fpga = platform.fpga(device_handle)?;
         Ok(fpga.flags().map(|flags| flags.to_string())?)
     }
 
@@ -66,8 +66,7 @@ impl StatusInterface {
         );
         validate_device_handle(device_handle)?;
         let platform = new_platform(device_handle);
-        let overlay_handler = platform.overlay_handler();
-        overlay_handler.set_overlay_fs_path(overlay_handle)?;
+        let overlay_handler = platform.overlay_handler(overlay_handle)?;
         Ok(overlay_handler.status()?)
     }
 }
@@ -85,7 +84,7 @@ impl ControlInterface {
         );
         validate_device_handle(device_handle)?;
         let platform = new_platform(device_handle);
-        let fpga = platform.fpga(device_handle);
+        let fpga = platform.fpga(device_handle)?;
         fpga.set_flags(flags)?;
         Ok(format!("Flags set to {} for {}", flags, device_handle))
     }
@@ -100,7 +99,7 @@ impl ControlInterface {
         );
         validate_device_handle(device_handle)?;
         let platform = new_platform(device_handle);
-        let fpga = platform.fpga(device_handle);
+        let fpga = platform.fpga(device_handle)?;
         let path = Path::new(bitstream_path_str);
         if !path.exists() || path.is_dir() {
             return Err(fdo::Error::InvalidArgs(format!(
@@ -124,8 +123,7 @@ impl ControlInterface {
         );
         validate_device_handle(device_handle)?;
         let platform = new_platform(device_handle);
-        let overlay_handler = platform.overlay_handler();
-        overlay_handler.set_overlay_fs_path(overlay_handle)?;
+        let overlay_handler = platform.overlay_handler(overlay_handle)?;
         overlay_handler.set_source_path(Path::new(overlay_source_path))?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.apply_overlay()?;
@@ -145,9 +143,7 @@ impl ControlInterface {
         );
         validate_device_handle(device_handle)?;
         let platform = new_platform(device_handle);
-        let overlay_handler = platform.overlay_handler();
-        overlay_handler.set_overlay_fs_path(overlay_handle)?;
-
+        let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.remove_overlay()?;
         Ok(format!(

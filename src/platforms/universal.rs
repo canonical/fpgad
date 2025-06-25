@@ -10,12 +10,12 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
-use log::trace;
-use std::cell::OnceCell;
-
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
+use log::trace;
+use std::cell::OnceCell;
 
 #[derive(Debug)]
 pub struct UniversalPlatform {
@@ -43,13 +43,28 @@ impl Platform for UniversalPlatform {
     }
 
     /// Initialises or get the fpga object called `name`
-    fn fpga(&self, device_handle: &str) -> &impl Fpga {
-        self.fpga.get_or_init(|| UniversalFPGA::new(device_handle))
+    fn fpga(&self, device_handle: &str) -> Result<&impl Fpga, FpgadError> {
+        Ok(self.fpga.get_or_init(|| UniversalFPGA::new(device_handle)))
     }
 
     /// Gets the `overlay_handler` associated with this device.
-    fn overlay_handler(&self) -> &impl OverlayHandler {
-        self.overlay_handler
-            .get_or_init(UniversalOverlayHandler::new)
+    fn overlay_handler(&self, overlay_handle: &str) -> Result<&impl OverlayHandler, FpgadError> {
+        let handler = self
+            .overlay_handler
+            .get_or_init(|| UniversalOverlayHandler::new(overlay_handle));
+        let parent_path = handler.overlay_fs_path()?.parent().ok_or_else(|| {
+            FpgadError::Argument(format!(
+                "The path {:?} has no parent directory.",
+                handler.overlay_fs_path()
+            ))
+        })?;
+
+        if !parent_path.exists() {
+            return Err(FpgadError::Argument(format!(
+                "The overlayfs path {:?} doesn't seem to exist.",
+                parent_path
+            )));
+        }
+        Ok(handler)
     }
 }

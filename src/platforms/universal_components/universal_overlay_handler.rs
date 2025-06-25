@@ -17,6 +17,17 @@ use log::{info, trace};
 use std::cell::OnceCell;
 use std::path::{Path, PathBuf};
 
+/// Takes a handle and creates and stores an appropriate overlay_fs_path in this object.
+/// The overlay_fs_path is static apart from the handle associated with each
+/// device, overlay or bitstream, and so the handle is specified by the user here and the rest
+/// is fixed.
+fn construct_overlay_fs_path(overlay_handle: &str) -> PathBuf {
+    let overlay_fs_path =
+        PathBuf::from("/sys/kernel/config/device-tree/overlays/").join(overlay_handle);
+    trace!("overlay_fs_path will be {overlay_fs_path:?}");
+    overlay_fs_path
+}
+
 /// Stores the three relevant paths: source files for dtbo/bitstream and the overlayfs dir to which
 /// the dtbo path was written.
 #[derive(Debug)]
@@ -25,7 +36,7 @@ pub struct UniversalOverlayHandler {
     overlay_source_path: OnceCell<PathBuf>,
     /// The path which points to the overlay virtual filesystem's dir which contains
     /// `path`, `status` and `dtbo` virtual files for overlay control. `dtbo` appears unused?
-    overlay_fs_path: OnceCell<PathBuf>,
+    overlay_fs_path: PathBuf,
 }
 
 impl UniversalOverlayHandler {
@@ -157,53 +168,9 @@ impl OverlayHandler for UniversalOverlayHandler {
         Ok(())
     }
 
-    /// Takes a handle and creates and stores an appropriate overlay_fs_path in this object.
-    /// The overlay_fs_path is static apart from the handle associated with each
-    /// device, overlay or bitstream, and so the handle is specified by the user here and the rest
-    /// is fixed.
-    fn set_overlay_fs_path(&self, overlay_handle: &str) -> Result<(), FpgadError> {
-        let overlay_fs_path =
-            PathBuf::from("/sys/kernel/config/device-tree/overlays/").join(overlay_handle);
-        // This path is hardcoded here so the parent path is always a valid string...
-        let parent_path = overlay_fs_path.parent().ok_or_else(|| {
-            FpgadError::Argument(format!(
-                "The path {:?} has no parent directory.",
-                overlay_fs_path
-            ))
-        })?;
-
-        if !parent_path.exists() {
-            return Err(FpgadError::Argument(format!(
-                "The overlayfs path {:?} doesn't seem to exist.",
-                parent_path
-            )));
-        }
-
-        if self
-            .overlay_fs_path
-            .set(PathBuf::from("/sys/kernel/config/device-tree/overlays/").join(overlay_handle))
-            .is_err()
-        {
-            return Err(FpgadError::Internal(format!(
-                "Error encountered when trying to set overlay_fs_path for overlay \
-                 handle {overlay_handle} because it is already set."
-            )));
-        }
-        trace!("overlay_fs_path set to {overlay_fs_path:?}");
-        Ok(())
-    }
-
     /// Checks that the overlay_fs_path is stored at time of call and returns it if so (unwraps Option into Result)
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError> {
-        let path_buf = self
-            .overlay_fs_path
-            .get()
-            .ok_or(FpgadError::Internal(format!(
-                "Failed to get overlay_fs_path because UniversalOverlayHandler is \
-            not initialised with an appropriate overlay_fs_path: {:?}",
-                self
-            )))?;
-        Ok(path_buf.as_path())
+        Ok(self.overlay_fs_path.as_path())
     }
 
     /// checks that the overlay_source path is stored at time of call and returns it if so (unwraps Option into Result)
@@ -222,10 +189,10 @@ impl OverlayHandler for UniversalOverlayHandler {
 
 impl UniversalOverlayHandler {
     /// Scans the package dir for required files
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(overlay_handle: &str) -> Self {
         UniversalOverlayHandler {
             overlay_source_path: OnceCell::new(),
-            overlay_fs_path: OnceCell::new(),
+            overlay_fs_path: construct_overlay_fs_path(overlay_handle),
         }
     }
 }
