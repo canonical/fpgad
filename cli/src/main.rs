@@ -34,6 +34,20 @@ enum LoadSubcommand {
 }
 
 #[derive(Subcommand, Debug)]
+enum RemoveSubcommand {
+    /// Remove overlay with the `HANDLE` provided
+    Overlay {
+        /// `HANDLE` is the handle that is given during `load` operation
+        /// it is different than device_handle which is being used for platform
+        /// detection logic.
+        #[arg(long = "handle")]
+        handle: String,
+    },
+    /// Remove bitstream loaded in given `HANDLE` to fpga command
+    Bitstream,
+}
+
+#[derive(Subcommand, Debug)]
 enum Commands {
     /// Get the status information for the given device handle
     Status,
@@ -41,6 +55,11 @@ enum Commands {
     Load {
         #[command(subcommand)]
         command: LoadSubcommand,
+    },
+    /// Remove bitstream or an overlay
+    Remove {
+        #[command(subcommand)]
+        command: RemoveSubcommand,
     },
 }
 
@@ -53,5 +72,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             todo!()
         }
         Commands::Load { .. } => todo!(),
+        Commands::Remove { .. } => todo!(),
     }
 }
