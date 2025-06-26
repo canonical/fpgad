@@ -20,3 +20,4 @@ zbus = { version = "5.5.0", default-features = false, features = ["tokio"] }
 thiserror = "2.0.12"
 toml = "0.8.23"
 serde = { version = "1.0.219", features = ["derive"] }
+sd-notify = "0.4.5"
