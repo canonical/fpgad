@@ -10,6 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform, new_platform};
 use log::trace;
@@ -28,7 +29,10 @@ fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
             device_handle
         )));
     }
-    if !PathBuf::from(format!("/sys/class/fpga_manager/{}/", device_handle)).exists() {
+    if !PathBuf::from(config::SYSFS_PREFIX)
+        .join(device_handle)
+        .exists()
+    {
         return Err(FpgadError::Argument(format!(
             "Device {} not found.",
             device_handle

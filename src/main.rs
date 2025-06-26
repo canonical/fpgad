@@ -18,6 +18,7 @@ mod error;
 
 mod comm;
 
+mod config;
 mod platforms;
 mod system_io;
 

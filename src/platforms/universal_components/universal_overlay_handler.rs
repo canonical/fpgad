@@ -10,6 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::OverlayHandler;
 use crate::system_io::{extract_filename, fs_create_dir, fs_read, fs_remove_dir, fs_write};
@@ -21,8 +22,7 @@ use std::path::{Path, PathBuf};
 /// device, overlay or bitstream, and so the handle is specified by the user here and the rest
 /// is fixed.
 fn construct_overlay_fs_path(overlay_handle: &str) -> PathBuf {
-    let overlay_fs_path =
-        PathBuf::from("/sys/kernel/config/device-tree/overlays/").join(overlay_handle);
+    let overlay_fs_path = PathBuf::from(config::CONFIGFS_PREFIX).join(overlay_handle);
     trace!("overlay_fs_path will be {overlay_fs_path:?}");
     overlay_fs_path
 }

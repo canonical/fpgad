@@ -10,6 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
 use std::path::Path;
@@ -17,7 +18,7 @@ use std::path::Path;
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
 #[allow(dead_code)]
 pub fn list_fpga_managers() -> Vec<String> {
-    std::fs::read_dir("/sys/class/fpga_manager")
+    std::fs::read_dir(config::SYSFS_PREFIX)
         .map(|iter| {
             iter.filter_map(Result::ok)
                 .map(|entry| entry.file_name().to_string_lossy().into_owned())
