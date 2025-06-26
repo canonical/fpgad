@@ -27,10 +27,45 @@ It should be clear to see, then, that compromising the device tree is very power
 sudo RUST_LOG=trace RUST_BACKTRACE=full ./target/debug/fpgad
 ```
 
-# Configure DBUS:
+# Configure DBUS
 
 ```
 sudo cp ./data/dbus/com.canonical.fpgad.conf /etc/dbus-1/system.d/
+```
+
+# Configuration File
+
+### To use the provided `config.toml`
+
+```
+sudo mkdir -p /etc/fpgad/
+sudo cp ./data/config.toml /etc/fpgad/
+```
+
+### `config.toml` location
+
+The config file must be stored in `/etc/fpgad` (or `$snap/etc/fpgad/` or similar path adjusted by snap layouts) and
+must be called `config.toml`
+
+## `config.toml` syntax
+
+Any unspecified values will default to hardcoded defaults, as described in the table below.
+
+### `[system_paths]` section:
+
+| Key                | Description                                                                                                                       | Default                                      |
+|--------------------|-----------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------|
+| `config_fs_prefix` | The location to which configfs is mounted. This is used to control device tree overlays                                           | `"/sys/kernel/config/device-tree/overlays/"` |
+| `firmware_prefix`  | The directory within which the firmware subsystem and overlayfs subssystem search relative to when loading bitstreams or overlays | `"/lib/firmware/"`                           |
+| `sys_fs_prefix`    | The location of the fpga_manager device folder which contains, for example, `fpga0`.                                              | `"/sys/class/fpga_manager/"`                 |
+
+### Example `config.toml`
+
+```toml
+[system_paths]
+config_fs_prefix = "/sys/kernel/config/device-tree/overlays/"
+firmware_prefix = "/lib/firmware/"
+sys_fs_prefix = "/sys/class/fpga_manager/"
 ```
 
 # Typical control sequence

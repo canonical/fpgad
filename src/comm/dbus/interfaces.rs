@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config::system_config;
+use crate::config::{config_fs_prefix, firmware_prefix, sys_fs_prefix};
 use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform, new_platform};
 use log::trace;
@@ -30,12 +30,10 @@ fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
                 fpga name must be compliant with sysfs rules."
         )));
     }
-    if !PathBuf::from(system_config().sys_fs_prefix())
-        .join(device_handle)
-        .exists()
-    {
+    let sys_fs_prefix = sys_fs_prefix()?;
+    if !PathBuf::from(sys_fs_prefix).join(device_handle).exists() {
         return Err(FpgadError::Argument(format!(
-            "Device {device_handle} not found."
+            "Device {device_handle} not found.",
         )));
     };
     Ok(())
@@ -167,13 +165,13 @@ impl ConfigureInterface {
     }
 
     async fn get_config_fs_prefix(&self) -> Result<String, fdo::Error> {
-        Ok(system_config().config_fs_prefix())
+        Ok(config_fs_prefix()?)
     }
     async fn get_firmware_prefix(&self) -> Result<String, fdo::Error> {
-        Ok(system_config().firmware_prefix())
+        Ok(firmware_prefix()?)
     }
 
     async fn get_sys_fs_prefix(&self) -> Result<String, fdo::Error> {
-        Ok(system_config().sys_fs_prefix())
+        Ok(sys_fs_prefix()?)
     }
 }
