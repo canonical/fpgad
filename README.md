@@ -33,6 +33,26 @@ sudo RUST_LOG=trace RUST_BACKTRACE=full ./target/debug/fpgad
 sudo cp ./data/dbus/com.canonical.fpgad.conf /etc/dbus-1/system.d/
 ```
 
+# To run on startup
+
+Before installing, confirm that `ExecStart=` in the `.service` file points to the correct executable (e.g.
+`ExecStart=/home/ubuntu/fpgad/target/debug/fpgad`).
+
+To install the service run
+
+```shell
+sudo cp data/systemd/fpgad.service /lib/systemd/system/
+```
+
+To run without restarting
+
+```shell
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl enable fpgad.service
+sudo systemctl start fpgad.service
+```
+
 # Typical control sequence
 
 #### FPGA only:
