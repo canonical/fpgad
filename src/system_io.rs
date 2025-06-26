@@ -12,10 +12,10 @@
 
 use crate::error::FpgadError;
 use log::trace;
+use std::fs::OpenOptions;
 use std::fs::{create_dir_all, remove_dir};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
-use std::{fs::OpenOptions, io::Read};
 
 /// Convenient wrapper for reading the contents of `file_path` to String
 pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {

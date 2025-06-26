@@ -10,118 +10,36 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use log::info;
 use std::error::Error;
 use std::future::pending;
-use std::path::Path;
 use zbus::connection;
 mod error;
-use log::{error, info, trace};
-
-use platforms::{
-    platform::{Fpga, Platform, list_fpga_managers},
-    universal,
-};
 
 mod comm;
-use crate::error::FpgadError;
-use comm::dbus::interfaces::Greeter;
-use universal::UniversalPlatform;
 
 mod platforms;
 mod system_io;
 
-pub(crate) fn load_package(
-    platform: &mut impl Platform,
-    overlay_handle: &str,
-    bitstream_path: &Path,
-    overlay_source_path: &Path,
-) -> Result<(), FpgadError> {
-    trace!(
-        "Load package called with bitstream_path: {:?} and overlay_path: {:?}",
-        bitstream_path, overlay_source_path
-    );
-    platform.fpga("fpga0").set_flags(0)?;
-    platform
-        .overlay_handler()
-        .set_overlay_fs_path(overlay_handle)?;
-    platform
-        .overlay_handler()
-        .set_source_path(overlay_source_path)?;
-
-    platform.overlay_handler().apply_overlay()
-}
-
-/// Removes the overlay, undoing any extra steps, and then deletes the overlay_handler
-fn unload_package(platform: &mut impl Platform) -> Result<(), FpgadError> {
-    platform.overlay_handler().remove_overlay()
-}
+use crate::comm::dbus::interfaces::{ControlInterface, StatusInterface};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    let greeter = Greeter { count: 0 };
+    // Upon load, the daemon will search each fpga device and determine what platform it is
+    // based on its name in /sys/class/fpga_manager/{device}/name
+    let status_interface = StatusInterface {};
+    let control_interface = ControlInterface {};
 
-    let _conn = connection::Builder::session()?
-        .name("com.canonical.fpgad.MyGreeter")?
-        .serve_at("/com/canonical/fpgad/MyGreeter", greeter)?
+    let _conn = connection::Builder::system()?
+        .name("com.canonical.fpgad")?
+        .serve_at("/com/canonical/fpgad/status", status_interface)?
+        .serve_at("/com/canonical/fpgad/control", control_interface)?
         .build()
         .await?;
 
-    // client will send a request to load bitstream to fpga
-    // if no fpga name specified fpgad will try all FPGAs available under /sys/class/fpga_manager/
-    // if no platform specified fpgad will use universal_platform for each fpga
-    // available, until it successfully loads the bitstream
-    //
-    for fpga in list_fpga_managers().iter() {
-        let mut universal_platform = UniversalPlatform::new();
-        info!("Detected {}", universal_platform.fpga(fpga).device_handle());
-    }
-    trace!("FPGA managers scraped.");
-    let mut universal_platform = UniversalPlatform::new();
-    trace!(
-        "Initializing {}",
-        universal_platform.fpga("fpga0").device_handle()
-    );
-    let fpga = universal_platform.fpga("fpga0");
-    match fpga.get_state() {
-        Err(e) => error!("Initialising FPGA failed with error: '{}'", e),
-        Ok(val) => info!(
-            "{} initialised with initial state of '{}' at time of detection.",
-            fpga.device_handle(),
-            val
-        ),
-    };
-
-    let bitstream_path = Path::new("/lib/firmware/k26-starter-kits.bit.bin");
-    let dtbo_path = Path::new("/lib/firmware/k26-starter-kits.dtbo");
-    let load_result = load_package(&mut universal_platform, "fpga0", bitstream_path, dtbo_path);
-
-    match &load_result {
-        Err(e) => {
-            error!(
-                "Failed to load bitstream using files: '{:?}' for bitstream and '{:?}' for dtbo: '{}'",
-                bitstream_path, dtbo_path, e
-            );
-        }
-        Ok(_) => info!("Bitstream appears to be successfully loaded."),
-    };
-
-    if load_result.is_ok() {
-        info!("Waiting 5s.");
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-        info!("The wait is over prepare to be unloaded!");
-        if unload_package(&mut universal_platform).is_err() {
-            error!("Failed to unload bitstream!");
-        } else {
-            info!(
-                "No errors encountered when unloading bitstream.\nWaiting for dbus messages. (ctrl+C to quit)."
-            );
-        }
-    } else {
-        error!("Failed to load bitstream!\nWaiting for dbus messages. (ctrl+C to quit).");
-    }
-
+    info!("Started com.canonical.fpgad dbus service");
     // Do other things or go to wait forever
     pending::<()>().await;
 

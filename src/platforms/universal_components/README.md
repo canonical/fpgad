@@ -28,11 +28,10 @@ classDiagram
     }
     class UniversalOverlayHandler {
         + overlay_source_path: Option&lt;PathBuf&gt;
-        + overlay_fs_path: Option&lt;PathBuf&gt;
+        + overlay_fs_path: PathBuf;
         get_required_flags() <- FPGA requires?
         get_status()
         set_source_path(source_path)
-        set_overlay_fs_path(overlay_handle)
         get_overlay_fs_path()
         apply_overlay()
         remove_overlay()
