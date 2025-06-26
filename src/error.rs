@@ -38,11 +38,16 @@ pub enum FpgadError {
     IODelete { file: PathBuf, e: std::io::Error },
     #[error("FpgadError::Internal: An Internal error occurred: {0}")]
     Internal(String),
+    #[error("FpgadError::Toml: Deserializing {toml_string} failed: {e}")]
+    TomlDe {
+        toml_string: String,
+        e: toml::de::Error,
+    },
 }
 
 impl From<FpgadError> for fdo::Error {
     fn from(err: FpgadError) -> Self {
-        error!("{}", err);
+        error!("{err}");
         match err {
             FpgadError::Argument(..) => fdo::Error::InvalidArgs(err.to_string()),
             FpgadError::IORead { .. } => fdo::Error::IOError(err.to_string()),

@@ -9,50 +9,34 @@
 // fpgad is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranties of MERCHANTABILITY, SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
+use crate::config::boot_firmware;
+use crate::config::system_config;
+use crate::platforms::platform::{Fpga, OverlayHandler, Platform, platform_for_device};
+use crate::system_io::validate_device_handle;
 
-use crate::config;
-use crate::error::FpgadError;
-use crate::platforms::platform::{Fpga, OverlayHandler, Platform, new_platform};
 use log::trace;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use zbus::fdo;
 use zbus::interface;
 
 pub struct StatusInterface {}
 pub struct ControlInterface {}
-
-fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
-    if device_handle.is_empty() || !device_handle.is_ascii() {
-        return Err(FpgadError::Argument(format!(
-            "{} is invalid name for fpga device.\
-                fpga name must be compliant with sysfs rules.",
-            device_handle
-        )));
-    }
-    if !PathBuf::from(config::SYSFS_PREFIX)
-        .join(device_handle)
-        .exists()
-    {
-        return Err(FpgadError::Argument(format!(
-            "Device {} not found.",
-            device_handle
-        )));
-    };
-    Ok(())
-}
+pub struct ConfigureInterface {}
 
 #[interface(name = "com.canonical.fpgad.status")]
 impl StatusInterface {
     async fn get_fpga_state(&self, device_handle: &str) -> Result<String, fdo::Error> {
-        trace!("get_fpga_state called with name: {}", device_handle);
+        trace!("get_fpga_state called with name: {device_handle}");
         validate_device_handle(device_handle)?;
-        Ok(new_platform(device_handle).fpga(device_handle)?.state()?)
+        Ok(platform_for_device(device_handle)?
+            .fpga(device_handle)?
+            .state()?)
     }
 
     async fn get_fpga_flags(&self, device_handle: &str) -> Result<String, fdo::Error> {
-        trace!("get_fpga_flags called with name: {}", device_handle);
+        trace!("get_fpga_flags called with name: {device_handle}");
         validate_device_handle(device_handle)?;
-        Ok(new_platform(device_handle)
+        Ok(platform_for_device(device_handle)?
             .fpga(device_handle)?
             .flags()
             .map(|flags| flags.to_string())?)
@@ -68,7 +52,7 @@ impl StatusInterface {
              {overlay_handle}"
         );
         validate_device_handle(device_handle)?;
-        Ok(new_platform(device_handle)
+        Ok(platform_for_device(device_handle)?
             .overlay_handler(overlay_handle)?
             .status()?)
     }
@@ -76,20 +60,21 @@ impl StatusInterface {
 
 #[interface(name = "com.canonical.fpgad.control")]
 impl ControlInterface {
+    async fn load_defaults(&self) -> Result<String, fdo::Error> {
+        Ok(boot_firmware::load_defaults()?)
+    }
+
     async fn set_fpga_flags(
         &self,
         device_handle: &str,
         flags: isize,
     ) -> Result<String, fdo::Error> {
-        trace!(
-            "set_fpga_flags called with name: {} and flags: {}",
-            device_handle, flags
-        );
+        trace!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
-        new_platform(device_handle)
+        platform_for_device(device_handle)?
             .fpga(device_handle)?
             .set_flags(flags)?;
-        Ok(format!("Flags set to {} for {}", flags, device_handle))
+        Ok(format!("Flags set to {flags} for {device_handle}"))
     }
 
     async fn write_bitstream_direct(
@@ -104,11 +89,10 @@ impl ControlInterface {
         let path = Path::new(bitstream_path_str);
         if !path.exists() || path.is_dir() {
             return Err(fdo::Error::InvalidArgs(format!(
-                "{} is not a valid path to a bitstream file.",
-                bitstream_path_str
+                "{bitstream_path_str} is not a valid path to a bitstream file."
             )));
         }
-        new_platform(device_handle)
+        platform_for_device(device_handle)?
             .fpga(device_handle)?
             .load_firmware(path)?;
         Ok(format!("{bitstream_path_str} loaded to {device_handle}"))
@@ -126,7 +110,7 @@ impl ControlInterface {
         );
         validate_device_handle(device_handle)?;
 
-        let platform = new_platform(device_handle);
+        let platform = platform_for_device(device_handle)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.apply_overlay(Path::new(overlay_source_path))?;
@@ -145,12 +129,45 @@ impl ControlInterface {
              {overlay_handle}"
         );
         validate_device_handle(device_handle)?;
-        let platform = new_platform(device_handle);
+        let platform = platform_for_device(device_handle)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.remove_overlay()?;
         Ok(format!(
             "{overlay_handle} removed by deleting {overlay_fs_path:?}"
         ))
+    }
+}
+
+#[interface(name = "com.canonical.fpgad.configure")]
+impl ConfigureInterface {
+    async fn get_overlay_control_dir(&self) -> Result<String, fdo::Error> {
+        trace!("get_overlay_control_dir called");
+        Ok(system_config::overlay_control_dir()?)
+    }
+    async fn get_firmware_source_dir(&self) -> Result<String, fdo::Error> {
+        trace!("get_firmware_source_dir called");
+        Ok(system_config::firmware_source_dir()?)
+    }
+
+    async fn get_fpga_managers_dir(&self) -> Result<String, fdo::Error> {
+        trace!("get_fpga_managers_dir called");
+        Ok(system_config::fpga_managers_dir()?)
+    }
+    async fn set_overlay_control_dir(&self, new_path: &str) -> Result<String, fdo::Error> {
+        trace!("set_overlay_control_dir called with prefix: {new_path}");
+        system_config::set_overlay_control_dir(new_path)?;
+        Ok(format!("overlay_control_dir set to {new_path}"))
+    }
+    async fn set_firmware_source_dir(&self, new_path: &str) -> Result<String, fdo::Error> {
+        trace!("set_firmware_source_dir called with prefix: {new_path}");
+        system_config::set_firmware_source_dir(new_path)?;
+        Ok(format!("firmware_source_dir set to {new_path}"))
+    }
+
+    async fn set_fpga_managers_dir(&self, new_path: &str) -> Result<String, fdo::Error> {
+        trace!("set_fpga_managers_dir called with prefix: {new_path}");
+        system_config::set_fpga_managers_dir(new_path)?;
+        Ok(format!("fpga_managers_dir set to {new_path}"))
     }
 }
