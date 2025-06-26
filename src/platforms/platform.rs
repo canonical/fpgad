@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config::system_config;
+use crate::config::{SYSFS_PREFIX, sys_fs_prefix};
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
 use crate::system_io::fs_read;
@@ -32,7 +32,8 @@ const PLATFORM_SUBSTRINGS: &[(&str, PlatformType)] = &[
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
 #[allow(dead_code)]
 pub async fn list_fpga_managers() -> Vec<String> {
-    std::fs::read_dir(system_config().sys_fs_prefix())
+    let prefix = sys_fs_prefix().unwrap_or_else(|_| SYSFS_PREFIX.to_string());
+    std::fs::read_dir(prefix)
         .map(|iter| {
             iter.filter_map(Result::ok)
                 .map(|entry| entry.file_name().to_string_lossy().into_owned())
@@ -96,15 +97,16 @@ pub trait OverlayHandler {
 }
 
 fn discover_platform_type(device_handle: &str) -> PlatformType {
+    let prefix = sys_fs_prefix().unwrap_or_else(|_| SYSFS_PREFIX.to_string());
     let compat_string = match fs_read(
-        &Path::new(&system_config().sys_fs_prefix())
+        &Path::new(&prefix)
             .join(device_handle)
             .join("of_node/compatible"),
     ) {
         Err(e) => {
             error!(
                 "Failed to read platform from {device_handle:?}: {e}\n\
-                Universal will be used as platform type."
+                Universal will be used as platform type.",
             );
             return PlatformType::Universal;
         }

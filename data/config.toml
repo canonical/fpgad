@@ -1,0 +1,4 @@
+[system_paths]
+config_fs_prefix = "/sys/kernel/config/device-tree/overlays/"
+firmware_prefix = "/lib/firmware/"
+sys_fs_prefix = "/sys/class/fpga_manager/"
