@@ -1,8 +1,8 @@
 use crate::error::FpgadError;
-use crate::system_io::fs_read;
 use log::{trace, warn};
-use serde::Deserialize;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+
+use crate::config::config_files::{SystemPaths, system_paths_config_from_file};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 // These are hardcoded backups to prevent crashing and lockups when accessing the config file
@@ -13,9 +13,9 @@ pub static SYSFS_PREFIX: &str = "/sys/class/fpga_manager/";
 
 #[derive(Debug)]
 pub struct SystemConfig {
-    config_fs_prefix: Mutex<String>,
-    firmware_prefix: Mutex<String>,
-    sys_fs_prefix: Mutex<String>,
+    pub(crate) config_fs_prefix: Mutex<String>,
+    pub(crate) firmware_prefix: Mutex<String>,
+    pub(crate) sys_fs_prefix: Mutex<String>,
 }
 
 static CONFIG: OnceLock<Mutex<SystemConfig>> = OnceLock::new();
@@ -56,85 +56,6 @@ impl SystemConfig {
             }
         };
         Ok(guard.clone())
-    }
-}
-/// This is the top level struct which holds all sections
-#[derive(Debug, Deserialize)]
-struct TomlConfig {
-    system_paths: Option<SystemPaths>,
-}
-
-/// This is the "defaults" struct
-#[derive(Debug, Deserialize)]
-pub(crate) struct SystemPaths {
-    config_fs_prefix: Option<String>,
-    firmware_prefix: Option<String>,
-    sys_fs_prefix: Option<String>,
-}
-
-impl From<SystemPaths> for SystemConfig {
-    fn from(value: SystemPaths) -> Self {
-        trace!("Creating Config (with Mutex) from {value:?}");
-        SystemConfig {
-            config_fs_prefix: Mutex::new(value.config_fs_prefix.unwrap_or_else(|| {
-                trace!("No config_fs_prefix provided. Using hardcoded value.");
-                CONFIG_FS_PREFIX.to_string()
-            })),
-            firmware_prefix: Mutex::new(value.firmware_prefix.unwrap_or_else(|| {
-                trace!("No firmware_prefix provided. Using hardcoded value.");
-                FW_PREFIX.to_string()
-            })),
-            sys_fs_prefix: Mutex::new(value.sys_fs_prefix.unwrap_or_else(|| {
-                trace!("No sys_fs_prefix provided. Using hardcoded value.");
-                SYSFS_PREFIX.to_string()
-            })),
-        }
-    }
-}
-
-impl SystemPaths {
-    fn default() -> SystemPaths {
-        SystemPaths {
-            config_fs_prefix: None,
-            firmware_prefix: None,
-            sys_fs_prefix: None,
-        }
-    }
-    fn merge(self, fallback: SystemPaths) -> SystemPaths {
-        SystemPaths {
-            config_fs_prefix: self.config_fs_prefix.or(fallback.config_fs_prefix),
-            firmware_prefix: self.firmware_prefix.or(fallback.firmware_prefix),
-            sys_fs_prefix: self.sys_fs_prefix.or(fallback.sys_fs_prefix),
-        }
-    }
-}
-
-fn toml_str_to_config(toml_string: &str) -> Result<TomlConfig, FpgadError> {
-    let config: TomlConfig = match toml::from_str(toml_string) {
-        Ok(config) => config,
-        Err(e) => {
-            return Err(FpgadError::TomlDe {
-                toml_string: toml_string.into(),
-                e,
-            });
-        }
-    };
-    Ok(config)
-}
-
-pub(crate) fn system_paths_config_from_file(file_path: &Path) -> Result<SystemPaths, FpgadError> {
-    if !file_path.is_file() {
-        return Err(FpgadError::Internal(format!(
-            "Config file not found in {file_path:?}"
-        )));
-    }
-    let config = toml_str_to_config(&fs_read(file_path)?)?;
-
-    match config.system_paths {
-        Some(system_paths) => Ok(system_paths),
-        None => Err(FpgadError::Internal(
-            "config file did not contain a `[system_paths]` section.".to_string(),
-        )),
     }
 }
 

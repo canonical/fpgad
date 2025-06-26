@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config::{firmware_prefix, sys_fs_prefix};
+use crate::config::system_config::{firmware_prefix, sys_fs_prefix};
 use crate::error::FpgadError;
 use crate::platforms::platform::Fpga;
 use crate::system_io::{fs_read, fs_write};
