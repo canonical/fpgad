@@ -39,12 +39,21 @@ sudo cp ./data/dbus/com.canonical.fpgad.conf /etc/dbus-1/system.d/
 
 ```
 sudo mkdir -p /etc/fpgad/
-sudo cp ./data/config.toml /etc/fpgad/
+sudo cp ./data/config.toml /etc/fpgad/ 
+sudo mkdir -p /usr/lib/fpgad/
+sudo cp ./data/config.toml /usr/lib/fpgad/
 ```
+
+During install, the /etc/fpgad/ version doesn't need to exist, so can be created blank,
+not copied in or be a copy of the `/usr/lib` version.
+
+The `/usr/lib/` variant should be created during install and should contain a comment like
+"DO NO EDIT THIS FILE USE  `/etc/fpgad/config.toml` FOR USER SPECIFIED OVERRIDES"
 
 ### `config.toml` location
 
-The config file must be stored in `/etc/fpgad` (or `$snap/etc/fpgad/` or similar path adjusted by snap layouts) and
+The user provided config file must be stored in `/etc/fpgad` (or `$snap/etc/fpgad/` or similar path adjusted by snap
+layouts) and
 must be called `config.toml`
 
 ## `config.toml` syntax

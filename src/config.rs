@@ -2,7 +2,7 @@ use crate::error::FpgadError;
 use crate::system_io::fs_read;
 use log::{trace, warn};
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 // These are hardcoded backups to prevent crashing and lockups when accessing the config file
@@ -16,16 +16,6 @@ pub struct SystemConfig {
     config_fs_prefix: Mutex<String>,
     firmware_prefix: Mutex<String>,
     sys_fs_prefix: Mutex<String>,
-}
-
-impl SystemConfig {
-    fn default() -> SystemConfig {
-        SystemConfig {
-            config_fs_prefix: Mutex::new(CONFIG_FS_PREFIX.to_string()),
-            firmware_prefix: Mutex::new(FW_PREFIX.to_string()),
-            sys_fs_prefix: Mutex::new(SYSFS_PREFIX.to_string()),
-        }
-    }
 }
 
 static CONFIG: OnceLock<Mutex<SystemConfig>> = OnceLock::new();
@@ -71,20 +61,20 @@ impl SystemConfig {
 /// This is the top level struct which holds all sections
 #[derive(Debug, Deserialize)]
 struct TomlConfig {
-    defaults: Option<DefaultsToml>,
+    system_paths: Option<SystemPaths>,
 }
 
 /// This is the "defaults" struct
 #[derive(Debug, Deserialize)]
-struct DefaultsToml {
+pub(crate) struct SystemPaths {
     config_fs_prefix: Option<String>,
     firmware_prefix: Option<String>,
     sys_fs_prefix: Option<String>,
 }
 
-impl From<DefaultsToml> for SystemConfig {
-    fn from(value: DefaultsToml) -> Self {
-        trace!("User provided config: {value:?}");
+impl From<SystemPaths> for SystemConfig {
+    fn from(value: SystemPaths) -> Self {
+        trace!("Creating Config (with Mutex) from {value:?}");
         SystemConfig {
             config_fs_prefix: Mutex::new(value.config_fs_prefix.unwrap_or_else(|| {
                 trace!("No config_fs_prefix provided. Using hardcoded value.");
@@ -102,45 +92,71 @@ impl From<DefaultsToml> for SystemConfig {
     }
 }
 
-fn config_from_file() -> Result<SystemConfig, FpgadError> {
-    let config_path = PathBuf::from("/etc/fpgad/config.toml");
-    if !config_path.is_file() {
-        return Err(FpgadError::Internal(format!(
-            "Config file not found in {config_path:?}. \
-        Using hardcoded defaults"
-        )));
+impl SystemPaths {
+    fn default() -> SystemPaths {
+        SystemPaths {
+            config_fs_prefix: None,
+            firmware_prefix: None,
+            sys_fs_prefix: None,
+        }
     }
-    let toml_string = fs_read(&config_path)?;
+    fn merge(self, fallback: SystemPaths) -> SystemPaths {
+        SystemPaths {
+            config_fs_prefix: self.config_fs_prefix.or(fallback.config_fs_prefix),
+            firmware_prefix: self.firmware_prefix.or(fallback.firmware_prefix),
+            sys_fs_prefix: self.sys_fs_prefix.or(fallback.sys_fs_prefix),
+        }
+    }
+}
 
-    let config: TomlConfig = match toml::from_str(&toml_string) {
+fn toml_str_to_config(toml_string: &str) -> Result<TomlConfig, FpgadError> {
+    let config: TomlConfig = match toml::from_str(toml_string) {
         Ok(config) => config,
         Err(e) => {
             return Err(FpgadError::TomlDe {
-                file: config_path,
+                toml_string: toml_string.into(),
                 e,
             });
         }
     };
-    match config.defaults {
-        Some(defaults_toml) => Ok(defaults_toml.into()),
+    Ok(config)
+}
+
+pub(crate) fn system_paths_config_from_file(file_path: &Path) -> Result<SystemPaths, FpgadError> {
+    if !file_path.is_file() {
+        return Err(FpgadError::Internal(format!(
+            "Config file not found in {file_path:?}"
+        )));
+    }
+    let config = toml_str_to_config(&fs_read(file_path)?)?;
+
+    match config.system_paths {
+        Some(system_paths) => Ok(system_paths),
         None => Err(FpgadError::Internal(
-            "config file did not contain a `[defaults]` section.".to_string(),
+            "config file did not contain a `[system_paths]` section.".to_string(),
         )),
     }
 }
 
+/// User config overrides vendor config and vendor config overrides hardcoded defaults
 fn init_system_config() -> Mutex<SystemConfig> {
-    match config_from_file() {
-        Ok(config) => {
-            trace!("Successfully loaded config: {config:?}");
-            Mutex::new(config)
-        }
-        Err(e) => {
-            warn!("Using hardcoded paths because failed to load config: {e}");
-            Mutex::new(SystemConfig::default())
-        }
-    }
+    let vendor_config = system_paths_config_from_file(&PathBuf::from("/usr/lib/fpgad/config.toml"))
+        .unwrap_or_else(|e| {
+            warn!("Using hardcoded paths for vendor config because loading config failed: {e}");
+            SystemPaths::default()
+        });
+    let user_config = system_paths_config_from_file(&PathBuf::from("/etc/fpgad/config.toml"))
+        .unwrap_or_else(|e| {
+            warn!("Using hardcoded paths for user config because loading config failed: {e}");
+            SystemPaths::default()
+        });
+    trace!("Merging user_config: {user_config:?} with vendor_config {vendor_config:?}");
+    let merged = user_config.merge(vendor_config);
+    let ret = Mutex::new(merged.into());
+    trace!("Resulting config: {ret:?}");
+    ret
 }
+
 pub fn system_config() -> &'static Mutex<SystemConfig> {
     CONFIG.get_or_init(init_system_config)
 }
