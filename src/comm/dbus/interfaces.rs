@@ -10,7 +10,10 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config::{config_fs_prefix, firmware_prefix, sys_fs_prefix};
+use crate::config::system_config::{
+    config_fs_prefix, firmware_prefix, set_config_fs_prefix, set_firmware_prefix,
+    set_sys_fs_prefix, sys_fs_prefix,
+};
 use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform, new_platform};
 use log::trace;
@@ -151,27 +154,33 @@ impl ControlInterface {
 
 #[interface(name = "com.canonical.fpgad.configure")]
 impl ConfigureInterface {
-    async fn set_firmware_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
-        trace!("set_firmware_prefix called with prefix: {prefix}");
-        Ok("Yeah, nah, assigning to static OnceCell isn't possible so this is WIP, sorry.".into())
-    }
-    async fn set_sys_fs_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
-        trace!("set_sys_fs_prefix called with prefix: {prefix}");
-        Ok("Yeah, nah, assigning to static OnceCell isn't possible so this is WIP, sorry.".into())
-    }
-    async fn set_config_fs_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
-        trace!("set_config_fs_prefix called with prefix: {prefix}");
-        Ok("Yeah, nah, assigning to static OnceCell isn't possible so this is WIP, sorry.".into())
-    }
-
     async fn get_config_fs_prefix(&self) -> Result<String, fdo::Error> {
+        trace!("get_config_fs_prefix called");
         Ok(config_fs_prefix()?)
     }
     async fn get_firmware_prefix(&self) -> Result<String, fdo::Error> {
+        trace!("get_firmware_prefix called");
         Ok(firmware_prefix()?)
     }
 
     async fn get_sys_fs_prefix(&self) -> Result<String, fdo::Error> {
+        trace!("get_sys_fs_prefix called");
         Ok(sys_fs_prefix()?)
+    }
+    async fn set_config_fs_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
+        trace!("set_config_fs_prefix called with prefix: {prefix}");
+        set_config_fs_prefix(prefix.to_string())?;
+        Ok(format!("config_fs_prefix set to {prefix}"))
+    }
+    async fn set_firmware_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
+        trace!("set_firmware_prefix called with prefix: {prefix}");
+        set_firmware_prefix(prefix.to_string())?;
+        Ok(format!("firmware_prefix set to {prefix}"))
+    }
+
+    async fn set_sys_fs_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
+        trace!("set_sys_fs_prefix called with prefix: {prefix}");
+        set_sys_fs_prefix(prefix.to_string())?;
+        Ok(format!("sys_fs_prefix set to {prefix}"))
     }
 }

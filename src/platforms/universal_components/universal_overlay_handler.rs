@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config::{CONFIG_FS_PREFIX, config_fs_prefix};
+use crate::config::system_config::{CONFIG_FS_PREFIX, config_fs_prefix};
 use crate::error::FpgadError;
 use crate::platforms::platform::OverlayHandler;
 use crate::system_io::{extract_filename, fs_create_dir, fs_read, fs_remove_dir, fs_write};

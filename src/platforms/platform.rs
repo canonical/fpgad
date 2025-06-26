@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config::{SYSFS_PREFIX, sys_fs_prefix};
+use crate::config::system_config::{SYSFS_PREFIX, sys_fs_prefix};
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
 use crate::system_io::fs_read;
