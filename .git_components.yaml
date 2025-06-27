@@ -30,3 +30,6 @@ cli:
 docs:
   owners:
     - artiepoole
+config:
+  owners:
+    - artiepoole
