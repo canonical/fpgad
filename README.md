@@ -23,13 +23,13 @@ It should be clear to see, then, that compromising the device tree is very power
 
 # To Run Daemon
 
-```
+```shell
 sudo RUST_LOG=trace RUST_BACKTRACE=full ./target/debug/fpgad
 ```
 
 # Configure DBUS
 
-```
+```shell
 sudo cp ./data/dbus/com.canonical.fpgad.conf /etc/dbus-1/system.d/
 ```
 
@@ -37,7 +37,7 @@ sudo cp ./data/dbus/com.canonical.fpgad.conf /etc/dbus-1/system.d/
 
 ### To use the provided `config.toml`
 
-```
+```shell
 sudo mkdir -p /etc/fpgad/
 sudo cp ./data/config.toml /etc/fpgad/ 
 sudo mkdir -p /usr/lib/fpgad/
@@ -68,6 +68,28 @@ Any unspecified values will default to hardcoded defaults, as described in the t
 | `firmware_prefix`  | The directory within which the firmware subsystem and overlayfs subssystem search relative to when loading bitstreams or overlays | `"/lib/firmware/"`                           |
 | `sys_fs_prefix`    | The location of the fpga_manager device folder which contains, for example, `fpga0`.                                              | `"/sys/class/fpga_manager/"`                 |
 
+### `[boot_firmware]` section:
+
+In order to have firmware load during startup, there are two options (which can be combined):
+
+1) Load a bitstream directly to an fpga device
+2) Load a device-tree overlay (which may apply a bitstream to the device)
+
+You must always provide a `default_device_handle` in both cases. For case 1) you must also provide a `default_bitstream`
+and, optionally,  `default_fpga_flags` otherwise the flags will remain unspecified.
+For case 2) you must provide `default_overlay_handle` and `default_overlay`. If `default_fpga_flags` are provided, these
+will be written to the device specified by `default_device_handle`  otherwise the flags will remain unspecified.
+
+The bitstream will always be applied before an overlay to avoid CPU misfires.
+
+| Key                      | Description                                                                                                                              |
+|--------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| `default_device_handle`  | The device to control (e.g. fpga0)                                                                                                       |
+| `default_overlay_handle` | The overlay handle to use for an overlay if specified                                                                                    |
+| `default_bitstream`      | The path relative to `firmware_prefix` (see `[system_paths]` section) of the bitstream to load if specified                              |
+| `default_overlay`        | The path relative to `firmware_prefix` (see `[system_paths]` section) of the device-tree overlay to load if specified                    |
+| `default_fpga_flags`     | The fpgad flags necessary for writing the bitstream to the fpga device specified by `default_device_handle` (whether direct or via dtbo) |
+
 ### Example `config.toml`
 
 ```toml
@@ -75,6 +97,26 @@ Any unspecified values will default to hardcoded defaults, as described in the t
 config_fs_prefix = "/sys/kernel/config/device-tree/overlays/"
 firmware_prefix = "/lib/firmware/"
 sys_fs_prefix = "/sys/class/fpga_manager/"
+```
+
+# To run on startup
+
+Before installing, confirm that `ExecStart=` in the `.service` file points to the correct executable (e.g.
+`ExecStart=/home/ubuntu/fpgad/target/debug/fpgad`).
+
+To install the service run
+
+```shell
+sudo cp data/systemd/fpgad.service /lib/systemd/system/
+```
+
+To run without restarting
+
+```shell
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl enable fpgad.service
+sudo systemctl start fpgad.service
 ```
 
 # Typical control sequence
@@ -112,7 +154,7 @@ To remove an overlay simply call:
 
 ### Status (unprivileged)
 
-```
+```shell
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaState s "fpga0"
 
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaFlags s "fpga0"
@@ -122,7 +164,7 @@ busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonic
 
 ### Control (privileged)
 
-```
+```shell
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags sx "fpga0" 0
 
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control ApplyOverlay sss "fpga0" "fpga0" "/lib/firmware/k26-starter-kits.dtbo"
@@ -134,7 +176,7 @@ sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.c
 
 ### Configure
 
-```
+```shell
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure GetConfigFsPrefix
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure GetFirmwarePrefix
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure GetSysFsPrefix
