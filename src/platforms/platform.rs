@@ -13,7 +13,21 @@
 use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
+use crate::system_io::fs_read;
+use log::{error, info, trace, warn};
 use std::path::Path;
+
+#[derive(Clone, Copy)]
+enum PlatformType {
+    Universal,
+    ZynqMP,
+    Versal,
+}
+
+const PLATFORM_SUBSTRINGS: &[(&str, PlatformType)] = &[
+    ("zynqmp", PlatformType::ZynqMP),
+    ("versal", PlatformType::Versal),
+];
 
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
 #[allow(dead_code)]
@@ -81,14 +95,53 @@ pub trait OverlayHandler {
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError>;
 }
 
-fn discover_platform_type(_device_handle: &str) -> &str {
-    "Universal"
+fn discover_platform_type(device_handle: &str) -> PlatformType {
+    let compat_string = match fs_read(
+        &Path::new(config::SYSFS_PREFIX)
+            .join(device_handle)
+            .join("of_node/compatible"),
+    ) {
+        Err(e) => {
+            error!(
+                "Failed to read platform from {:?}: {}\n\
+                Universal will be used as platform type.",
+                device_handle, e
+            );
+            return PlatformType::Universal;
+        }
+        Ok(s) => s,
+    };
+    trace!("Found compatibility string: '{}'", compat_string);
+
+    for (substr, platform) in PLATFORM_SUBSTRINGS {
+        if compat_string.contains(substr) {
+            trace!("Found '{substr}'");
+            return *platform;
+        }
+    }
+
+    warn!(
+        "FPGAd could not match {compat_string} for {device_handle} to a known platform.\
+    Using 'Universal'"
+    );
+    PlatformType::Universal
 }
 
 pub fn new_platform(device_handle: &str) -> impl Platform {
-    match discover_platform_type(device_handle) {
-        "Universal" => UniversalPlatform::new(),
-        _ => UniversalPlatform::new(),
+    let platform_name = discover_platform_type(device_handle);
+    match platform_name {
+        PlatformType::Universal => {
+            info!("Using platform: Universal");
+            UniversalPlatform::new()
+        }
+        PlatformType::ZynqMP => {
+            warn!("ZynqMP not implemented yet: using Universal");
+            UniversalPlatform::new()
+        }
+        PlatformType::Versal => {
+            warn!("Versal not implemented yet: using Universal");
+            UniversalPlatform::new()
+        }
     }
 }
 pub trait Platform {
