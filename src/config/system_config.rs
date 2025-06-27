@@ -1,8 +1,9 @@
 use crate::error::FpgadError;
-use log::{trace, warn};
-use std::path::PathBuf;
+use log::{error, trace, warn};
+use std::path::{Path, PathBuf};
 
 use crate::config::config_files::{SystemPaths, system_paths_config_from_file};
+use crate::system_io::fs_write;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 // These are hardcoded backups to prevent crashing and lockups when accessing the config file
@@ -10,6 +11,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 pub static CONFIG_FS_PREFIX: &str = "/sys/kernel/config/device-tree/overlays/";
 pub static FW_PREFIX: &str = "/lib/firmware/";
 pub static SYSFS_PREFIX: &str = "/sys/class/fpga_manager/";
+pub static FW_LOOKUP_PATH: &str = "/sys/module/firmware_class/parameters/path";
 
 #[derive(Debug)]
 pub struct SystemConfig {
@@ -121,15 +123,23 @@ pub fn set_config_fs_prefix(prefix: String) -> Result<(), FpgadError> {
     Ok(())
 }
 
-pub fn set_firmware_prefix(prefix: String) -> Result<(), FpgadError> {
+fn write_fw_prefix(prefix: &str) -> Result<(), FpgadError> {
+    trace!("Writing fw prefix {prefix} to {FW_LOOKUP_PATH}");
+    let fw_lookup_override = Path::new(FW_LOOKUP_PATH);
+    fs_write(fw_lookup_override, false, prefix)
+}
+
+pub fn set_firmware_prefix(prefix: &str) -> Result<(), FpgadError> {
     let config = system_config_guard()?;
+    let old_prefix = config.firmware_prefix()?;
+    write_fw_prefix(prefix)?;
 
-    *config
-        .firmware_prefix
-        .lock()
-        .map_err(|e| FpgadError::Internal(format!("Failed to lock firmware_prefix: {e}")))? =
-        prefix;
-
+    *config.firmware_prefix.lock().map_err(|e| {
+        if let Err(reset_err) = write_fw_prefix(&old_prefix) {
+            error!("Failed to reset firmware_prefix: {reset_err}");
+        }
+        FpgadError::Internal(format!("Failed to lock firmware_prefix: {e}"))
+    })? = prefix.to_owned();
     Ok(())
 }
 
