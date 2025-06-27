@@ -15,9 +15,33 @@ struct Cli {
 }
 
 #[derive(Subcommand, Debug)]
+enum LoadSubcommand {
+    /// Load overlay into the system
+    Overlay {
+        /// Overlay `FILE` to be loaded (typically .dtbo)
+        file: String,
+
+        /// `HANDLE` for the overlay directory which will be created
+        /// under "/sys/kernel/config/device-tree/overlays"
+        #[arg(long = "handle")]
+        handle: Option<String>,
+    },
+    /// Load bitstream into the system
+    Bitstream {
+        /// Bitstream `FILE` to be loaded (typically .bit.bin)
+        file: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
 enum Commands {
     /// Get the status information for the given device handle
     Status,
+    /// Load a bitstream or an overlay for the given device handle
+    Load {
+        #[command(subcommand)]
+        command: LoadSubcommand,
+    },
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,5 +52,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Status => {
             todo!()
         }
+        Commands::Load { .. } => todo!(),
     }
 }
