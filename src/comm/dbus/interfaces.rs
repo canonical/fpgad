@@ -158,7 +158,7 @@ impl ConfigureInterface {
     }
     async fn set_firmware_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
         trace!("set_firmware_prefix called with prefix: {prefix}");
-        set_firmware_prefix(prefix.to_string())?;
+        set_firmware_prefix(prefix)?;
         Ok(format!("firmware_prefix set to {prefix}"))
     }
 

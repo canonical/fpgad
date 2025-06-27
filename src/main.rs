@@ -26,7 +26,9 @@ mod system_io;
 
 use crate::comm::dbus::interfaces::{ConfigureInterface, ControlInterface, StatusInterface};
 use crate::config::boot_firmware::boot_firmware;
-use crate::config::system_config::system_config;
+use crate::config::system_config::{
+    FW_PREFIX, firmware_prefix, set_firmware_prefix, system_config,
+};
 use crate::error::FpgadError;
 use crate::platforms::platform::new_platform;
 use crate::platforms::platform::{OverlayHandler, Platform};
@@ -84,12 +86,38 @@ fn load_defaults() -> Result<(), FpgadError> {
     }
     Ok(())
 }
+/// Tries to set the system's firmware search path to the value which is stored in the
+/// system_config, should be done immediately after initialising the config.
+/// If the system_config's fw_prefix is not different to the hardcoded default,
+/// then nothing happens.
+/// On error, no changes stick and the failure is logged.
+fn set_fw_lookup_on_startup() {
+    let prefix: String = match firmware_prefix() {
+        Ok(pfx) => pfx, // weird pattern necessary to release the lock on config
+        Err(e) => {
+            error!("Failed to get firmware prefix after config init on startup: {e}");
+            return;
+        }
+    };
+
+    if prefix != FW_PREFIX {
+        match set_firmware_prefix(&prefix) {
+            Ok(_) => {
+                info!("System's firmware lookup prefix was successfully set.");
+            }
+            Err(e) => {
+                error!("Failed to set firmware lookup prefix on startup: {e}")
+            }
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     // call to initialise
     let _ = system_config();
+    set_fw_lookup_on_startup();
 
     if let Err(e) = load_defaults() {
         error!("Failed to apply the specified bitstreams during startup: {e}");
