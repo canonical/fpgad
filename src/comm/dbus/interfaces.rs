@@ -9,38 +9,17 @@
 // fpgad is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranties of MERCHANTABILITY, SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
-use crate::config;
-use crate::error::FpgadError;
 use crate::platforms::platform::{
     Fpga, OverlayHandler, Platform, list_fpga_managers, platform_for_device, read_compatible_string,
 };
+use crate::system_io::validate_device_handle;
 use log::{error, trace};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use zbus::fdo;
 use zbus::interface;
 
 pub struct StatusInterface {}
 pub struct ControlInterface {}
-
-fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
-    if device_handle.is_empty() || !device_handle.is_ascii() {
-        return Err(FpgadError::Argument(format!(
-            "{} is invalid name for fpga device.\
-                fpga name must be compliant with sysfs rules.",
-            device_handle
-        )));
-    }
-    if !PathBuf::from(config::SYSFS_PREFIX)
-        .join(device_handle)
-        .exists()
-    {
-        return Err(FpgadError::Argument(format!(
-            "Device {} not found.",
-            device_handle
-        )));
-    };
-    Ok(())
-}
 
 #[interface(name = "com.canonical.fpgad.status")]
 impl StatusInterface {
@@ -105,11 +84,7 @@ impl StatusInterface {
 
 #[interface(name = "com.canonical.fpgad.control")]
 impl ControlInterface {
-    async fn set_fpga_flags(
-        &self,
-        device_handle: &str,
-        flags: u32,
-    ) -> Result<String, fdo::Error> {
+    async fn set_fpga_flags(&self, device_handle: &str, flags: u32) -> Result<String, fdo::Error> {
         trace!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
         platform_for_device(device_handle)?
