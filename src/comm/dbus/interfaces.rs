@@ -10,10 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config::system_config::{
-    config_fs_prefix, firmware_prefix, set_config_fs_prefix, set_firmware_prefix,
-    set_sys_fs_prefix, sys_fs_prefix,
-};
+use crate::config::system_config;
 use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform, new_platform};
 use log::trace;
@@ -33,8 +30,11 @@ fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
                 fpga name must be compliant with sysfs rules."
         )));
     }
-    let sys_fs_prefix = sys_fs_prefix()?;
-    if !PathBuf::from(sys_fs_prefix).join(device_handle).exists() {
+    let fpga_managers_dir = system_config::fpga_managers_dir()?;
+    if !PathBuf::from(fpga_managers_dir)
+        .join(device_handle)
+        .exists()
+    {
         return Err(FpgadError::Argument(format!(
             "Device {device_handle} not found.",
         )));
@@ -154,33 +154,33 @@ impl ControlInterface {
 
 #[interface(name = "com.canonical.fpgad.configure")]
 impl ConfigureInterface {
-    async fn get_config_fs_prefix(&self) -> Result<String, fdo::Error> {
-        trace!("get_config_fs_prefix called");
-        Ok(config_fs_prefix()?)
+    async fn get_overlay_control_dir(&self) -> Result<String, fdo::Error> {
+        trace!("get_overlay_control_dir called");
+        Ok(system_config::overlay_control_dir()?)
     }
-    async fn get_firmware_prefix(&self) -> Result<String, fdo::Error> {
-        trace!("get_firmware_prefix called");
-        Ok(firmware_prefix()?)
-    }
-
-    async fn get_sys_fs_prefix(&self) -> Result<String, fdo::Error> {
-        trace!("get_sys_fs_prefix called");
-        Ok(sys_fs_prefix()?)
-    }
-    async fn set_config_fs_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
-        trace!("set_config_fs_prefix called with prefix: {prefix}");
-        set_config_fs_prefix(prefix.to_string())?;
-        Ok(format!("config_fs_prefix set to {prefix}"))
-    }
-    async fn set_firmware_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
-        trace!("set_firmware_prefix called with prefix: {prefix}");
-        set_firmware_prefix(prefix.to_string())?;
-        Ok(format!("firmware_prefix set to {prefix}"))
+    async fn get_firmware_source_dir(&self) -> Result<String, fdo::Error> {
+        trace!("get_firmware_source_dir called");
+        Ok(system_config::firmware_source_dir()?)
     }
 
-    async fn set_sys_fs_prefix(&self, prefix: &str) -> Result<String, fdo::Error> {
-        trace!("set_sys_fs_prefix called with prefix: {prefix}");
-        set_sys_fs_prefix(prefix.to_string())?;
-        Ok(format!("sys_fs_prefix set to {prefix}"))
+    async fn get_fpga_managers_dir(&self) -> Result<String, fdo::Error> {
+        trace!("get_fpga_managers_dir called");
+        Ok(system_config::fpga_managers_dir()?)
+    }
+    async fn set_overlay_control_dir(&self, new_path: &str) -> Result<String, fdo::Error> {
+        trace!("set_overlay_control_dir called with prefix: {new_path}");
+        system_config::set_overlay_control_dir(new_path.to_string())?;
+        Ok(format!("overlay_control_dir set to {new_path}"))
+    }
+    async fn set_firmware_source_dir(&self, new_path: &str) -> Result<String, fdo::Error> {
+        trace!("set_firmware_source_dir called with prefix: {new_path}");
+        system_config::set_firmware_source_dir(new_path.to_string())?;
+        Ok(format!("firmware_source_dir set to {new_path}"))
+    }
+
+    async fn set_fpga_managers_dir(&self, new_path: &str) -> Result<String, fdo::Error> {
+        trace!("set_fpga_managers_dir called with prefix: {new_path}");
+        system_config::set_fpga_managers_dir(new_path.to_string())?;
+        Ok(format!("fpga_managers_dir set to {new_path}"))
     }
 }
