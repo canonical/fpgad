@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 use crate::config::boot_firmware;
 use crate::config::system_config;
-use crate::platforms::platform::{new_platform, Fpga, OverlayHandler, Platform};
+use crate::platforms::platform::{Fpga, OverlayHandler, Platform, platform_for_device};
 use crate::system_io::validate_device_handle;
 
 use log::trace;
@@ -28,13 +28,15 @@ impl StatusInterface {
     async fn get_fpga_state(&self, device_handle: &str) -> Result<String, fdo::Error> {
         trace!("get_fpga_state called with name: {device_handle}");
         validate_device_handle(device_handle)?;
-        Ok(new_platform(device_handle)?.fpga(device_handle)?.state()?)
+        Ok(platform_for_device(device_handle)?
+            .fpga(device_handle)?
+            .state()?)
     }
 
     async fn get_fpga_flags(&self, device_handle: &str) -> Result<String, fdo::Error> {
         trace!("get_fpga_flags called with name: {device_handle}");
         validate_device_handle(device_handle)?;
-        Ok(new_platform(device_handle)?
+        Ok(platform_for_device(device_handle)?
             .fpga(device_handle)?
             .flags()
             .map(|flags| flags.to_string())?)
@@ -50,7 +52,7 @@ impl StatusInterface {
              {overlay_handle}"
         );
         validate_device_handle(device_handle)?;
-        Ok(new_platform(device_handle)?
+        Ok(platform_for_device(device_handle)?
             .overlay_handler(overlay_handle)?
             .status()?)
     }
@@ -69,7 +71,7 @@ impl ControlInterface {
     ) -> Result<String, fdo::Error> {
         trace!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
-        new_platform(device_handle)?
+        platform_for_device(device_handle)?
             .fpga(device_handle)?
             .set_flags(flags)?;
         Ok(format!("Flags set to {flags} for {device_handle}"))
@@ -90,7 +92,7 @@ impl ControlInterface {
                 "{bitstream_path_str} is not a valid path to a bitstream file."
             )));
         }
-        new_platform(device_handle)?
+        platform_for_device(device_handle)?
             .fpga(device_handle)?
             .load_firmware(path)?;
         Ok(format!("{bitstream_path_str} loaded to {device_handle}"))
@@ -108,7 +110,7 @@ impl ControlInterface {
         );
         validate_device_handle(device_handle)?;
 
-        let platform = new_platform(device_handle)?;
+        let platform = platform_for_device(device_handle)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.apply_overlay(Path::new(overlay_source_path))?;
@@ -127,7 +129,7 @@ impl ControlInterface {
              {overlay_handle}"
         );
         validate_device_handle(device_handle)?;
-        let platform = new_platform(device_handle)?;
+        let platform = platform_for_device(device_handle)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.remove_overlay()?;
