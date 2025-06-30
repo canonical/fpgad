@@ -22,12 +22,25 @@ pub(crate) struct SystemPaths {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct BootFirmware {
-    pub default_device_handle: Option<String>,
-    pub default_overlay_handle: Option<String>,
-    pub default_bitstream: Option<String>,
-    pub default_overlay: Option<String>,
-    pub default_fpga_flags: Option<isize>,
+pub(crate) struct BootFirmware {
+    pub(crate) bitstreams: Vec<Bitstream>,
+    pub(crate) overlays: Vec<Overlay>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub(crate) struct Bitstream {
+    pub(crate) device_handle: String,
+    pub(crate) bitstream_path: String,
+    pub(crate) flags: isize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub(crate) struct Overlay {
+    pub(crate) platform: String,
+    pub(crate) overlay_handle: String,
+    pub(crate) overlay_path: String,
+    pub(crate) device_handle: Option<String>,
+    pub(crate) fpga_flags: Option<isize>,
 }
 
 impl From<SystemPaths> for system_config::SystemConfig {
@@ -70,24 +83,14 @@ impl SystemPaths {
 impl BootFirmware {
     pub(crate) fn default() -> BootFirmware {
         BootFirmware {
-            default_device_handle: None,
-            default_overlay_handle: None,
-            default_bitstream: None,
-            default_overlay: None,
-            default_fpga_flags: None,
+            bitstreams: Vec::new(),
+            overlays: Vec::new(),
         }
     }
     pub(crate) fn merge(self, fallback: BootFirmware) -> BootFirmware {
         BootFirmware {
-            default_device_handle: self
-                .default_device_handle
-                .or(fallback.default_device_handle),
-            default_overlay_handle: self
-                .default_overlay_handle
-                .or(fallback.default_overlay_handle),
-            default_bitstream: self.default_bitstream.or(fallback.default_bitstream),
-            default_overlay: self.default_overlay.or(fallback.default_overlay),
-            default_fpga_flags: self.default_fpga_flags.or(fallback.default_fpga_flags),
+            bitstreams: [&self.bitstreams[..], &fallback.bitstreams[..]].concat(),
+            overlays: [&self.overlays[..], &fallback.overlays[..]].concat(),
         }
     }
 }
