@@ -1,10 +1,10 @@
 use crate::config::boot_firmware;
 use crate::config::config_files;
 use crate::error::FpgadError;
-use crate::platforms::platform::new_platform;
 use crate::platforms::platform::Fpga;
 use crate::platforms::platform::OverlayHandler;
 use crate::platforms::platform::Platform;
+use crate::platforms::platform::{platform_for_device, platform_for_known_platform};
 use crate::system_io::validate_device_handle;
 use log::{info, warn};
 use std::path::{Path, PathBuf};
@@ -21,7 +21,7 @@ pub fn boot_firmware() -> config_files::BootFirmware {
 
 fn load_a_default_bitstream(bitstream: config_files::Bitstream) -> Result<String, FpgadError> {
     validate_device_handle(&bitstream.device_handle)?;
-    let platform = new_platform(&bitstream.device_handle)?;
+    let platform = platform_for_device(&bitstream.device_handle)?;
     let fpga = platform.fpga(&bitstream.device_handle)?;
     fpga.set_flags(bitstream.flags)?;
     fpga.load_firmware(Path::new(&bitstream.bitstream_path))?;
@@ -32,10 +32,8 @@ fn load_a_default_bitstream(bitstream: config_files::Bitstream) -> Result<String
 }
 
 fn load_a_default_overlay(overlay: config_files::Overlay) -> Result<String, FpgadError> {
-    let platform = new_platform(&overlay.platform)?;
-    if let (Some(flags), Some(fpga_handle)) =
-        (overlay.fpga_flags.clone(), overlay.device_handle.clone())
-    {
+    let platform = platform_for_known_platform(&overlay.platform);
+    if let (Some(flags), Some(fpga_handle)) = (overlay.fpga_flags, overlay.device_handle.clone()) {
         validate_device_handle(&fpga_handle)?;
         platform.fpga(&fpga_handle)?.set_flags(flags)?;
     } else if overlay.fpga_flags.is_some() ^ overlay.device_handle.is_some() {
