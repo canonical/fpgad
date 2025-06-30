@@ -72,15 +72,16 @@ Any unspecified values will default to hardcoded defaults, as described in the t
 
 In order to have firmware load during startup, there are two options (which can be combined):
 
-1) Load a bitstream directly to an fpga device
-2) Load a device-tree overlay (which may apply a bitstream to the device)
+1) Load a bitstreams directly to an fpga device
+2) Load a device-tree overlays (which may apply a bitstream to the device)
 
-You must always provide a `default_device_handle` in both cases. For case 1) you must also provide a `default_bitstream`
-and, optionally,  `default_fpga_flags` otherwise the flags will remain unspecified.
-For case 2) you must provide `default_overlay_handle` and `default_overlay`. If `default_fpga_flags` are provided, these
-will be written to the device specified by `default_device_handle`  otherwise the flags will remain unspecified.
+These are provided as lists of bitstreams and lists of overlays.
 
-The bitstream will always be applied before an overlay to avoid CPU misfires.
+For bitstreams, all fields are required.
+For overlays, the device_handle is only reqiured in order to set fpga_flags if necessary. This only applies to the
+
+The bitstreams will always be applied before any overlays to avoid CPU misfires. This means that if an overlay is also
+configured to apply a bitstream, this will overwrite the previously written bitstreams
 
 | Key                      | Description                                                                                                                              |
 |--------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
@@ -97,6 +98,22 @@ The bitstream will always be applied before an overlay to avoid CPU misfires.
 overlay_control_dir = "/sys/kernel/config/device-tree/overlays/"
 firmware_source_dir = "/lib/firmware/"
 fpga_managers_dir = "/sys/class/fpga_manager/"
+
+[boot_firmware]
+[[boot_firmware.bitstreams]]
+device_handle = "fpga0"
+bitstream_path = "/lib/firmware/bitstream0"
+flags = 0
+[[boot_firmware.bitstreams]]
+device_handle = "fpga1"
+bitstream_path = "/lib/firmware/bitstream1"
+flags = 0
+[[boot_firmware.overlays]]
+platform = "zynqmp"
+overlay_handle = "k26-starter-kits"
+overlay_path = "/lib/firmware/k26-starter-kits.dtbo"
+device_handle = "fpga0"
+fpga_flags = 0
 ```
 
 # To run on startup

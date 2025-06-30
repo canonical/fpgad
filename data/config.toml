@@ -4,8 +4,17 @@ firmware_source_dir = "/lib/firmware/"
 fpga_managers_dir = "/sys/class/fpga_manager/"
 
 [boot_firmware]
-default_device_handle = "fpga0"
-default_overlay_handle = "fpga0"
-# default_bitstream = "/lib/firmware/k26-starter-kits.bit.bin"
-default_overlay = "/lib/firmware/k26-starter-kits.dtbo"
-default_fpga_flags = 0
+[[boot_firmware.bitstreams]]
+device_handle = "fpga0"
+bitstream_path = "/lib/firmware/k26-starter-kits.bit.bin"
+flags = 0
+[[boot_firmware.bitstreams]]
+device_handle = "fpga0"
+bitstream_path = "/lib/firmware/xilinx/k26-starter-kits/k26_starter_kits.bit.bin"
+flags = 0
+[[boot_firmware.overlays]]
+platform = "zynqmp"
+overlay_handle = "k26-starter-kits"
+overlay_path = "/lib/firmware/k26-starter-kits.dtbo"
+device_handle = "fpga0"
+fpga_flags = 0

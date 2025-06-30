@@ -1,80 +1,76 @@
 use crate::config::boot_firmware;
-use crate::config::config_files::{boot_firmware_from_file, BootFirmware};
+use crate::config::config_files;
 use crate::error::FpgadError;
 use crate::platforms::platform::new_platform;
 use crate::platforms::platform::Fpga;
 use crate::platforms::platform::OverlayHandler;
 use crate::platforms::platform::Platform;
 use crate::system_io::validate_device_handle;
-use log::{info, trace};
+use log::{info, warn};
 use std::path::{Path, PathBuf};
 
-pub fn boot_firmware() -> BootFirmware {
-    let vendor_config = boot_firmware_from_file(&PathBuf::from("/usr/lib/fpgad/config.toml"))
-        .unwrap_or(BootFirmware::default());
-    let user_config = boot_firmware_from_file(&PathBuf::from("/etc/fpgad/config.toml"))
-        .unwrap_or(BootFirmware::default());
+pub fn boot_firmware() -> config_files::BootFirmware {
+    let vendor_config =
+        config_files::boot_firmware_from_file(&PathBuf::from("/usr/lib/fpgad/config.toml"))
+            .unwrap_or(config_files::BootFirmware::default());
+    let user_config =
+        config_files::boot_firmware_from_file(&PathBuf::from("/etc/fpgad/config.toml"))
+            .unwrap_or(config_files::BootFirmware::default());
     user_config.merge(vendor_config)
+}
+
+fn load_a_default_bitstream(bitstream: config_files::Bitstream) -> Result<String, FpgadError> {
+    validate_device_handle(&bitstream.device_handle)?;
+    let platform = new_platform(&bitstream.device_handle)?;
+    let fpga = platform.fpga(&bitstream.device_handle)?;
+    fpga.set_flags(bitstream.flags)?;
+    fpga.load_firmware(Path::new(&bitstream.bitstream_path))?;
+    Ok(format!(
+        "Bitstream {} written to {}\n",
+        bitstream.bitstream_path, bitstream.device_handle
+    ))
+}
+
+fn load_a_default_overlay(overlay: config_files::Overlay) -> Result<String, FpgadError> {
+    let platform = new_platform(&overlay.platform)?;
+    if let (Some(flags), Some(fpga_handle)) =
+        (overlay.fpga_flags.clone(), overlay.device_handle.clone())
+    {
+        validate_device_handle(&fpga_handle)?;
+        platform.fpga(&fpga_handle)?.set_flags(flags)?;
+    } else if overlay.fpga_flags.is_some() ^ overlay.device_handle.is_some() {
+        warn!(
+            "Provided default overlay configuration specifies flags or fpga handle but not both. \
+            Skipping setting fpga flags. Configuration: {overlay:?}"
+        )
+    }
+    platform
+        .overlay_handler(&overlay.overlay_handle)?
+        .apply_overlay(overlay.overlay_path.as_ref())?;
+    Ok(format!(
+        "Overlay {} applied using {}\n",
+        overlay.overlay_path, overlay.overlay_handle
+    ))
 }
 
 pub fn load_defaults() -> Result<String, FpgadError> {
     let mut ret_string = String::new();
     let boot_firmware = boot_firmware::boot_firmware();
-    if let (Some(bitstream_path_str), Some(device_handle)) = (
-        boot_firmware.default_bitstream.as_ref(),
-        boot_firmware.default_device_handle.as_ref(),
-    ) {
-        trace!(
-            "Default bitstream provided. Attempting to load {bitstream_path_str} to {device_handle}"
-        );
-        validate_device_handle(device_handle)?;
-
-        let path = Path::new(bitstream_path_str);
-        if !path.exists() || path.is_dir() {
-            return Err(FpgadError::Argument(format!(
-                "the provided default bitstream path '{bitstream_path_str}' is not a valid path to \
-                a bitstream file.",
-            )));
+    if !boot_firmware.bitstreams.is_empty() {
+        for bitstream in boot_firmware.bitstreams {
+            ret_string.push_str(&load_a_default_bitstream(bitstream)?);
         }
-        let platform = new_platform(device_handle)?;
-        let fpga = platform.fpga(device_handle)?;
-        if let Some(flags) = boot_firmware.default_fpga_flags {
-            fpga.set_flags(flags)?
-        }
-        fpga.load_firmware(path)?;
-        info!("{bitstream_path_str} loaded to {device_handle}");
-        ret_string.push_str(&format!("{bitstream_path_str} loaded to {device_handle}\n"));
     } else {
-        info!("Not enough information provided in order to load a bitstream on startup");
-        ret_string
-            .push_str("Not enough information provided in order to load a bitstream on startup\n");
+        info!("No default bitstreams found in config files. Skipping.");
+        ret_string.push_str("No default bitstreams found in config files. Skipping.\n");
     }
-    if let (Some(overlay_source_path), Some(device_handle), Some(overlay_handle)) = (
-        boot_firmware.default_overlay.as_ref(),
-        boot_firmware.default_device_handle.as_ref(),
-        boot_firmware.default_overlay_handle.as_ref(),
-    ) {
-        trace!(
-            "Default overlay provided. Attempting to load {overlay_source_path} to {device_handle} \
-            with overlay_handle {overlay_handle}"
-        );
-        validate_device_handle(device_handle)?;
-
-        let platform = new_platform(device_handle)?;
-        if let Some(flags) = boot_firmware.default_fpga_flags {
-            platform.fpga(device_handle)?.set_flags(flags)?
+    if !boot_firmware.overlays.is_empty() {
+        for overlay in boot_firmware.overlays {
+            ret_string.push_str(&load_a_default_overlay(overlay)?);
         }
-        let overlay_handler = platform.overlay_handler(overlay_handle)?;
-        let overlay_fs_path = overlay_handler.overlay_fs_path()?;
-        overlay_handler.apply_overlay(Path::new(overlay_source_path))?;
-        info!("{overlay_source_path} loaded via {overlay_fs_path:?}");
-        ret_string.push_str(&format!(
-            "{overlay_source_path} loaded via {overlay_fs_path:?}\n"
-        ));
     } else {
-        info!("Not enough information provided in order to apply an overlay on startup");
-        ret_string
-            .push_str("Not enough information provided in order to apply an overlay on startup\n");
+        info!("No default overlays found in config files. Skipping.");
+        ret_string.push_str("No default overlays found in config files. Skipping.\n");
     }
     Ok(ret_string)
 }
