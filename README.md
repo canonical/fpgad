@@ -163,3 +163,15 @@ sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetFirmwareSourceDir s "/lib/firmware/"
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetFpgaManagersDir s "/sys/class/fpga_manager/"
 ```
+
+### Example changing FW path
+
+```
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetFirmwareSourceDir s "/lib/firmware/"
+
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ss "fpga0" "/lib/firmware/k26-starter-kits.bit.bin"
+
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetFirmwareSourceDir s "/lib/firmware/xilinx/k26-starter-kits"
+
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ss "fpga0" "/lib/firmware/xilinx/k26-starter-kits/k26_starter_kits.bit.bin"
+```

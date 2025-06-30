@@ -150,18 +150,18 @@ impl ConfigureInterface {
     }
     async fn set_overlay_control_dir(&self, new_path: &str) -> Result<String, fdo::Error> {
         trace!("set_overlay_control_dir called with prefix: {new_path}");
-        system_config::set_overlay_control_dir(new_path.to_string())?;
+        system_config::set_overlay_control_dir(new_path)?;
         Ok(format!("overlay_control_dir set to {new_path}"))
     }
     async fn set_firmware_source_dir(&self, new_path: &str) -> Result<String, fdo::Error> {
         trace!("set_firmware_source_dir called with prefix: {new_path}");
-        system_config::set_firmware_source_dir(new_path.to_string())?;
+        system_config::set_firmware_source_dir(new_path)?;
         Ok(format!("firmware_source_dir set to {new_path}"))
     }
 
     async fn set_fpga_managers_dir(&self, new_path: &str) -> Result<String, fdo::Error> {
         trace!("set_fpga_managers_dir called with prefix: {new_path}");
-        system_config::set_fpga_managers_dir(new_path.to_string())?;
+        system_config::set_fpga_managers_dir(new_path)?;
         Ok(format!("fpga_managers_dir set to {new_path}"))
     }
 }
