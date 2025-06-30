@@ -1,4 +1,4 @@
-use crate::config::system_config::{CONFIG_FS_PREFIX, FW_PREFIX, SYSFS_PREFIX, SystemConfig};
+use crate::config::system_config;
 use crate::error::FpgadError;
 use crate::system_io::fs_read;
 use log::trace;
@@ -15,26 +15,26 @@ pub(crate) struct TomlConfig {
 /// This is the "defaults" section struct
 #[derive(Debug, Deserialize)]
 pub(crate) struct SystemPaths {
-    config_fs_prefix: Option<String>,
-    firmware_prefix: Option<String>,
-    sys_fs_prefix: Option<String>,
+    overlay_control_dir: Option<String>,
+    firmware_source_dir: Option<String>,
+    fpga_managers_dir: Option<String>,
 }
 
-impl From<SystemPaths> for SystemConfig {
+impl From<SystemPaths> for system_config::SystemConfig {
     fn from(value: SystemPaths) -> Self {
         trace!("Creating Config (with Mutex) from {value:?}");
-        SystemConfig {
-            config_fs_prefix: Mutex::new(value.config_fs_prefix.unwrap_or_else(|| {
-                trace!("No config_fs_prefix provided. Using hardcoded value.");
-                CONFIG_FS_PREFIX.to_string()
+        system_config::SystemConfig {
+            overlay_control_dir: Mutex::new(value.overlay_control_dir.unwrap_or_else(|| {
+                trace!("No overlay_control_dir provided. Using hardcoded value.");
+                system_config::OVERLAY_CONTROL_DIR.to_string()
             })),
-            firmware_prefix: Mutex::new(value.firmware_prefix.unwrap_or_else(|| {
-                trace!("No firmware_prefix provided. Using hardcoded value.");
-                FW_PREFIX.to_string()
+            firmware_source_dir: Mutex::new(value.firmware_source_dir.unwrap_or_else(|| {
+                trace!("No firmware_source_dir provided. Using hardcoded value.");
+                system_config::FIRMWARE_SOURCE_DIR.to_string()
             })),
-            sys_fs_prefix: Mutex::new(value.sys_fs_prefix.unwrap_or_else(|| {
-                trace!("No sys_fs_prefix provided. Using hardcoded value.");
-                SYSFS_PREFIX.to_string()
+            fpga_managers_dir: Mutex::new(value.fpga_managers_dir.unwrap_or_else(|| {
+                trace!("No fpga_managers_dir provided. Using hardcoded value.");
+                system_config::FPGA_MANAGERS_DIR.to_string()
             })),
         }
     }
@@ -43,16 +43,16 @@ impl From<SystemPaths> for SystemConfig {
 impl SystemPaths {
     pub(crate) fn default() -> SystemPaths {
         SystemPaths {
-            config_fs_prefix: None,
-            firmware_prefix: None,
-            sys_fs_prefix: None,
+            overlay_control_dir: None,
+            firmware_source_dir: None,
+            fpga_managers_dir: None,
         }
     }
     pub(crate) fn merge(self, fallback: SystemPaths) -> SystemPaths {
         SystemPaths {
-            config_fs_prefix: self.config_fs_prefix.or(fallback.config_fs_prefix),
-            firmware_prefix: self.firmware_prefix.or(fallback.firmware_prefix),
-            sys_fs_prefix: self.sys_fs_prefix.or(fallback.sys_fs_prefix),
+            overlay_control_dir: self.overlay_control_dir.or(fallback.overlay_control_dir),
+            firmware_source_dir: self.firmware_source_dir.or(fallback.firmware_source_dir),
+            fpga_managers_dir: self.fpga_managers_dir.or(fallback.fpga_managers_dir),
         }
     }
 }

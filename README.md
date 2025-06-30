@@ -62,19 +62,19 @@ Any unspecified values will default to hardcoded defaults, as described in the t
 
 ### `[system_paths]` section:
 
-| Key                | Description                                                                                                                       | Default                                      |
-|--------------------|-----------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------|
-| `config_fs_prefix` | The location to which configfs is mounted. This is used to control device tree overlays                                           | `"/sys/kernel/config/device-tree/overlays/"` |
-| `firmware_prefix`  | The directory within which the firmware subsystem and overlayfs subssystem search relative to when loading bitstreams or overlays | `"/lib/firmware/"`                           |
-| `sys_fs_prefix`    | The location of the fpga_manager device folder which contains, for example, `fpga0`.                                              | `"/sys/class/fpga_manager/"`                 |
+| Key                   | Description                                                                                                                      | Default                                      |
+|-----------------------|----------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------|
+| `overlay_control_dir` | The location to which configfs is mounted. This is used to control device tree overlays                                          | `"/sys/kernel/config/device-tree/overlays/"` |
+| `firmware_source_dir` | The directory within which the firmware subsystem and overlayfs subsystem search relative to when loading bitstreams or overlays | `"/lib/firmware/"`                           |
+| `fpga_managers_dir`   | The location of the fpga_manager device folder which contains, for example, `fpga0`.                                             | `"/sys/class/fpga_manager/"`                 |
 
 ### Example `config.toml`
 
 ```toml
 [system_paths]
-config_fs_prefix = "/sys/kernel/config/device-tree/overlays/"
-firmware_prefix = "/lib/firmware/"
-sys_fs_prefix = "/sys/class/fpga_manager/"
+overlay_control_dir = "/sys/kernel/config/device-tree/overlays/"
+firmware_source_dir = "/lib/firmware/"
+fpga_managers_dir = "/sys/class/fpga_manager/"
 ```
 
 # Typical control sequence
