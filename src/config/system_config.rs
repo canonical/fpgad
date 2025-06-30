@@ -1,8 +1,9 @@
 use crate::error::FpgadError;
-use log::{trace, warn};
-use std::path::PathBuf;
+use log::{error, trace, warn};
+use std::path::{Path, PathBuf};
 
 use crate::config::config_files::{SystemPaths, system_paths_config_from_file};
+use crate::system_io::fs_write;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 // These are hardcoded backups to prevent crashing and lockups when accessing the config file
@@ -10,6 +11,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 pub static OVERLAY_CONTROL_DIR: &str = "/sys/kernel/config/device-tree/overlays/";
 pub static FIRMWARE_SOURCE_DIR: &str = "/lib/firmware/";
 pub static FPGA_MANAGERS_DIR: &str = "/sys/class/fpga_manager/";
+pub static FIRMWARE_LOC_CONTROL_PATH: &str = "/sys/module/firmware_class/parameters/path";
 
 #[derive(Debug)]
 pub struct SystemConfig {
@@ -106,38 +108,46 @@ pub fn fpga_managers_dir() -> Result<String, FpgadError> {
     system_config_guard()?.fpga_managers_dir()
 }
 
-pub fn set_overlay_control_dir(prefix: String) -> Result<(), FpgadError> {
+pub fn set_overlay_control_dir(new_path: &str) -> Result<(), FpgadError> {
     let config = system_config_guard()?;
 
     *config
         .overlay_control_dir
         .lock()
         .map_err(|e| FpgadError::Internal(format!("Failed to lock overlay_control_dir: {e}")))? =
-        prefix;
+        new_path.to_owned();
 
     Ok(())
 }
 
-pub fn set_firmware_source_dir(prefix: String) -> Result<(), FpgadError> {
+fn write_firmware_source_dir(new_path: &str) -> Result<(), FpgadError> {
+    trace!("Writing fw prefix {new_path} to {FIRMWARE_LOC_CONTROL_PATH}");
+    let fw_lookup_override = Path::new(FIRMWARE_LOC_CONTROL_PATH);
+    fs_write(fw_lookup_override, false, new_path)
+}
+
+pub fn set_firmware_source_dir(new_path: &str) -> Result<(), FpgadError> {
     let config = system_config_guard()?;
+    let old_prefix = config.firmware_source_dir()?;
+    write_firmware_source_dir(new_path)?;
 
-    *config
-        .firmware_source_dir
-        .lock()
-        .map_err(|e| FpgadError::Internal(format!("Failed to lock firmware_source_dir: {e}")))? =
-        prefix;
-
+    *config.firmware_source_dir.lock().map_err(|e| {
+        if let Err(reset_err) = write_firmware_source_dir(&old_prefix) {
+            error!("Failed to reset firmware_prefix: {reset_err}");
+        }
+        FpgadError::Internal(format!("Failed to lock firmware_prefix: {e}"))
+    })? = new_path.to_owned();
     Ok(())
 }
 
-pub fn set_fpga_managers_dir(prefix: String) -> Result<(), FpgadError> {
+pub fn set_fpga_managers_dir(new_path: &str) -> Result<(), FpgadError> {
     let config = system_config_guard()?;
 
     *config
         .fpga_managers_dir
         .lock()
         .map_err(|e| FpgadError::Internal(format!("Failed to lock fpga_managers_dir: {e}")))? =
-        prefix;
+        new_path.to_owned();
 
     Ok(())
 }
