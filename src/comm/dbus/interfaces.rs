@@ -9,38 +9,19 @@
 // fpgad is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranties of MERCHANTABILITY, SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
-
-use crate::config::system_config;
-use crate::error::FpgadError;
-use crate::platforms::platform::{Fpga, OverlayHandler, Platform, new_platform};
 use log::trace;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use zbus::fdo;
 use zbus::interface;
 
+use crate::config::system_config;
+
+use crate::platforms::platform::{Fpga, OverlayHandler, Platform, new_platform};
+use crate::system_io::validate_device_handle;
+
 pub struct StatusInterface {}
 pub struct ControlInterface {}
-
 pub struct ConfigureInterface {}
-
-fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
-    if device_handle.is_empty() || !device_handle.is_ascii() {
-        return Err(FpgadError::Argument(format!(
-            "{device_handle} is invalid name for fpga device.\
-                fpga name must be compliant with sysfs rules."
-        )));
-    }
-    let fpga_managers_dir = system_config::fpga_managers_dir()?;
-    if !PathBuf::from(fpga_managers_dir)
-        .join(device_handle)
-        .exists()
-    {
-        return Err(FpgadError::Argument(format!(
-            "Device {device_handle} not found.",
-        )));
-    };
-    Ok(())
-}
 
 #[interface(name = "com.canonical.fpgad.status")]
 impl StatusInterface {
