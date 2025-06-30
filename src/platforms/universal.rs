@@ -50,9 +50,14 @@ impl Platform for UniversalPlatform {
 
     /// Gets the `overlay_handler` associated with this device.
     fn overlay_handler(&self, overlay_handle: &str) -> Result<&impl OverlayHandler, FpgadError> {
+        // TODO: replace the return type of UniversalOverlayHandler to Result and use
+        // get_or_try_init instead here when stable:
+        // https://github.com/rust-lang/rust/issues/121641
         let handler = self
             .overlay_handler
             .get_or_init(|| UniversalOverlayHandler::new(overlay_handle));
+
+        // NOTE: This will fail if the constructor fails.
         let parent_path = handler.overlay_fs_path()?.parent().ok_or_else(|| {
             FpgadError::Argument(format!(
                 "The path {:?} has no parent directory.",

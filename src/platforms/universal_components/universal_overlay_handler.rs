@@ -14,19 +14,18 @@ use crate::config::system_config;
 use crate::error::FpgadError;
 use crate::platforms::platform::OverlayHandler;
 use crate::system_io::{extract_filename, fs_create_dir, fs_read, fs_remove_dir, fs_write};
-use log::{info, trace};
+use log::{error, info, trace};
 use std::path::{Path, PathBuf};
 
 /// Takes a handle and creates and stores an appropriate overlay_fs_path in this object.
 /// The overlay_fs_path is static apart from the handle associated with each
 /// device, overlay or bitstream, and so the handle is specified by the user here and the rest
 /// is fixed.
-fn construct_overlay_fs_path(overlay_handle: &str) -> PathBuf {
-    let prefix = system_config::overlay_control_dir()
-        .unwrap_or_else(|_| system_config::OVERLAY_CONTROL_DIR.to_string());
+fn construct_overlay_fs_path(overlay_handle: &str) -> Result<PathBuf, FpgadError> {
+    let prefix = system_config::overlay_control_dir()?;
     let overlay_fs_path = PathBuf::from(prefix).join(overlay_handle);
     trace!("overlay_fs_path will be {overlay_fs_path:?}");
-    overlay_fs_path
+    Ok(overlay_fs_path)
 }
 
 /// Stores the three relevant paths: source files for dtbo/bitstream and the overlayfs dir to which
@@ -163,7 +162,10 @@ impl UniversalOverlayHandler {
     /// Scans the package dir for required files
     pub(crate) fn new(overlay_handle: &str) -> Self {
         UniversalOverlayHandler {
-            overlay_fs_path: construct_overlay_fs_path(overlay_handle),
+            overlay_fs_path: construct_overlay_fs_path(overlay_handle).unwrap_or_else(|e| {
+                error!("OverlayHandler construction failed: Failed to construct overlay path: {e}");
+                PathBuf::from("")
+            }),
         }
     }
 }

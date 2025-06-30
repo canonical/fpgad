@@ -135,11 +135,11 @@ sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.c
 ### Configure
 
 ```
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure GetConfigFsPrefix
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure GetFirmwarePrefix
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure GetSysFsPrefix
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure GetOverlayControlDir
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure GetFirmwareSourceDir
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure GetFpgaManagersDir
 
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetConfigFsPrefix s "/sys/kernel/config/device-tree/overlays/"
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetFirmwarePrefix s "/lib/firmware/"
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetSysFsPrefix s "/sys/class/fpga_manager/"
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetOverlayControlDir s "/sys/kernel/config/device-tree/overlays/"
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetFirmwareSourceDir s "/lib/firmware/"
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetFpgaManagersDir s "/sys/class/fpga_manager/"
 ```
