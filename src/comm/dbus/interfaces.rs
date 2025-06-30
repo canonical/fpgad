@@ -9,15 +9,15 @@
 // fpgad is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranties of MERCHANTABILITY, SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
+use crate::config::boot_firmware;
+use crate::config::system_config;
+use crate::platforms::platform::{new_platform, Fpga, OverlayHandler, Platform};
+use crate::system_io::validate_device_handle;
+
 use log::trace;
 use std::path::Path;
 use zbus::fdo;
 use zbus::interface;
-
-use crate::config::system_config;
-
-use crate::platforms::platform::{Fpga, OverlayHandler, Platform, new_platform};
-use crate::system_io::validate_device_handle;
 
 pub struct StatusInterface {}
 pub struct ControlInterface {}
@@ -58,6 +58,10 @@ impl StatusInterface {
 
 #[interface(name = "com.canonical.fpgad.control")]
 impl ControlInterface {
+    async fn load_defaults(&self) -> Result<String, fdo::Error> {
+        Ok(boot_firmware::load_defaults()?)
+    }
+
     async fn set_fpga_flags(
         &self,
         device_handle: &str,

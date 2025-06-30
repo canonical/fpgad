@@ -2,3 +2,10 @@
 overlay_control_dir = "/sys/kernel/config/device-tree/overlays/"
 firmware_source_dir = "/lib/firmware/"
 fpga_managers_dir = "/sys/class/fpga_manager/"
+
+[boot_firmware]
+default_device_handle = "fpga0"
+default_overlay_handle = "fpga0"
+# default_bitstream = "/lib/firmware/k26-starter-kits.bit.bin"
+default_overlay = "/lib/firmware/k26-starter-kits.dtbo"
+default_fpga_flags = 0
