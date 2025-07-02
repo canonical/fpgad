@@ -1,8 +1,8 @@
 use crate::config::boot_firmware;
-use crate::platforms::platform::platform_for_device;
 use crate::platforms::platform::Fpga;
 use crate::platforms::platform::OverlayHandler;
 use crate::platforms::platform::Platform;
+use crate::platforms::platform::{platform_for_device, platform_for_known_platform};
 use crate::system_io::validate_device_handle;
 use log::trace;
 use std::path::Path;
@@ -47,17 +47,16 @@ impl ControlInterface {
 
     async fn apply_overlay(
         &self,
-        device_handle: &str,
+        platform_compat_str: &str,
         overlay_handle: &str,
         overlay_source_path: &str,
     ) -> Result<String, fdo::Error> {
         trace!(
-            "apply_overlay called with device_handle:{device_handle}, overlay_handle: \
+            "apply_overlay called with platform_compat_str:{platform_compat_str}, overlay_handle: \
             {overlay_handle} and overlay_path: {overlay_source_path}",
         );
-        validate_device_handle(device_handle)?;
 
-        let platform = platform_for_device(device_handle)?;
+        let platform = platform_for_known_platform(platform_compat_str);
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.apply_overlay(Path::new(overlay_source_path))?;
@@ -68,15 +67,14 @@ impl ControlInterface {
 
     async fn remove_overlay(
         &self,
-        device_handle: &str,
+        platform_compat_str: &str,
         overlay_handle: &str,
     ) -> Result<String, fdo::Error> {
         trace!(
-            "remove_overlay called with device_handle: {device_handle} and overlay_handle:\
+            "remove_overlay called with platform_compat_str: {platform_compat_str} and overlay_handle:\
              {overlay_handle}"
         );
-        validate_device_handle(device_handle)?;
-        let platform = platform_for_device(device_handle)?;
+        let platform = platform_for_known_platform(platform_compat_str);
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.remove_overlay()?;
