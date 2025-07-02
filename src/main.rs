@@ -23,7 +23,10 @@ mod config;
 mod platforms;
 mod system_io;
 
-use crate::comm::dbus::interfaces::{ConfigureInterface, ControlInterface, StatusInterface};
+use crate::comm::dbus::{
+    configure_interface::ConfigureInterface, control_interface::ControlInterface,
+    status_interface::StatusInterface,
+};
 use crate::config::system_config;
 
 /// Tries to set the system's firmware search path to the value which is stored in the
