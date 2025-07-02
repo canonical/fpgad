@@ -81,7 +81,10 @@ For bitstreams, all fields are required.
 For overlays, the device_handle is only reqiured in order to set fpga_flags if necessary. This only applies to the
 
 The bitstreams will always be applied before any overlays to avoid CPU misfires. This means that if an overlay is also
-configured to apply a bitstream, this will overwrite the previously written bitstreams
+configured to apply a bitstream, this will overwrite the previously written bitstreams.
+
+If a user provided config (`/etc/fpgad/config.toml`) contains a `[boot_firmware]` section, this will override the
+vendor provided [boot_firmware].
 
 | Key                      | Description                                                                                                                              |
 |--------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
@@ -116,6 +119,30 @@ device_handle = "fpga0"
 fpga_flags = 0
 ```
 
+#### specify none
+
+In order to specify an empty list of overlays or bitstreams, use the following syntax
+
+```toml
+[boot_firmware]
+bitstreams = []
+overlays = []
+```
+
+or, for example, to specify a bitstream but no overlays do add something like
+
+```toml
+[boot_firmware]
+overlays = []
+
+[[boot_firmware.bitstreams]]
+device_handle = "fpga0"
+bitstream_path = "/lib/firmware/bitstream0"
+flags = 0
+```
+
+please note that the empty list must come before the list entries.
+
 # To run on startup
 
 Before installing, confirm that `ExecStart=` in the `.service` file points to the correct executable (e.g.
@@ -127,12 +154,6 @@ To install the service run
 sudo cp data/systemd/fpgad.service /lib/systemd/system/
 ```
 
-To load defaults on startup run
-
-```shell
-sudo cp data/systemd/fpgad-load-defaults.service /lib/systemd/system/
-```
-
 To run without restarting
 
 ```shell
@@ -140,6 +161,13 @@ sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 sudo systemctl enable fpgad.service
 sudo systemctl start fpgad.service
+```
+
+To load defaults on startup run
+
+```shell
+sudo cp data/systemd/fpgad-load-defaults.service /lib/systemd/system/
+sudo systemctl enable fpgad-load-defaults.service 
 ```
 
 # Typical control sequence

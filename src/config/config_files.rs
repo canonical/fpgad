@@ -87,12 +87,6 @@ impl BootFirmware {
             overlays: Vec::new(),
         }
     }
-    pub(crate) fn merge(self, fallback: BootFirmware) -> BootFirmware {
-        BootFirmware {
-            bitstreams: [&self.bitstreams[..], &fallback.bitstreams[..]].concat(),
-            overlays: [&self.overlays[..], &fallback.overlays[..]].concat(),
-        }
-    }
 }
 
 fn toml_str_to_config(toml_string: &str) -> Result<TomlConfig, FpgadError> {
