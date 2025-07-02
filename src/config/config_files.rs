@@ -31,7 +31,7 @@ pub(crate) struct BootFirmware {
 pub(crate) struct Bitstream {
     pub(crate) device_handle: String,
     pub(crate) bitstream_path: String,
-    pub(crate) flags: isize,
+    pub(crate) flags: u32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -40,7 +40,7 @@ pub(crate) struct Overlay {
     pub(crate) overlay_handle: String,
     pub(crate) overlay_path: String,
     pub(crate) device_handle: Option<String>,
-    pub(crate) fpga_flags: Option<isize>,
+    pub(crate) fpga_flags: Option<u32>,
 }
 
 impl From<SystemPaths> for system_config::SystemConfig {
