@@ -21,12 +21,16 @@ use std::path::Path;
 enum PlatformType {
     Universal,
     ZynqMP,
+    Zynq, // no mp
     Versal,
 }
 
+//  TODO: this may become generic `xilinx,` for all xilinx devices instead, depending on what
+//   the softener code ends up looking like.
 const PLATFORM_SUBSTRINGS: &[(&str, PlatformType)] = &[
-    ("zynqmp", PlatformType::ZynqMP),
-    ("versal", PlatformType::Versal),
+    ("zynqmp-", PlatformType::ZynqMP),
+    ("versal-", PlatformType::Versal),
+    ("zynq-", PlatformType::Zynq),
 ];
 
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
@@ -139,6 +143,10 @@ pub fn new_platform(platform_type: PlatformType) -> impl Platform {
     match platform_type {
         PlatformType::Universal => {
             info!("Using platform: Universal");
+            UniversalPlatform::new()
+        }
+        PlatformType::Zynq => {
+            warn!("Zynq not implemented yet: using Universal");
             UniversalPlatform::new()
         }
         PlatformType::ZynqMP => {
