@@ -13,7 +13,7 @@
 use crate::config::system_config;
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
-use crate::system_io::fs_read;
+use crate::system_io::{fs_read, fs_read_dir};
 use log::{error, info, trace, warn};
 use std::path::Path;
 
@@ -30,23 +30,12 @@ const PLATFORM_SUBSTRINGS: &[(&str, PlatformType)] = &[
 ];
 
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
-#[allow(dead_code)]
-//todo: should return result?
-pub async fn list_fpga_managers() -> Vec<String> {
-    let prefix = system_config::fpga_managers_dir().unwrap_or_else(|e| {
-        error!("Failed to get fpga_managers_dir from config: {e}");
-        "".to_string()
-    });
+pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
+    let prefix = system_config::fpga_managers_dir()?;
     if prefix.is_empty() {
-        return vec!["".to_string()];
+        return Ok(vec!["".to_string()]);
     };
-    std::fs::read_dir(prefix)
-        .map(|iter| {
-            iter.filter_map(Result::ok)
-                .map(|entry| entry.file_name().to_string_lossy().into_owned())
-                .collect()
-        })
-        .unwrap_or_default()
+    fs_read_dir(prefix.as_ref())
 }
 
 /// A sysfs map of an fpga in fpga_manager class.
@@ -117,8 +106,8 @@ fn match_platform_string(platform_string: &str) -> PlatformType {
     PlatformType::Universal
 }
 
-fn discover_platform_type(device_handle: &str) -> Result<PlatformType, FpgadError> {
-    let prefix = system_config::fpga_managers_dir()?;
+pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError> {
+    let prefix = system_config::fpga_managers_dir()?.clone();
     let compat_string = match fs_read(
         &Path::new(&prefix)
             .join(device_handle)
@@ -129,12 +118,20 @@ fn discover_platform_type(device_handle: &str) -> Result<PlatformType, FpgadErro
                 "Failed to read platform from {device_handle:?}: {e}\n\
                 Universal will be used as platform type.",
             );
-            return Ok(PlatformType::Universal);
+            return Ok("universal".to_string());
         }
-        Ok(s) => s,
+        Ok(s) => {
+            trace!("{s}");
+            // often driver virtual files contain null terminated strings instead of EOF terminated.
+            s.trim_end_matches('\0').to_string()
+        }
     };
-    trace!("Found compatibility string: '{compat_string}'");
+    Ok(compat_string)
+}
 
+fn discover_platform_type(device_handle: &str) -> Result<PlatformType, FpgadError> {
+    let compat_string = read_compatible_string(device_handle)?;
+    trace!("Found compatibility string: '{compat_string}'");
     Ok(match_platform_string(&compat_string))
 }
 
