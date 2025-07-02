@@ -9,14 +9,22 @@ use crate::system_io::validate_device_handle;
 use log::{info, warn};
 use std::path::{Path, PathBuf};
 
+/// User config completely overrides vendor config. The user probably prefers this behaviour.
 pub fn boot_firmware() -> config_files::BootFirmware {
-    let vendor_config =
-        config_files::boot_firmware_from_file(&PathBuf::from("/usr/lib/fpgad/config.toml"))
-            .unwrap_or(config_files::BootFirmware::default());
-    let user_config =
+    // If user config has some defaults, use those
+    if let Ok(user_config) =
         config_files::boot_firmware_from_file(&PathBuf::from("/etc/fpgad/config.toml"))
-            .unwrap_or(config_files::BootFirmware::default());
-    user_config.merge(vendor_config)
+    {
+        return user_config;
+    }
+    // If vendor config has some defaults, use those
+    if let Ok(vendor_config) =
+        config_files::boot_firmware_from_file(&PathBuf::from("/usr/lib/fpgad/config.toml"))
+    {
+        return vendor_config;
+    }
+    // If no defaults, use none
+    config_files::BootFirmware::default()
 }
 
 fn load_a_default_bitstream(bitstream: config_files::Bitstream) -> Result<String, FpgadError> {
