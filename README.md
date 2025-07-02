@@ -219,7 +219,7 @@ busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonic
 ### Control (privileged)
 
 ```shell
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags sx "fpga0" 0
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags su "fpga0" 0
 
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control ApplyOverlay sss "fpga0" "fpga0" "/lib/firmware/k26-starter-kits.dtbo"
 
