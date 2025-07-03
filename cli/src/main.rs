@@ -1,3 +1,5 @@
+mod proxies;
+
 use clap::{Parser, Subcommand, arg, command};
 use log::debug;
 
