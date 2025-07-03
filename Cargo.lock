@@ -196,15 +196,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
 
 [[package]]
-name = "cli"
-version = "0.1.0"
-dependencies = [
- "clap",
- "env_logger",
- "log",
-]
-
-[[package]]
 name = "colorchoice"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -317,6 +308,15 @@ name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
+
+[[package]]
+name = "fpga"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "env_logger",
+ "log",
+]
 
 [[package]]
 name = "fpgad"
