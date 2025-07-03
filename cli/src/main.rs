@@ -2,7 +2,10 @@ mod proxies;
 
 mod status;
 
+mod load;
+
 use crate::status::status_handler;
+use crate::load::load_handler;
 use clap::{Parser, Subcommand, arg, command};
 use log::{debug, error, info};
 use std::error::Error;
@@ -76,7 +79,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     debug!("parsed cli command with {cli:?}");
     let result = match cli.command {
         Commands::Status => status_handler(&cli.handle).await,
-        Commands::Load { .. } => todo!(),
+        Commands::Load { command } => load_handler(&cli.handle, &command).await,
         Commands::Remove { .. } => todo!(),
     };
     match result {
