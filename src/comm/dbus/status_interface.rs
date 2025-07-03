@@ -1,8 +1,9 @@
+use crate::config::system_config;
 use crate::platforms::platform::OverlayHandler;
 use crate::platforms::platform::Platform;
 use crate::platforms::platform::{list_fpga_managers, platform_for_device, read_compatible_string};
 use crate::platforms::platform::{platform_for_known_platform, Fpga};
-use crate::system_io::validate_device_handle;
+use crate::system_io::{fs_read_dir, validate_device_handle};
 use log::{error, trace};
 use zbus::{fdo, interface};
 
@@ -39,6 +40,12 @@ impl StatusInterface {
         Ok(platform_for_known_platform(platform_compat_str)
             .overlay_handler(overlay_handle)?
             .status()?)
+    }
+
+    async fn get_overlays(&self) -> Result<String, fdo::Error> {
+        trace!("get_overlays called");
+        let overlay_handles = fs_read_dir(system_config::overlay_control_dir()?.as_ref())?;
+        Ok(overlay_handles.join("\n"))
     }
 
     async fn get_platform_type(&self, device_handle: &str) -> Result<String, fdo::Error> {
