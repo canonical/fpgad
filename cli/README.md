@@ -23,6 +23,12 @@ Options:
 fpga [--handle=<device_handle>] status
 ```
 
+### Loading
+
+```shell
+fpga [--handle=<device_handle>] load ( (overlay <file> [--handle=<handle>]) | (bitstream <file>) )
+```
+
 ## examples (for testing)
 
 ### Status
@@ -30,4 +36,15 @@ fpga [--handle=<device_handle>] status
 ```shell
 ./target/debug/fpga status
 ./target/debug/fpga --handle=fpga0 status
+```
+
+### Load
+
+```shell
+sudo ./target/debug/fpga load bitstream /lib/firmware/k26-starter-kits.bit.bin
+sudo ./target/debug/fpga --handle=fpga0 load bitstream /lib/firmware/k26-starter-kits.bit.bin
+
+sudo ./target/debug/fpga load overlay /lib/firmware/k26-starter-kits.dtbo
+sudo ./target/debug/fpga load overlay /lib/firmware/k26-starter-kits.dtbo --handle=overlay_handle
+sudo ./target/debug/fpga --handle=fpga0 load overlay /lib/firmware/k26-starter-kits.dtbo --handle=overlay_handle
 ```
