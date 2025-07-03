@@ -98,6 +98,8 @@ busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonic
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetPlatformType s "fpga0"
 
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetPlatformTypes 
+
+busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetOverlays
 ```
 
 ### Control (privileged)
