@@ -4,7 +4,10 @@ mod status;
 
 mod load;
 
+mod remove;
+
 use crate::load::load_handler;
+use crate::remove::remove_handler;
 use crate::status::status_handler;
 use clap::{Parser, Subcommand, arg, command};
 use log::{debug, error};
@@ -50,7 +53,7 @@ enum RemoveSubcommand {
         /// it is different than device_handle which is being used for platform
         /// detection logic.
         #[arg(long = "handle")]
-        handle: String,
+        handle: Option<String>,
     },
     /// Remove bitstream loaded in given `HANDLE` to fpga command
     Bitstream,
@@ -80,7 +83,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let result = match cli.command {
         Commands::Status => status_handler(&cli.handle).await,
         Commands::Load { command } => load_handler(&cli.handle, &command).await,
-        Commands::Remove { .. } => todo!(),
+        Commands::Remove { command } => remove_handler(&cli.handle, &command).await,
     };
     match result {
         Ok(msg) => {
