@@ -12,8 +12,12 @@
 
 mod proxies;
 
+mod status;
+
 use clap::{Parser, Subcommand, arg, command};
-use log::debug;
+use log::{debug, error};
+use status::status_handler;
+use std::error::Error;
 
 #[derive(Parser, Debug)]
 #[command(name = "fpga")]
@@ -77,15 +81,24 @@ enum Commands {
     },
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     let cli = Cli::parse();
     debug!("parsed cli command with {cli:?}");
-    match cli.command {
-        Commands::Status => {
-            todo!()
-        }
+    let result = match cli.command {
+        Commands::Status => status_handler(&cli.handle).await,
         Commands::Load { .. } => todo!(),
         Commands::Remove { .. } => todo!(),
+    };
+    match result {
+        Ok(msg) => {
+            println!("{msg}");
+            Ok(())
+        }
+        Err(e) => {
+            error!("{e}");
+            Err(e.into())
+        }
     }
 }
