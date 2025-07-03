@@ -202,6 +202,8 @@ dependencies = [
  "clap",
  "env_logger",
  "log",
+ "tokio",
+ "zbus",
 ]
 
 [[package]]
