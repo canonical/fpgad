@@ -15,7 +15,7 @@ pub async fn call_get_overlays() -> Result<Vec<String>, zbus::Error> {
 pub async fn call_get_fpga_state(device_handle: &str) -> Result<String, zbus::Error> {
     let connection = Connection::system().await?;
     let proxy = status_proxy::StatusProxy::new(&connection).await?;
-    proxy.get_fpga_state(&device_handle).await
+    proxy.get_fpga_state(device_handle).await
 }
 
 /// Sends the dbus command to get the platform_compat_string for a given device
@@ -86,7 +86,7 @@ pub async fn get_first_device_handle() -> Result<String, zbus::Error> {
 /// gets one fpga state and returns an ascii table as String
 async fn get_fpga_state_message(device_handle: &str) -> Result<String, zbus::Error> {
     let state = call_get_fpga_state(device_handle).await?;
-    let platform = call_get_platform_type(&device_handle).await?;
+    let platform = call_get_platform_type(device_handle).await?;
     Ok(format!(
         "---- DEVICE  ----\n\
         | dev | platform | state |\n\
@@ -109,7 +109,7 @@ async fn get_full_status_message() -> Result<String, zbus::Error> {
                    | overlay | status |\n";
     for overlay in call_get_overlays().await? {
         let p = "";
-        let status = call_get_overlay_status(p.into(), &overlay).await?;
+        let status = call_get_overlay_status(p, &overlay).await?;
         ret_string.push_str(format!("| {overlay} | {status} |\n").as_ref());
     }
     Ok(ret_string)
