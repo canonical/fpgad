@@ -1,6 +1,6 @@
-use crate::platforms::platform::Fpga;
 use crate::platforms::platform::OverlayHandler;
 use crate::platforms::platform::Platform;
+use crate::platforms::platform::{Fpga, platform_for_known_platform};
 use crate::platforms::platform::{list_fpga_managers, platform_for_device, read_compatible_string};
 use crate::system_io::validate_device_handle;
 use log::{error, trace};
@@ -29,15 +29,14 @@ impl StatusInterface {
 
     async fn get_overlay_status(
         &self,
-        device_handle: &str,
+        platform_compat_str: &str,
         overlay_handle: &str,
     ) -> Result<String, fdo::Error> {
         trace!(
-            "get_overlay_status called with device_handle: {device_handle} and overlay_handle:\
+            "get_overlay_status called with platform_compat_str: {platform_compat_str} and overlay_handle:\
              {overlay_handle}"
         );
-        validate_device_handle(device_handle)?;
-        Ok(platform_for_device(device_handle)?
+        Ok(platform_for_known_platform(platform_compat_str)
             .overlay_handler(overlay_handle)?
             .status()?)
     }
