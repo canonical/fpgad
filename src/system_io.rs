@@ -40,25 +40,21 @@ pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
 }
 
 /// Convenient wrapper for writing `value` to `file_path`
-pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Result<(), FpgadError> {
-    trace!(
-        "Attempting to write {:?} to {:?}",
-        value.as_ref(),
-        file_path
-    );
+pub fn fs_write(file_path: &Path, create: bool, value: &str) -> Result<(), FpgadError> {
+    trace!("Attempting to write {value:?} to {file_path:?}");
     let result = OpenOptions::new()
         .create(create)
         .read(false)
         .write(true)
         .open(file_path)
-        .and_then(|mut f| write!(f, "{}", value.as_ref()));
+        .and_then(|mut f| write!(f, "{value}"));
     match result {
         Ok(_) => {
             trace!("Write done.");
             Ok(())
         }
         Err(e) => Err(FpgadError::IOWrite {
-            data: value.as_ref().to_string(),
+            data: value.to_string(),
             file: file_path.into(),
             e,
         }),
