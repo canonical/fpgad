@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# FPGAd provides a strictly confined snap to which user bitstreams snaps can connect.
+# This connections provides a security hardened gateway necessary to load and unload
+# bitstreams to and from devices on Ubuntu core, and is a useful snap interface for
+# classic ubuntu.
+
+[Unit]
+Description=fpgad-load-defaults - Loads the Default Bitstreams (if specified in configs) on boot.
+Documentation=https://github.com/canonical/fpgad
+After=fpgad.service
+Requires=fpgad.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control LoadDefaults
+
+[Install]
+WantedBy=multi-user.target

@@ -103,6 +103,20 @@ pub trait OverlayHandler {
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError>;
 }
 
+fn match_platform_string(platform_string: &str) -> PlatformType {
+    for (substr, platform) in PLATFORM_SUBSTRINGS {
+        if platform_string.contains(substr) {
+            trace!("Found '{substr}'");
+            return *platform;
+        }
+    }
+    warn!(
+        "FPGAd could not match {platform_string} to a known platform.\
+    Using 'Universal'"
+    );
+    PlatformType::Universal
+}
+
 fn discover_platform_type(device_handle: &str) -> Result<PlatformType, FpgadError> {
     let prefix = system_config::fpga_managers_dir()?;
     let compat_string = match fs_read(
@@ -121,37 +135,34 @@ fn discover_platform_type(device_handle: &str) -> Result<PlatformType, FpgadErro
     };
     trace!("Found compatibility string: '{compat_string}'");
 
-    for (substr, platform) in PLATFORM_SUBSTRINGS {
-        if compat_string.contains(substr) {
-            trace!("Found '{substr}'");
-            return Ok(*platform);
-        }
-    }
-
-    warn!(
-        "FPGAd could not match {compat_string} for {device_handle} to a known platform.\
-    Using 'Universal'"
-    );
-    Ok(PlatformType::Universal)
+    Ok(match_platform_string(&compat_string))
 }
 
-pub fn new_platform(device_handle: &str) -> Result<impl Platform, FpgadError> {
-    let platform_name = discover_platform_type(device_handle)?;
-    match platform_name {
+fn new_platform(platform_type: PlatformType) -> impl Platform {
+    match platform_type {
         PlatformType::Universal => {
             info!("Using platform: Universal");
-            Ok(UniversalPlatform::new())
+            UniversalPlatform::new()
         }
         PlatformType::ZynqMP => {
             warn!("ZynqMP not implemented yet: using Universal");
-            Ok(UniversalPlatform::new())
+            UniversalPlatform::new()
         }
         PlatformType::Versal => {
             warn!("Versal not implemented yet: using Universal");
-            Ok(UniversalPlatform::new())
+            UniversalPlatform::new()
         }
     }
 }
+
+pub fn platform_for_device(device_handle: &str) -> Result<impl Platform, FpgadError> {
+    Ok(new_platform(discover_platform_type(device_handle)?))
+}
+
+pub fn platform_for_known_platform(platform_string: &str) -> impl Platform {
+    new_platform(match_platform_string(platform_string))
+}
+
 pub trait Platform {
     #[allow(dead_code)]
     /// gets the name of the Platform type e.g. Universal or ZynqMP
