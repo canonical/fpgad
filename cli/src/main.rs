@@ -1,5 +1,17 @@
+mod proxies;
+
+mod status;
+
+mod load;
+
+mod remove;
+
+use crate::load::load_handler;
+use crate::remove::remove_handler;
+use crate::status::status_handler;
 use clap::{Parser, Subcommand, arg, command};
-use log::debug;
+use log::{debug, error};
+use std::error::Error;
 
 #[derive(Parser, Debug)]
 #[command(name = "fpga")]
@@ -41,7 +53,7 @@ enum RemoveSubcommand {
         /// it is different than device_handle which is being used for platform
         /// detection logic.
         #[arg(long = "handle")]
-        handle: String,
+        handle: Option<String>,
     },
     /// Remove bitstream loaded in given `HANDLE` to fpga command
     Bitstream,
@@ -63,15 +75,24 @@ enum Commands {
     },
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     let cli = Cli::parse();
     debug!("parsed cli command with {cli:?}");
-    match cli.command {
-        Commands::Status => {
-            todo!()
+    let result = match cli.command {
+        Commands::Status => status_handler(&cli.handle).await,
+        Commands::Load { command } => load_handler(&cli.handle, &command).await,
+        Commands::Remove { command } => remove_handler(&cli.handle, &command).await,
+    };
+    match result {
+        Ok(msg) => {
+            println!("{msg}");
+            Ok(())
         }
-        Commands::Load { .. } => todo!(),
-        Commands::Remove { .. } => todo!(),
+        Err(e) => {
+            error!("{e}");
+            Err(e.into())
+        }
     }
 }
