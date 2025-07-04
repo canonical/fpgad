@@ -210,9 +210,10 @@ busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonic
 
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaFlags s "fpga0"
 
-busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetOverlayStatus ss "fpga0" "fpga0"
+busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetOverlayStatus ss "zynqmp-" "fpga0"
 
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetPlatformType s "fpga0"
+
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetPlatformTypes 
 ```
 
@@ -221,11 +222,11 @@ busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonic
 ```shell
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags su "fpga0" 0
 
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control ApplyOverlay sss "fpga0" "fpga0" "/lib/firmware/k26-starter-kits.dtbo"
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control ApplyOverlay sss "zynqmp-" "fpga0" "/lib/firmware/k26-starter-kits.dtbo"
 
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ss "fpga0" "/lib/firmware/k26-starter-kits.bit.bin"
 
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control RemoveOverlay ss "fpga0" "fpga0" 
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control RemoveOverlay ss "zynqmp-" "fpga0" 
 
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control LoadDefaults
 ```
