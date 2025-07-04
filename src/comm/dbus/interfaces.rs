@@ -92,11 +92,7 @@ impl ControlInterface {
         Ok(boot_firmware::load_defaults()?)
     }
 
-    async fn set_fpga_flags(
-        &self,
-        device_handle: &str,
-        flags: isize,
-    ) -> Result<String, fdo::Error> {
+    async fn set_fpga_flags(&self, device_handle: &str, flags: u32) -> Result<String, fdo::Error> {
         trace!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
         platform_for_device(device_handle)?
