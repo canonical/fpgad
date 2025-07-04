@@ -22,21 +22,25 @@ mod config;
 mod platforms;
 mod system_io;
 
-use crate::comm::dbus::interfaces::{ControlInterface, StatusInterface};
+use crate::comm::dbus::interfaces::{ConfigureInterface, ControlInterface, StatusInterface};
+use crate::config::system_config::system_config;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
-
+    // call to initialise
+    let _ = system_config();
     // Upon load, the daemon will search each fpga device and determine what platform it is
     // based on its name in /sys/class/fpga_manager/{device}/name
     let status_interface = StatusInterface {};
     let control_interface = ControlInterface {};
+    let configure_interface = ConfigureInterface {};
 
     let _conn = connection::Builder::system()?
         .name("com.canonical.fpgad")?
         .serve_at("/com/canonical/fpgad/status", status_interface)?
         .serve_at("/com/canonical/fpgad/control", control_interface)?
+        .serve_at("/com/canonical/fpgad/configure", configure_interface)?
         .build()
         .await?;
 

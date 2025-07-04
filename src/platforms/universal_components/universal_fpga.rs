@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config;
+use crate::config::system_config;
 use crate::error::FpgadError;
 use crate::platforms::platform::Fpga;
 use crate::system_io::{fs_read, fs_write};
@@ -61,7 +61,7 @@ impl Fpga for UniversalFPGA {
     ///
     /// returns: Result<String, FpgadError>
     fn state(&self) -> Result<String, FpgadError> {
-        let state_path = Path::new(config::SYSFS_PREFIX)
+        let state_path = Path::new(&system_config::fpga_managers_dir()?)
             .join(self.device_handle.clone())
             .join("state");
         trace!("reading {state_path:?}");
@@ -71,7 +71,7 @@ impl Fpga for UniversalFPGA {
     /// Gets the flags from the hex string stored in the sysfs flags file
     /// e.g. sys/class/fpga_manager/fpga0/flags
     fn flags(&self) -> Result<isize, FpgadError> {
-        let flag_path = Path::new(config::SYSFS_PREFIX)
+        let flag_path = Path::new(&system_config::fpga_managers_dir()?)
             .join(self.device_handle.clone())
             .join("flags");
         let contents = fs_read(&flag_path)?;
@@ -83,7 +83,7 @@ impl Fpga for UniversalFPGA {
     /// Sets the flags in the sysfs flags file (e.g. sys/class/fpga_manager/fpga0/flags)
     /// and verifies the write command stuck by reading it back.
     fn set_flags(&self, flags: isize) -> Result<(), FpgadError> {
-        let flag_path = Path::new(config::SYSFS_PREFIX)
+        let flag_path = Path::new(&system_config::fpga_managers_dir()?)
             .join(self.device_handle.clone())
             .join("flags");
         trace!("Writing '{flags}' to '{flag_path:?}");
@@ -109,7 +109,6 @@ impl Fpga for UniversalFPGA {
             },
             Err(e) => return Err(e),
         };
-
         match self.flags() {
             Ok(returned_flags) if returned_flags == flags => Ok(()),
             Ok(returned_flags) => Err(FpgadError::Flag(format!(
@@ -126,24 +125,20 @@ impl Fpga for UniversalFPGA {
     /// This can be used to manually load a firmware if the overlay does not trigger the load.
     /// Note: always load firmware before overlay.
     fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError> {
-        let stripped_path = bitstream_path
-            .strip_prefix(config::FW_PREFIX)
-            .map_err(|_| {
-                FpgadError::Argument(format!(
-                    "Bitstream path {:?} is not under the configured firmware directory '{}'",
-                    bitstream_path,
-                    config::FW_PREFIX
-                ))
-            })?;
-
-        let relative_path = stripped_path.to_str().ok_or_else(|| {
+        let prefix = system_config::firmware_source_dir()?;
+        let stripped_path = bitstream_path.strip_prefix(&prefix).map_err(|_| {
             FpgadError::Argument(format!(
-                "Stripped bitstream path {:?} is not valid UTF-8",
-                stripped_path
+                "Bitstream path {bitstream_path:?} is not under the configured firmware directory '{prefix}'"
             ))
         })?;
 
-        let control_path = Path::new(config::SYSFS_PREFIX)
+        let relative_path = stripped_path.to_str().ok_or_else(|| {
+            FpgadError::Argument(format!(
+                "Stripped bitstream path {stripped_path:?} is not valid UTF-8"
+            ))
+        })?;
+
+        let control_path = Path::new(&system_config::fpga_managers_dir()?)
             .join(self.device_handle())
             .join("firmware");
         fs_write(&control_path, false, relative_path)?;

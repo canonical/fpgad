@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config;
+use crate::config::system_config;
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
 use crate::system_io::fs_read;
@@ -31,8 +31,16 @@ const PLATFORM_SUBSTRINGS: &[(&str, PlatformType)] = &[
 
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
 #[allow(dead_code)]
-pub fn list_fpga_managers() -> Vec<String> {
-    std::fs::read_dir(config::SYSFS_PREFIX)
+//todo: should return result?
+pub async fn list_fpga_managers() -> Vec<String> {
+    let prefix = system_config::fpga_managers_dir().unwrap_or_else(|e| {
+        error!("Failed to get fpga_managers_dir from config: {e}");
+        "".to_string()
+    });
+    if prefix.is_empty() {
+        return vec!["".to_string()];
+    };
+    std::fs::read_dir(prefix)
         .map(|iter| {
             iter.filter_map(Result::ok)
                 .map(|entry| entry.file_name().to_string_lossy().into_owned())
@@ -95,28 +103,28 @@ pub trait OverlayHandler {
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError>;
 }
 
-fn discover_platform_type(device_handle: &str) -> PlatformType {
+fn discover_platform_type(device_handle: &str) -> Result<PlatformType, FpgadError> {
+    let prefix = system_config::fpga_managers_dir()?;
     let compat_string = match fs_read(
-        &Path::new(config::SYSFS_PREFIX)
+        &Path::new(&prefix)
             .join(device_handle)
             .join("of_node/compatible"),
     ) {
         Err(e) => {
             error!(
-                "Failed to read platform from {:?}: {}\n\
+                "Failed to read platform from {device_handle:?}: {e}\n\
                 Universal will be used as platform type.",
-                device_handle, e
             );
-            return PlatformType::Universal;
+            return Ok(PlatformType::Universal);
         }
         Ok(s) => s,
     };
-    trace!("Found compatibility string: '{}'", compat_string);
+    trace!("Found compatibility string: '{compat_string}'");
 
     for (substr, platform) in PLATFORM_SUBSTRINGS {
         if compat_string.contains(substr) {
             trace!("Found '{substr}'");
-            return *platform;
+            return Ok(*platform);
         }
     }
 
@@ -124,23 +132,23 @@ fn discover_platform_type(device_handle: &str) -> PlatformType {
         "FPGAd could not match {compat_string} for {device_handle} to a known platform.\
     Using 'Universal'"
     );
-    PlatformType::Universal
+    Ok(PlatformType::Universal)
 }
 
-pub fn new_platform(device_handle: &str) -> impl Platform {
-    let platform_name = discover_platform_type(device_handle);
+pub fn new_platform(device_handle: &str) -> Result<impl Platform, FpgadError> {
+    let platform_name = discover_platform_type(device_handle)?;
     match platform_name {
         PlatformType::Universal => {
             info!("Using platform: Universal");
-            UniversalPlatform::new()
+            Ok(UniversalPlatform::new())
         }
         PlatformType::ZynqMP => {
             warn!("ZynqMP not implemented yet: using Universal");
-            UniversalPlatform::new()
+            Ok(UniversalPlatform::new())
         }
         PlatformType::Versal => {
             warn!("Versal not implemented yet: using Universal");
-            UniversalPlatform::new()
+            Ok(UniversalPlatform::new())
         }
     }
 }

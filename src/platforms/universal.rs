@@ -15,13 +15,14 @@ use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use log::trace;
-use std::cell::OnceCell;
+// use tokio::sync::OnceCell;
+use std::sync::OnceLock;
 
 #[derive(Debug)]
 pub struct UniversalPlatform {
     platform_type: &'static str,
-    fpga: OnceCell<UniversalFPGA>,
-    overlay_handler: OnceCell<UniversalOverlayHandler>,
+    fpga: OnceLock<UniversalFPGA>,
+    overlay_handler: OnceLock<UniversalOverlayHandler>,
 }
 
 impl UniversalPlatform {
@@ -30,8 +31,8 @@ impl UniversalPlatform {
         trace!("creating new universal_platform");
         UniversalPlatform {
             platform_type: "Universal",
-            fpga: OnceCell::new(),
-            overlay_handler: OnceCell::new(),
+            fpga: OnceLock::new(),
+            overlay_handler: OnceLock::new(),
         }
     }
 }
@@ -49,9 +50,14 @@ impl Platform for UniversalPlatform {
 
     /// Gets the `overlay_handler` associated with this device.
     fn overlay_handler(&self, overlay_handle: &str) -> Result<&impl OverlayHandler, FpgadError> {
+        // TODO: replace the return type of UniversalOverlayHandler to Result and use
+        // get_or_try_init instead here when stable:
+        // https://github.com/rust-lang/rust/issues/121641
         let handler = self
             .overlay_handler
             .get_or_init(|| UniversalOverlayHandler::new(overlay_handle));
+
+        // NOTE: This will fail if the constructor fails.
         let parent_path = handler.overlay_fs_path()?.parent().ok_or_else(|| {
             FpgadError::Argument(format!(
                 "The path {:?} has no parent directory.",
@@ -61,8 +67,7 @@ impl Platform for UniversalPlatform {
 
         if !parent_path.exists() {
             return Err(FpgadError::Argument(format!(
-                "The overlayfs path {:?} doesn't seem to exist.",
-                parent_path
+                "The overlayfs path {parent_path:?} doesn't seem to exist."
             )));
         }
         Ok(handler)
