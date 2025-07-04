@@ -77,6 +77,26 @@ firmware_source_dir = "/lib/firmware/"
 fpga_managers_dir = "/sys/class/fpga_manager/"
 ```
 
+# To run on startup
+
+Before installing, confirm that `ExecStart=` in the `.service` file points to the correct executable (e.g.
+`ExecStart=/home/ubuntu/fpgad/target/debug/fpgad`).
+
+To install the service run
+
+```shell
+sudo cp data/systemd/fpgad.service /lib/systemd/system/
+```
+
+To run without restarting
+
+```shell
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl enable fpgad.service
+sudo systemctl start fpgad.service
+```
+
 # Typical control sequence
 
 #### FPGA only:
@@ -142,4 +162,16 @@ sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetOverlayControlDir s "/sys/kernel/config/device-tree/overlays/"
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetFirmwareSourceDir s "/lib/firmware/"
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetFpgaManagersDir s "/sys/class/fpga_manager/"
+```
+
+### Example changing FW path
+
+```
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetFirmwareSourceDir s "/lib/firmware/"
+
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ss "fpga0" "/lib/firmware/k26-starter-kits.bit.bin"
+
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/configure com.canonical.fpgad.configure SetFirmwareSourceDir s "/lib/firmware/xilinx/k26-starter-kits"
+
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ss "fpga0" "/lib/firmware/xilinx/k26-starter-kits/k26_starter_kits.bit.bin"
 ```
