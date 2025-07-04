@@ -1,9 +1,6 @@
 use crate::config::boot_firmware;
 use crate::config::config_files;
 use crate::error::FpgadError;
-use crate::platforms::platform::Fpga;
-use crate::platforms::platform::OverlayHandler;
-use crate::platforms::platform::Platform;
 use crate::platforms::platform::{platform_for_device, platform_for_known_platform};
 use crate::system_io::validate_device_handle;
 use log::{info, warn};
@@ -40,7 +37,7 @@ fn load_a_default_bitstream(bitstream: config_files::Bitstream) -> Result<String
 }
 
 fn load_a_default_overlay(overlay: config_files::Overlay) -> Result<String, FpgadError> {
-    let platform = platform_for_known_platform(&overlay.platform);
+    let platform = platform_for_known_platform(&overlay.platform)?;
     if let (Some(flags), Some(fpga_handle)) = (overlay.fpga_flags, overlay.device_handle.clone()) {
         validate_device_handle(&fpga_handle)?;
         platform.fpga(&fpga_handle)?.set_flags(flags)?;

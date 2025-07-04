@@ -1,7 +1,4 @@
 use crate::config::boot_firmware;
-use crate::platforms::platform::Fpga;
-use crate::platforms::platform::OverlayHandler;
-use crate::platforms::platform::Platform;
 use crate::platforms::platform::{platform_for_device, platform_for_known_platform};
 use crate::system_io::validate_device_handle;
 use log::trace;
@@ -55,8 +52,7 @@ impl ControlInterface {
             "apply_overlay called with platform_compat_str:{platform_compat_str}, overlay_handle: \
             {overlay_handle} and overlay_path: {overlay_source_path}",
         );
-
-        let platform = platform_for_known_platform(platform_compat_str);
+        let platform = platform_for_known_platform(platform_compat_str)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.apply_overlay(Path::new(overlay_source_path))?;
