@@ -87,7 +87,7 @@ impl Fpga for UniversalFPGA {
             .join(self.device_handle.clone())
             .join("flags");
         trace!("Writing '{flags}' to '{flag_path:?}");
-        if let Err(e) = fs_write(&flag_path, false, flags.to_string()) {
+        if let Err(e) = fs_write(&flag_path, false, &flags.to_string()) {
             error!("Failed to read state.");
             return Err(e);
         }
