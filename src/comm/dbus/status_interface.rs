@@ -9,18 +9,32 @@ pub struct StatusInterface {}
 
 #[interface(name = "com.canonical.fpgad.status")]
 impl StatusInterface {
-    async fn get_fpga_state(&self, device_handle: &str) -> Result<String, fdo::Error> {
+    async fn get_fpga_state(
+        &self,
+        platform_string: &str,
+        device_handle: &str,
+    ) -> Result<String, fdo::Error> {
         trace!("get_fpga_state called with name: {device_handle}");
         validate_device_handle(device_handle)?;
-        Ok(platform_for_device(device_handle)?
-            .fpga(device_handle)?
-            .state()?)
+        let platform = match platform_string.is_empty() {
+            true => platform_for_device(device_handle)?,
+            false => platform_for_known_platform(platform_string)?,
+        };
+        Ok(platform.fpga(device_handle)?.state()?)
     }
 
-    async fn get_fpga_flags(&self, device_handle: &str) -> Result<String, fdo::Error> {
+    async fn get_fpga_flags(
+        &self,
+        platform_string: &str,
+        device_handle: &str,
+    ) -> Result<String, fdo::Error> {
         trace!("get_fpga_flags called with name: {device_handle}");
         validate_device_handle(device_handle)?;
-        Ok(platform_for_device(device_handle)?
+        let platform = match platform_string.is_empty() {
+            true => platform_for_device(device_handle)?,
+            false => platform_for_known_platform(platform_string)?,
+        };
+        Ok(platform
             .fpga(device_handle)?
             .flags()
             .map(|flags| flags.to_string())?)

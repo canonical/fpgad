@@ -12,17 +12,25 @@ impl ControlInterface {
         Ok(boot_firmware::load_defaults()?)
     }
 
-    async fn set_fpga_flags(&self, device_handle: &str, flags: u32) -> Result<String, fdo::Error> {
+    async fn set_fpga_flags(
+        &self,
+        platform_string: &str,
+        device_handle: &str,
+        flags: u32,
+    ) -> Result<String, fdo::Error> {
         trace!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
-        platform_for_device(device_handle)?
-            .fpga(device_handle)?
-            .set_flags(flags)?;
+        let platform = match platform_string.is_empty() {
+            true => platform_for_device(device_handle)?,
+            false => platform_for_known_platform(platform_string)?,
+        };
+        platform.fpga(device_handle)?.set_flags(flags)?;
         Ok(format!("Flags set to {flags} for {device_handle}"))
     }
 
     async fn write_bitstream_direct(
         &self,
+        platform_string: &str,
         device_handle: &str,
         bitstream_path_str: &str,
     ) -> Result<String, fdo::Error> {
@@ -36,9 +44,11 @@ impl ControlInterface {
                 "{bitstream_path_str} is not a valid path to a bitstream file."
             )));
         }
-        platform_for_device(device_handle)?
-            .fpga(device_handle)?
-            .load_firmware(path)?;
+        let platform = match platform_string.is_empty() {
+            true => platform_for_device(device_handle)?,
+            false => platform_for_known_platform(platform_string)?,
+        };
+        platform.fpga(device_handle)?.load_firmware(path)?;
         Ok(format!("{bitstream_path_str} loaded to {device_handle}"))
     }
 
@@ -70,7 +80,7 @@ impl ControlInterface {
             "remove_overlay called with platform_compat_str: {platform_compat_str} and overlay_handle:\
              {overlay_handle}"
         );
-        let platform = platform_for_known_platform(platform_compat_str);
+        let platform = platform_for_known_platform(platform_compat_str)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.remove_overlay()?;
