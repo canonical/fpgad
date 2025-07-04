@@ -44,12 +44,12 @@ impl Platform for UniversalPlatform {
     }
 
     /// Initialises or get the fpga object called `name`
-    fn fpga(&self, device_handle: &str) -> Result<&impl Fpga, FpgadError> {
+    fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError> {
         Ok(self.fpga.get_or_init(|| UniversalFPGA::new(device_handle)))
     }
 
     /// Gets the `overlay_handler` associated with this device.
-    fn overlay_handler(&self, overlay_handle: &str) -> Result<&impl OverlayHandler, FpgadError> {
+    fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError> {
         // TODO: replace the return type of UniversalOverlayHandler to Result and use
         // get_or_try_init instead here when stable:
         // https://github.com/rust-lang/rust/issues/121641
