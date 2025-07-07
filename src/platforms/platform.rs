@@ -92,18 +92,16 @@ pub trait OverlayHandler {
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError>;
 }
 
-fn match_platform_string(platform_string: &str) -> PlatformType {
+fn match_platform_string(platform_string: &str) -> Result<PlatformType, FpgadError> {
     for (substr, platform) in PLATFORM_SUBSTRINGS {
         if platform_string.contains(substr) {
             trace!("Found '{substr}'");
-            return *platform;
+            return Ok(*platform);
         }
     }
-    warn!(
-        "FPGAd could not match {platform_string} to a known platform.\
-    Using 'Universal'"
-    );
-    PlatformType::Universal
+    Err(FpgadError::Argument(format!(
+        "FPGAd could not match {platform_string} to a known platform."
+    )))
 }
 
 pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError> {
@@ -131,7 +129,10 @@ pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError>
 fn discover_platform_type(device_handle: &str) -> Result<PlatformType, FpgadError> {
     let compat_string = read_compatible_string(device_handle)?;
     trace!("Found compatibility string: '{compat_string}'");
-    Ok(match_platform_string(&compat_string))
+    Ok(match_platform_string(&compat_string).unwrap_or({
+        warn!("{compat_string} not supported. Defaulting to Universal platform.");
+        PlatformType::Universal
+    }))
 }
 
 pub fn new_platform(platform_type: PlatformType) -> impl Platform {
@@ -155,8 +156,8 @@ pub fn platform_for_device(device_handle: &str) -> Result<impl Platform, FpgadEr
     Ok(new_platform(discover_platform_type(device_handle)?))
 }
 
-pub fn platform_for_known_platform(platform_string: &str) -> impl Platform {
-    new_platform(match_platform_string(platform_string))
+pub fn platform_for_known_platform(platform_string: &str) -> Result<impl Platform, FpgadError> {
+    Ok(new_platform(match_platform_string(platform_string)?))
 }
 
 pub trait Platform {
