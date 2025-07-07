@@ -10,12 +10,13 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::config;
 use crate::error::FpgadError;
 use log::trace;
 use std::fs::OpenOptions;
 use std::fs::{create_dir_all, remove_dir};
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Convenient wrapper for reading the contents of `file_path` to String
 pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
@@ -100,4 +101,24 @@ pub fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
         .ok_or_else(|| FpgadError::Internal(format!("No filename in path: {:?}", path)))?
         .to_str()
         .ok_or_else(|| FpgadError::Internal(format!("Filename not UTF-8: {:?}", path)))
+}
+
+/// Helper function to check that a device with given handle does exist.
+pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
+    if device_handle.is_empty() || !device_handle.is_ascii() {
+        return Err(FpgadError::Argument(format!(
+            "{device_handle} is invalid name for fpga device.\
+                fpga name must be compliant with sysfs rules."
+        )));
+    }
+    let fpga_managers_dir = config::SYSFS_PREFIX;
+    if !PathBuf::from(fpga_managers_dir)
+        .join(device_handle)
+        .exists()
+    {
+        return Err(FpgadError::Argument(format!(
+            "Device {device_handle} not found."
+        )));
+    };
+    Ok(())
 }
