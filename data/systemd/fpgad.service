@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# FPGAd provides a strictly confined snap to which user bitstreams snaps can connect.
+# This connections provides a security hardened gateway necessary to load and unload
+# bitstreams to and from devices on Ubuntu core, and is a useful snap interface for
+# classic ubuntu.
+
+[Unit]
+Description=fpgad - FPGA daemon
+Documentation=https://github.com/canonical/fpgad
+
+[Service]
+Type=dbus
+BusName=com.canonical.fpgad
+Environment=RUST_LOG=info
+Environment=RUST_BACKTRACE=1
+ExecStart=/usr/bin/fpgad # change this to point to install loc
+User=root
+Restart=on-failure
+TimeoutStartSec=30
+StandardOutput=journal
+StandardError=journal
+StandardInput=null
+
+[Install]
+WantedBy=multi-user.target
