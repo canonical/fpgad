@@ -22,7 +22,7 @@ mod config;
 mod platforms;
 mod system_io;
 
-use crate::comm::dbus::interfaces::{ControlInterface, StatusInterface};
+use crate::comm::dbus::{control_interface::ControlInterface, status_interface::StatusInterface};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
