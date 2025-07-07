@@ -94,6 +94,27 @@ pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
     }
 }
 
+/// Convenient wrapper for reading contents of a directory
+pub fn fs_read_dir(dir: &Path) -> Result<Vec<String>, FpgadError> {
+    trace!("Attempting to read directory '{dir:?}'");
+    std::fs::read_dir(dir).map_or_else(
+        |e| {
+            Err(FpgadError::IOReadDir {
+                dir: dir.to_owned(),
+                e,
+            })
+        },
+        |iter| {
+            let ret = iter
+                .filter_map(Result::ok)
+                .map(|entry| entry.file_name().to_string_lossy().into_owned())
+                .collect();
+            trace!("Dir reading done.");
+            Ok(ret)
+        },
+    )
+}
+
 /// Helper function to extract the filename from a path and wrap the errors
 pub fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
     path.file_name()
