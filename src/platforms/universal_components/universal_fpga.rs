@@ -61,7 +61,7 @@ impl Fpga for UniversalFPGA {
     ///
     /// returns: Result<String, FpgadError>
     fn state(&self) -> Result<String, FpgadError> {
-        let state_path = Path::new(config::SYSFS_PREFIX)
+        let state_path = Path::new(config::FPGA_MANAGERS_DIR)
             .join(self.device_handle.clone())
             .join("state");
         trace!("reading {state_path:?}");
@@ -71,7 +71,7 @@ impl Fpga for UniversalFPGA {
     /// Gets the flags from the hex string stored in the sysfs flags file
     /// e.g. sys/class/fpga_manager/fpga0/flags
     fn flags(&self) -> Result<u32, FpgadError> {
-        let flag_path = Path::new(config::SYSFS_PREFIX)
+        let flag_path = Path::new(config::FPGA_MANAGERS_DIR)
             .join(self.device_handle.clone())
             .join("flags");
         let contents = fs_read(&flag_path)?;
@@ -83,7 +83,7 @@ impl Fpga for UniversalFPGA {
     /// Sets the flags in the sysfs flags file (e.g. sys/class/fpga_manager/fpga0/flags)
     /// and verifies the write command stuck by reading it back.
     fn set_flags(&self, flags: u32) -> Result<(), FpgadError> {
-        let flag_path = Path::new(config::SYSFS_PREFIX)
+        let flag_path = Path::new(config::FPGA_MANAGERS_DIR)
             .join(self.device_handle.clone())
             .join("flags");
         trace!("Writing '{flags}' to '{flag_path:?}");
@@ -127,12 +127,12 @@ impl Fpga for UniversalFPGA {
     /// Note: always load firmware before overlay.
     fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError> {
         let stripped_path = bitstream_path
-            .strip_prefix(config::FW_PREFIX)
+            .strip_prefix(config::FIRMWARE_SOURCE_DIR)
             .map_err(|_| {
                 FpgadError::Argument(format!(
                     "Bitstream path {:?} is not under the configured firmware directory '{}'",
                     bitstream_path,
-                    config::FW_PREFIX
+                    config::FIRMWARE_SOURCE_DIR
                 ))
             })?;
 
@@ -142,7 +142,7 @@ impl Fpga for UniversalFPGA {
             ))
         })?;
 
-        let control_path = Path::new(config::SYSFS_PREFIX)
+        let control_path = Path::new(config::FPGA_MANAGERS_DIR)
             .join(self.device_handle())
             .join("firmware");
         fs_write(&control_path, false, relative_path)?;
