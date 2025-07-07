@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 
 /// Convenient wrapper for reading the contents of `file_path` to String
 pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
-    trace!("Attempting to read from {:?}", file_path);
+    trace!("Attempting to read from {file_path:?}");
     let mut buf: String = String::new();
     let result = OpenOptions::new()
         .read(true)
@@ -65,11 +65,11 @@ pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Resul
 
 /// Convenient wrapper for recursively creating directories up to `path`
 pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
-    trace!("Attempting to Create '{:?}'", path);
+    trace!("Attempting to Create '{path:?}'");
     let result = create_dir_all(path);
     match result {
         Ok(_) => {
-            trace!("Directory created at {:?}.", path);
+            trace!("Directory created at {path:?}.");
             Ok(())
         }
         Err(e) => Err(FpgadError::IOCreate {
@@ -81,11 +81,11 @@ pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
 
 /// Convenient wrapper for deleting an "empty" directory - works for overlayfs
 pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
-    trace!("Attempting to delete '{:?}'", path);
+    trace!("Attempting to delete '{path:?}'");
     let result = remove_dir(path);
     match result {
         Ok(_) => {
-            trace!("Deleted {:?}", path);
+            trace!("Deleted {path:?}");
             Ok(())
         }
         Err(e) => Err(FpgadError::IODelete {
@@ -98,9 +98,9 @@ pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
 /// Helper function to extract the filename from a path and wrap the errors
 pub fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
     path.file_name()
-        .ok_or_else(|| FpgadError::Internal(format!("No filename in path: {:?}", path)))?
+        .ok_or_else(|| FpgadError::Internal(format!("No filename in path: {path:?}")))?
         .to_str()
-        .ok_or_else(|| FpgadError::Internal(format!("Filename not UTF-8: {:?}", path)))
+        .ok_or_else(|| FpgadError::Internal(format!("Filename not UTF-8: {path:?}")))
 }
 
 /// Helper function to check that a device with given handle does exist.
