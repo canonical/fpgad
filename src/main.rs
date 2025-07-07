@@ -28,8 +28,6 @@ use crate::comm::dbus::interfaces::{ControlInterface, StatusInterface};
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    // Upon load, the daemon will search each fpga device and determine what platform it is
-    // based on its name in /sys/class/fpga_manager/{device}/name
     let status_interface = StatusInterface {};
     let control_interface = ControlInterface {};
 
