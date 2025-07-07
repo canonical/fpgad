@@ -123,3 +123,23 @@ pub fn fs_read_dir(dir: &Path) -> Result<Vec<String>, FpgadError> {
         },
     )
 }
+
+/// Helper function to check that a device with given handle does exist.
+pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
+    if device_handle.is_empty() || !device_handle.is_ascii() {
+        return Err(FpgadError::Argument(format!(
+            "{device_handle} is invalid name for fpga device.\
+                fpga name must be compliant with sysfs rules."
+        )));
+    }
+    let fpga_managers_dir = config::SYSFS_PREFIX;
+    if !PathBuf::from(fpga_managers_dir)
+        .join(device_handle)
+        .exists()
+    {
+        return Err(FpgadError::Argument(format!(
+            "Device {device_handle} not found."
+        )));
+    };
+    Ok(())
+}
