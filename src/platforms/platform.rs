@@ -31,7 +31,7 @@ const PLATFORM_SUBSTRINGS: &[(&str, PlatformType)] = &[
 
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
 pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
-    let prefix = config::SYSFS_PREFIX;
+    let prefix = config::OVERLAY_CONTROL_DIR;
     if prefix.is_empty() {
         return Ok(vec!["".to_string()]);
     };
@@ -106,7 +106,7 @@ fn match_platform_string(platform_string: &str) -> Result<PlatformType, FpgadErr
 
 pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError> {
     let compat_string = match fs_read(
-        &Path::new(config::SYSFS_PREFIX)
+        &Path::new(config::OVERLAY_CONTROL_DIR)
             .join(device_handle)
             .join("of_node/compatible"),
     ) {

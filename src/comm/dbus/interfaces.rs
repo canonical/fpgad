@@ -22,6 +22,26 @@ pub struct StatusInterface {}
 pub struct ControlInterface {}
 pub struct ConfigureInterface {}
 
+fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
+    if device_handle.is_empty() || !device_handle.is_ascii() {
+        return Err(FpgadError::Argument(format!(
+            "{} is invalid name for fpga device.\
+                fpga name must be compliant with sysfs rules.",
+            device_handle
+        )));
+    }
+    if !PathBuf::from(config::OVERLAY_CONTROL_DIR)
+        .join(device_handle)
+        .exists()
+    {
+        return Err(FpgadError::Argument(format!(
+            "Device {} not found.",
+            device_handle
+        )));
+    };
+    Ok(())
+}
+
 #[interface(name = "com.canonical.fpgad.status")]
 impl StatusInterface {
     async fn get_fpga_state(&self, device_handle: &str) -> Result<String, fdo::Error> {
