@@ -11,11 +11,7 @@ pub struct ControlInterface {}
 
 #[interface(name = "com.canonical.fpgad.control")]
 impl ControlInterface {
-    async fn set_fpga_flags(
-        &self,
-        device_handle: &str,
-        flags: isize,
-    ) -> Result<String, fdo::Error> {
+    async fn set_fpga_flags(&self, device_handle: &str, flags: u32) -> Result<String, fdo::Error> {
         trace!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
         new_platform(device_handle)

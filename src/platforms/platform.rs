@@ -73,9 +73,9 @@ pub trait Fpga {
     /// get the state of the fpga device
     fn state(&self) -> Result<String, FpgadError>;
     /// get the current flags of the fpga device
-    fn flags(&self) -> Result<isize, FpgadError>;
+    fn flags(&self) -> Result<u32, FpgadError>;
     /// attempt to set the flags of an fpga device
-    fn set_flags(&self, flags: isize) -> Result<(), FpgadError>;
+    fn set_flags(&self, flags: u32) -> Result<(), FpgadError>;
     #[allow(dead_code)]
     /// Directly load the firmware stored in bitstream_path to the device
     fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError>;
