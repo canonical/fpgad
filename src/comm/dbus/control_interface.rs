@@ -10,30 +10,31 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::platforms::platform::Fpga;
-use crate::platforms::platform::OverlayHandler;
-use crate::platforms::platform::Platform;
-use crate::platforms::platform::new_platform;
+use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 use crate::system_io::validate_device_handle;
 use log::trace;
 use std::path::Path;
 use zbus::{fdo, interface};
 
 pub struct ControlInterface {}
-
 #[interface(name = "com.canonical.fpgad.control")]
 impl ControlInterface {
-    async fn set_fpga_flags(&self, device_handle: &str, flags: u32) -> Result<String, fdo::Error> {
+    async fn set_fpga_flags(
+        &self,
+        platform_string: &str,
+        device_handle: &str,
+        flags: u32,
+    ) -> Result<String, fdo::Error> {
         trace!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
-        new_platform(device_handle)
-            .fpga(device_handle)?
-            .set_flags(flags)?;
+        let platform = platform_from_compat_or_device(platform_string, device_handle)?;
+        platform.fpga(device_handle)?.set_flags(flags)?;
         Ok(format!("Flags set to {flags} for {device_handle}"))
     }
 
     async fn write_bitstream_direct(
         &self,
+        platform_string: &str,
         device_handle: &str,
         bitstream_path_str: &str,
     ) -> Result<String, fdo::Error> {
@@ -47,25 +48,22 @@ impl ControlInterface {
                 "{bitstream_path_str} is not a valid path to a bitstream file."
             )));
         }
-        new_platform(device_handle)
-            .fpga(device_handle)?
-            .load_firmware(path)?;
+        let platform = platform_from_compat_or_device(platform_string, device_handle)?;
+        platform.fpga(device_handle)?.load_firmware(path)?;
         Ok(format!("{bitstream_path_str} loaded to {device_handle}"))
     }
 
     async fn apply_overlay(
         &self,
-        device_handle: &str,
+        platform_compat_str: &str,
         overlay_handle: &str,
         overlay_source_path: &str,
     ) -> Result<String, fdo::Error> {
         trace!(
-            "apply_overlay called with device_handle:{device_handle}, overlay_handle: \
+            "apply_overlay called with platform_compat_str:{platform_compat_str}, overlay_handle: \
             {overlay_handle} and overlay_path: {overlay_source_path}",
         );
-        validate_device_handle(device_handle)?;
-
-        let platform = new_platform(device_handle);
+        let platform = platform_for_known_platform(platform_compat_str)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.apply_overlay(Path::new(overlay_source_path))?;
@@ -76,15 +74,14 @@ impl ControlInterface {
 
     async fn remove_overlay(
         &self,
-        device_handle: &str,
+        platform_compat_str: &str,
         overlay_handle: &str,
     ) -> Result<String, fdo::Error> {
         trace!(
-            "remove_overlay called with device_handle: {device_handle} and overlay_handle:\
+            "remove_overlay called with platform_compat_str: {platform_compat_str} and overlay_handle:\
              {overlay_handle}"
         );
-        validate_device_handle(device_handle)?;
-        let platform = new_platform(device_handle);
+        let platform = platform_for_known_platform(platform_compat_str)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.remove_overlay()?;

@@ -27,9 +27,11 @@ pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
         .open(file_path)
         .and_then(|mut f| f.read_to_string(&mut buf));
 
-    // do checks on the data we got if necessary
     match result {
-        Ok(_) => Ok(buf),
+        Ok(_) => {
+            trace!("Reading done");
+            Ok(buf)
+        }
         Err(e) => Err(FpgadError::IORead {
             file: file_path.into(),
             e,
@@ -144,7 +146,6 @@ fn read_firmware_source_dir() -> Result<String, FpgadError> {
     fs_read(fw_lookup_override)
 }
 
-#[allow(dead_code)]
 /// Convenient wrapper for reading contents of a directory
 pub fn fs_read_dir(dir: &Path) -> Result<Vec<String>, FpgadError> {
     trace!("Attempting to read directory '{dir:?}'");
