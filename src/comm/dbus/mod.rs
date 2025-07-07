@@ -10,5 +10,6 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+pub mod configure_interface;
 pub mod control_interface;
 pub mod status_interface;

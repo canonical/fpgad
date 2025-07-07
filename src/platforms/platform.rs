@@ -32,7 +32,7 @@ const PLATFORM_SUBSTRINGS: &[(&str, PlatformType)] = &[
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
 #[allow(dead_code)]
 pub fn list_fpga_managers() -> Vec<String> {
-    std::fs::read_dir(config::SYSFS_PREFIX)
+    std::fs::read_dir(config::FPGA_MANAGERS_DIR)
         .map(|iter| {
             iter.filter_map(Result::ok)
                 .map(|entry| entry.file_name().to_string_lossy().into_owned())
@@ -97,7 +97,7 @@ pub trait OverlayHandler {
 
 fn discover_platform_type(device_handle: &str) -> PlatformType {
     let compat_string = match fs_read(
-        &Path::new(config::SYSFS_PREFIX)
+        &Path::new(config::FPGA_MANAGERS_DIR)
             .join(device_handle)
             .join("of_node/compatible"),
     ) {

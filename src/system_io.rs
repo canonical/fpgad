@@ -132,7 +132,7 @@ pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadErr
                 fpga name must be compliant with sysfs rules."
         )));
     }
-    let fpga_managers_dir = config::SYSFS_PREFIX;
+    let fpga_managers_dir = config::FPGA_MANAGERS_DIR;
     if !PathBuf::from(fpga_managers_dir)
         .join(device_handle)
         .exists()
