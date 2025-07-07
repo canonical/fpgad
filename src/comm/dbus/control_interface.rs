@@ -28,15 +28,12 @@ impl ControlInterface {
         device_handle: &str,
         flags: isize,
     ) -> Result<String, fdo::Error> {
-        trace!(
-            "set_fpga_flags called with name: {} and flags: {}",
-            device_handle, flags
-        );
+        trace!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
         new_platform(device_handle)
             .fpga(device_handle)?
             .set_flags(flags)?;
-        Ok(format!("Flags set to {} for {}", flags, device_handle))
+        Ok(format!("Flags set to {flags} for {device_handle}"))
     }
 
     async fn write_bitstream_direct(
@@ -51,8 +48,7 @@ impl ControlInterface {
         let path = Path::new(bitstream_path_str);
         if !path.exists() || path.is_dir() {
             return Err(fdo::Error::InvalidArgs(format!(
-                "{} is not a valid path to a bitstream file.",
-                bitstream_path_str
+                "{bitstream_path_str} is not a valid path to a bitstream file."
             )));
         }
         new_platform(device_handle)
