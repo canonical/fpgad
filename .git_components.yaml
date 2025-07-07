@@ -27,6 +27,7 @@ workflows:
 cli:
   owners:
     - talhaHavadar
+    - artiepoole
 docs:
   owners:
     - artiepoole
