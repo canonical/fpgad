@@ -61,8 +61,7 @@ impl Platform for UniversalPlatform {
 
         if !parent_path.exists() {
             return Err(FpgadError::Argument(format!(
-                "The overlayfs path {:?} doesn't seem to exist.",
-                parent_path
+                "The overlayfs path {parent_path:?} doesn't seem to exist."
             )));
         }
         Ok(handler)
