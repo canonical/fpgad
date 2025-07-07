@@ -13,7 +13,7 @@
 use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
-use crate::system_io::fs_read;
+use crate::system_io::{fs_read, fs_read_dir};
 use log::{error, info, trace, warn};
 use std::path::Path;
 
@@ -21,24 +21,27 @@ use std::path::Path;
 enum PlatformType {
     Universal,
     ZynqMP,
+    Zynq, // no mp
     Versal,
 }
 
+//  TODO: this may become generic `xilinx,` for all xilinx devices instead, depending on what
+//   the softener code ends up looking like.
 const PLATFORM_SUBSTRINGS: &[(&str, PlatformType)] = &[
-    ("zynqmp", PlatformType::ZynqMP),
-    ("versal", PlatformType::Versal),
+    ("universal", PlatformType::Universal),
+    ("zynqmp-", PlatformType::ZynqMP),
+    ("versal-", PlatformType::Versal),
+    ("zynq-", PlatformType::Zynq),
 ];
 
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
 #[allow(dead_code)]
-pub fn list_fpga_managers() -> Vec<String> {
-    std::fs::read_dir(config::FPGA_MANAGERS_DIR)
-        .map(|iter| {
-            iter.filter_map(Result::ok)
-                .map(|entry| entry.file_name().to_string_lossy().into_owned())
-                .collect()
-        })
-        .unwrap_or_default()
+pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
+    let prefix = config::FPGA_MANAGERS_DIR;
+    if prefix.is_empty() {
+        return Ok(vec!["".to_string()]);
+    };
+    fs_read_dir(prefix.as_ref())
 }
 
 /// A sysfs map of an fpga in fpga_manager class.
@@ -95,7 +98,19 @@ pub trait OverlayHandler {
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError>;
 }
 
-fn discover_platform_type(device_handle: &str) -> PlatformType {
+fn match_platform_string(platform_string: &str) -> Result<PlatformType, FpgadError> {
+    for (substr, platform) in PLATFORM_SUBSTRINGS {
+        if platform_string.contains(substr) {
+            trace!("Found '{substr}'");
+            return Ok(*platform);
+        }
+    }
+    Err(FpgadError::Argument(format!(
+        "FPGAd could not match {platform_string} to a known platform."
+    )))
+}
+
+pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError> {
     let compat_string = match fs_read(
         &Path::new(config::FPGA_MANAGERS_DIR)
             .join(device_handle)
@@ -104,51 +119,63 @@ fn discover_platform_type(device_handle: &str) -> PlatformType {
         Err(e) => {
             error!(
                 "Failed to read platform from {device_handle:?}: {e}\n\
-                Universal will be used as platform type."
+                Universal will be used as platform type.",
             );
-            return PlatformType::Universal;
+            return Ok("universal".to_string());
         }
-        Ok(s) => s,
+        Ok(s) => {
+            trace!("{s}");
+            // often driver virtual files contain null terminated strings instead of EOF terminated.
+            s.trim_end_matches('\0').to_string()
+        }
     };
-    trace!("Found compatibility string: '{compat_string}'");
-
-    for (substr, platform) in PLATFORM_SUBSTRINGS {
-        if compat_string.contains(substr) {
-            trace!("Found '{substr}'");
-            return *platform;
-        }
-    }
-
-    warn!(
-        "FPGAd could not match {compat_string} for {device_handle} to a known platform.\
-    Using 'Universal'"
-    );
-    PlatformType::Universal
+    Ok(compat_string)
 }
 
-pub fn new_platform(device_handle: &str) -> impl Platform {
-    let platform_name = discover_platform_type(device_handle);
-    match platform_name {
+fn discover_platform_type(device_handle: &str) -> Result<PlatformType, FpgadError> {
+    let compat_string = read_compatible_string(device_handle)?;
+    trace!("Found compatibility string: '{compat_string}'");
+    Ok(match_platform_string(&compat_string).unwrap_or({
+        warn!("{compat_string} not supported. Defaulting to Universal platform.");
+        PlatformType::Universal
+    }))
+}
+
+fn new_platform(platform_type: PlatformType) -> Box<dyn Platform> {
+    match platform_type {
         PlatformType::Universal => {
             info!("Using platform: Universal");
-            UniversalPlatform::new()
+            Box::new(UniversalPlatform::new())
+        }
+        PlatformType::Zynq => {
+            warn!("Zynq not implemented yet: using Universal");
+            Box::new(UniversalPlatform::new())
         }
         PlatformType::ZynqMP => {
             warn!("ZynqMP not implemented yet: using Universal");
-            UniversalPlatform::new()
+            Box::new(UniversalPlatform::new())
         }
         PlatformType::Versal => {
             warn!("Versal not implemented yet: using Universal");
-            UniversalPlatform::new()
+            Box::new(UniversalPlatform::new())
         }
     }
 }
+
+pub fn platform_for_device(device_handle: &str) -> Result<Box<dyn Platform>, FpgadError> {
+    Ok(new_platform(discover_platform_type(device_handle)?))
+}
+
+pub fn platform_for_known_platform(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
+    Ok(new_platform(match_platform_string(platform_string)?))
+}
+
 pub trait Platform {
     #[allow(dead_code)]
     /// gets the name of the Platform type e.g. Universal or ZynqMP
     fn platform_type(&self) -> &str;
     /// creates and inits an Fpga if not present otherwise gets the instance
-    fn fpga(&self, device_handle: &str) -> Result<&impl Fpga, FpgadError>;
+    fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError>;
     /// creates and inits an OverlayHandler if not present otherwise gets the instance
-    fn overlay_handler(&self, overlay_handle: &str) -> Result<&impl OverlayHandler, FpgadError>;
+    fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError>;
 }
