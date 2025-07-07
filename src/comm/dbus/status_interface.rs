@@ -11,13 +11,13 @@ pub struct StatusInterface {}
 #[interface(name = "com.canonical.fpgad.status")]
 impl StatusInterface {
     async fn get_fpga_state(&self, device_handle: &str) -> Result<String, fdo::Error> {
-        trace!("get_fpga_state called with name: {}", device_handle);
+        trace!("get_fpga_state called with name: {device_handle}");
         validate_device_handle(device_handle)?;
         Ok(new_platform(device_handle).fpga(device_handle)?.state()?)
     }
 
     async fn get_fpga_flags(&self, device_handle: &str) -> Result<String, fdo::Error> {
-        trace!("get_fpga_flags called with name: {}", device_handle);
+        trace!("get_fpga_flags called with name: {device_handle}");
         validate_device_handle(device_handle)?;
         Ok(new_platform(device_handle)
             .fpga(device_handle)?

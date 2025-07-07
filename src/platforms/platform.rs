@@ -103,15 +103,14 @@ fn discover_platform_type(device_handle: &str) -> PlatformType {
     ) {
         Err(e) => {
             error!(
-                "Failed to read platform from {:?}: {}\n\
-                Universal will be used as platform type.",
-                device_handle, e
+                "Failed to read platform from {device_handle:?}: {e}\n\
+                Universal will be used as platform type."
             );
             return PlatformType::Universal;
         }
         Ok(s) => s,
     };
-    trace!("Found compatibility string: '{}'", compat_string);
+    trace!("Found compatibility string: '{compat_string}'");
 
     for (substr, platform) in PLATFORM_SUBSTRINGS {
         if compat_string.contains(substr) {

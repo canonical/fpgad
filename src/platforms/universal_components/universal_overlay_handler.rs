@@ -41,8 +41,7 @@ impl UniversalOverlayHandler {
     fn check_source_path(&self, source_path: &Path) -> Result<(), FpgadError> {
         if !source_path.exists() | source_path.is_dir() {
             return Err(FpgadError::Argument(format!(
-                "Overlay file '{:?}' has invalid path.",
-                source_path
+                "Overlay file '{source_path:?}' has invalid path."
             )));
         }
         trace!("{source_path:?} appears to be valid overlay source");
@@ -50,14 +49,14 @@ impl UniversalOverlayHandler {
     }
     fn get_vfs_status(&self) -> Result<String, FpgadError> {
         let status_path = self.overlay_fs_path()?.join("status");
-        trace!("Reading from {:?}", status_path);
+        trace!("Reading from {status_path:?}");
         fs_read(&status_path).map(|s| s.trim_end_matches('\n').to_string())
     }
     /// Read path from <overlay_fs_path>/path file and verify that what was meant to be applied
     /// was applied.
     fn get_vfs_path(&self) -> Result<String, FpgadError> {
         let path_path = self.overlay_fs_path()?.join("path");
-        trace!("Reading from {:?}", path_path);
+        trace!("Reading from {path_path:?}");
         fs_read(&path_path).map(|s| s.trim_end_matches('\n').to_string())
     }
 
@@ -67,11 +66,10 @@ impl UniversalOverlayHandler {
         let path_file_contents = self.get_vfs_path()?;
         let dtbo_file_name = extract_filename(source_path)?;
         if path_file_contents.contains(dtbo_file_name) {
-            info!("overlay path contents is valid: '{}'", path_file_contents);
+            info!("overlay path contents is valid: '{path_file_contents}'");
         } else {
             return Err(FpgadError::OverlayStatus(format!(
-                "When trying to apply overlay '{}', the resulting vfs path contained '{}'",
-                dtbo_file_name, path_file_contents
+                "When trying to apply overlay '{dtbo_file_name}', the resulting vfs path contained '{path_file_contents}'"
             )));
         }
 
@@ -82,8 +80,7 @@ impl UniversalOverlayHandler {
             }
             false => {
                 return Err(FpgadError::OverlayStatus(format!(
-                    "After writing to configfs, overlay status does not show 'applied'. Instead it is '{}'",
-                    status
+                    "After writing to configfs, overlay status does not show 'applied'. Instead it is '{status}'"
                 )));
             }
         }
@@ -109,7 +106,7 @@ impl OverlayHandler for UniversalOverlayHandler {
         }
 
         fs_create_dir(overlay_fs_path)?;
-        trace!("Created dir {:?}", overlay_fs_path);
+        trace!("Created dir {overlay_fs_path:?}");
 
         let overlay_path_file = overlay_fs_path.join("path");
         if !overlay_path_file.exists() {
@@ -124,10 +121,7 @@ impl OverlayHandler for UniversalOverlayHandler {
         let dtbo_file_name = extract_filename(source_path)?;
         match fs_write(&overlay_path_file, false, dtbo_file_name) {
             Ok(_) => {
-                trace!(
-                    "'{}' successfully written to {:?}",
-                    dtbo_file_name, overlay_path_file
-                );
+                trace!("'{dtbo_file_name}' successfully written to {overlay_path_file:?}");
             }
             Err(e) => return Err(e),
         }
@@ -154,7 +148,7 @@ impl OverlayHandler for UniversalOverlayHandler {
         };
         let path = self.get_vfs_path()?;
         let status = self.get_vfs_status()?;
-        Ok(format!("{:?} {}", path, status))
+        Ok(format!("{path:?} {status}"))
     }
 
     /// Checks that the overlay_fs_path is stored at time of call and returns it if so (unwraps Option into Result)

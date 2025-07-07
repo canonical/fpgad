@@ -138,8 +138,7 @@ impl Fpga for UniversalFPGA {
 
         let relative_path = stripped_path.to_str().ok_or_else(|| {
             FpgadError::Argument(format!(
-                "Stripped bitstream path {:?} is not valid UTF-8",
-                stripped_path
+                "Stripped bitstream path {stripped_path:?} is not valid UTF-8"
             ))
         })?;
 

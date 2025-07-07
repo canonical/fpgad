@@ -44,7 +44,7 @@ pub enum FpgadError {
 
 impl From<FpgadError> for fdo::Error {
     fn from(err: FpgadError) -> Self {
-        error!("{}", err);
+        error!("{err}");
         match err {
             FpgadError::Argument(..) => fdo::Error::InvalidArgs(err.to_string()),
             FpgadError::IORead { .. } => fdo::Error::IOError(err.to_string()),
