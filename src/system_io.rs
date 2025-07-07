@@ -27,9 +27,11 @@ pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
         .open(file_path)
         .and_then(|mut f| f.read_to_string(&mut buf));
 
-    // do checks on the data we got if necessary
     match result {
-        Ok(_) => Ok(buf),
+        Ok(_) => {
+            trace!("Reading done");
+            Ok(buf)
+        }
         Err(e) => Err(FpgadError::IORead {
             file: file_path.into(),
             e,
@@ -95,14 +97,6 @@ pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
     }
 }
 
-/// Helper function to extract the filename from a path and wrap the errors
-pub fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
-    path.file_name()
-        .ok_or_else(|| FpgadError::Internal(format!("No filename in path: {:?}", path)))?
-        .to_str()
-        .ok_or_else(|| FpgadError::Internal(format!("Filename not UTF-8: {:?}", path)))
-}
-
 /// Convenient wrapper for reading contents of a directory
 pub fn fs_read_dir(dir: &Path) -> Result<Vec<String>, FpgadError> {
     trace!("Attempting to read directory '{dir:?}'");
@@ -123,6 +117,15 @@ pub fn fs_read_dir(dir: &Path) -> Result<Vec<String>, FpgadError> {
         },
     )
 }
+
+/// Helper function to extract the filename from a path and wrap the errors
+pub fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
+    path.file_name()
+        .ok_or_else(|| FpgadError::Internal(format!("No filename in path: {:?}", path)))?
+        .to_str()
+        .ok_or_else(|| FpgadError::Internal(format!("Filename not UTF-8: {:?}", path)))
+}
+
 
 /// Helper function to check that a device with given handle does exist.
 pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
