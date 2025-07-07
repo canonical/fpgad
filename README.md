@@ -23,13 +23,13 @@ It should be clear to see, then, that compromising the device tree is very power
 
 # To Run Daemon
 
-```
+```shell
 sudo RUST_LOG=trace RUST_BACKTRACE=full ./target/debug/fpgad
 ```
 
-# Configure DBUS:
+# Configure DBUS
 
-```
+```shell
 sudo cp ./data/dbus/com.canonical.fpgad.conf /etc/dbus-1/system.d/
 ```
 
@@ -68,7 +68,7 @@ To remove an overlay simply call:
 
 ### Status (unprivileged)
 
-```
+```shell
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaState s "fpga0"
 
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaFlags s "fpga0"
@@ -81,8 +81,8 @@ busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonic
 
 ### Control (privileged)
 
-```
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags sx "fpga0" 0
+```shell
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags su "fpga0" 0
 
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control ApplyOverlay sss "fpga0" "fpga0" "/lib/firmware/k26-starter-kits.dtbo"
 

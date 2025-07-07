@@ -9,7 +9,6 @@
 // fpgad is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranties of MERCHANTABILITY, SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
-
 use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::{
@@ -109,7 +108,7 @@ impl ControlInterface {
     async fn set_fpga_flags(
         &self,
         device_handle: &str,
-        flags: isize,
+        flags: u32,
     ) -> Result<String, fdo::Error> {
         trace!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;

@@ -70,19 +70,19 @@ impl Fpga for UniversalFPGA {
 
     /// Gets the flags from the hex string stored in the sysfs flags file
     /// e.g. sys/class/fpga_manager/fpga0/flags
-    fn flags(&self) -> Result<isize, FpgadError> {
+    fn flags(&self) -> Result<u32, FpgadError> {
         let flag_path = Path::new(config::SYSFS_PREFIX)
             .join(self.device_handle.clone())
             .join("flags");
         let contents = fs_read(&flag_path)?;
         let trimmed = contents.trim().trim_start_matches("0x");
-        isize::from_str_radix(trimmed, 16)
+        u32::from_str_radix(trimmed, 16)
             .map_err(|_| FpgadError::Flag("Parsing flags failed".into()))
     }
 
     /// Sets the flags in the sysfs flags file (e.g. sys/class/fpga_manager/fpga0/flags)
     /// and verifies the write command stuck by reading it back.
-    fn set_flags(&self, flags: isize) -> Result<(), FpgadError> {
+    fn set_flags(&self, flags: u32) -> Result<(), FpgadError> {
         let flag_path = Path::new(config::SYSFS_PREFIX)
             .join(self.device_handle.clone())
             .join("flags");
@@ -109,7 +109,6 @@ impl Fpga for UniversalFPGA {
             },
             Err(e) => return Err(e),
         };
-
         match self.flags() {
             Ok(returned_flags) if returned_flags == flags => Ok(()),
             Ok(returned_flags) => Err(FpgadError::Flag(format!(
@@ -138,8 +137,7 @@ impl Fpga for UniversalFPGA {
 
         let relative_path = stripped_path.to_str().ok_or_else(|| {
             FpgadError::Argument(format!(
-                "Stripped bitstream path {:?} is not valid UTF-8",
-                stripped_path
+                "Stripped bitstream path {stripped_path:?} is not valid UTF-8"
             ))
         })?;
 
