@@ -81,13 +81,13 @@ pub trait Fpga {
     fn set_flags(&self, flags: u32) -> Result<(), FpgadError>;
     #[allow(dead_code)]
     /// Directly load the firmware stored in bitstream_path to the device
-    fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError>;
+    fn load_firmware(&self, bitstream_path_rel: &str) -> Result<(), FpgadError>;
 }
 
 pub trait OverlayHandler {
     /// Applies an overlay to an already existing overlayfs dir,
     /// which may or may not also write a bitstream to an fpga device.
-    fn apply_overlay(&self, source_path: &Path) -> Result<(), FpgadError>;
+    fn apply_overlay(&self, source_path: &str) -> Result<(), FpgadError>;
     /// Removes an overlayfs directory from the configfs.
     fn remove_overlay(&self) -> Result<(), FpgadError>;
     /// Gets the required fpga flags from an overlay file
@@ -141,7 +141,7 @@ fn discover_platform_type(device_handle: &str) -> Result<PlatformType, FpgadErro
     }))
 }
 
-fn new_platform(platform_type: PlatformType) -> Box<dyn Platform> {
+fn new_platform(platform_type: PlatformType) -> Box<dyn Platform + Send + Sync> {
     match platform_type {
         PlatformType::Universal => {
             info!("Using platform: Universal");
@@ -162,11 +162,15 @@ fn new_platform(platform_type: PlatformType) -> Box<dyn Platform> {
     }
 }
 
-pub fn platform_for_device(device_handle: &str) -> Result<Box<dyn Platform>, FpgadError> {
+pub fn platform_for_device(
+    device_handle: &str,
+) -> Result<Box<dyn Platform + Send + Sync>, FpgadError> {
     Ok(new_platform(discover_platform_type(device_handle)?))
 }
 
-pub fn platform_for_known_platform(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
+pub fn platform_for_known_platform(
+    platform_string: &str,
+) -> Result<Box<dyn Platform + Send + Sync>, FpgadError> {
     Ok(new_platform(match_platform_string(platform_string)?))
 }
 
@@ -177,5 +181,8 @@ pub trait Platform {
     /// creates and inits an Fpga if not present otherwise gets the instance
     fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError>;
     /// creates and inits an OverlayHandler if not present otherwise gets the instance
-    fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError>;
+    fn overlay_handler(
+        &self,
+        overlay_handle: &str,
+    ) -> Result<&(dyn OverlayHandler + Send + Sync), FpgadError>;
 }
