@@ -133,6 +133,7 @@ fn write_firmware_source_dir(new_path: &str) -> Result<(), FpgadError> {
     let fw_lookup_override = Path::new(config::FIRMWARE_LOC_CONTROL_PATH);
     fs_write(fw_lookup_override, false, new_path)
 }
+
 #[allow(dead_code)]
 fn read_firmware_source_dir() -> Result<String, FpgadError> {
     trace!(
@@ -141,4 +142,26 @@ fn read_firmware_source_dir() -> Result<String, FpgadError> {
     );
     let fw_lookup_override = Path::new(config::FIRMWARE_LOC_CONTROL_PATH);
     fs_read(fw_lookup_override)
+}
+
+#[allow(dead_code)]
+/// Convenient wrapper for reading contents of a directory
+pub fn fs_read_dir(dir: &Path) -> Result<Vec<String>, FpgadError> {
+    trace!("Attempting to read directory '{dir:?}'");
+    std::fs::read_dir(dir).map_or_else(
+        |e| {
+            Err(FpgadError::IOReadDir {
+                dir: dir.to_owned(),
+                e,
+            })
+        },
+        |iter| {
+            let ret = iter
+                .filter_map(Result::ok)
+                .map(|entry| entry.file_name().to_string_lossy().into_owned())
+                .collect();
+            trace!("Dir reading done.");
+            Ok(ret)
+        },
+    )
 }
