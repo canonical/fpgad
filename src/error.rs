@@ -36,6 +36,8 @@ pub enum FpgadError {
     IOCreate { file: PathBuf, e: std::io::Error },
     #[error("FpgadError::IODelete: An IO error occurred when deleting {file:?}: {e}")]
     IODelete { file: PathBuf, e: std::io::Error },
+    #[error("FpgadError::IOReadDir: An IO error occurred when reading directory {dir:?}: {e}")]
+    IOReadDir { dir: PathBuf, e: std::io::Error },
     #[error("FpgadError::Internal: An Internal error occurred: {0}")]
     Internal(String),
 }
@@ -49,6 +51,7 @@ impl From<FpgadError> for fdo::Error {
             FpgadError::IOWrite { .. } => fdo::Error::IOError(err.to_string()),
             FpgadError::IOCreate { .. } => fdo::Error::IOError(err.to_string()),
             FpgadError::IODelete { .. } => fdo::Error::IOError(err.to_string()),
+            FpgadError::IOReadDir { .. } => fdo::Error::IOError(err.to_string()),
             _ => fdo::Error::Failed(err.to_string()),
         }
     }
