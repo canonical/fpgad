@@ -13,7 +13,7 @@
 use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::Fpga;
-use crate::system_io::{fs_read, fs_write};
+use crate::system_io::{fs_read, fs_write, get_relative_fw_path};
 use log::{error, info, trace};
 use std::path::Path;
 
@@ -126,22 +126,7 @@ impl Fpga for UniversalFPGA {
     /// This can be used to manually load a firmware if the overlay does not trigger the load.
     /// Note: always load firmware before overlay.
     fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError> {
-        let stripped_path = bitstream_path
-            .strip_prefix(config::FIRMWARE_SOURCE_DIR)
-            .map_err(|_| {
-                FpgadError::Argument(format!(
-                    "Bitstream path {:?} is not under the configured firmware directory '{}'",
-                    bitstream_path,
-                    config::FIRMWARE_SOURCE_DIR
-                ))
-            })?;
-
-        let relative_path = stripped_path.to_str().ok_or_else(|| {
-            FpgadError::Argument(format!(
-                "Stripped bitstream path {stripped_path:?} is not valid UTF-8"
-            ))
-        })?;
-
+        let relative_path = get_relative_fw_path(bitstream_path)?;
         let control_path = Path::new(config::FPGA_MANAGERS_DIR)
             .join(self.device_handle())
             .join("firmware");

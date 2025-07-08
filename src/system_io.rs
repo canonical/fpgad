@@ -96,11 +96,39 @@ pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
 }
 
 /// Helper function to extract the filename from a path and wrap the errors
+#[allow(dead_code)]
 pub fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
     path.file_name()
         .ok_or_else(|| FpgadError::Internal(format!("No filename in path: {path:?}")))?
         .to_str()
         .ok_or_else(|| FpgadError::Internal(format!("Filename not UTF-8: {path:?}")))
+}
+
+pub fn get_relative_fw_path(source_path: &Path) -> Result<String, FpgadError> {
+    trace!("Attempting to get relative path: {source_path:?}");
+    if !source_path.exists() | source_path.is_dir() {
+        return Err(FpgadError::Argument(format!(
+            "Overlay file '{source_path:?}' has invalid path."
+        )));
+    }
+    let fw_lookups_string = fs_read(Path::new(config::FIRMWARE_LOC_CONTROL_PATH))?;
+    let mut fw_lookups = fw_lookups_string.lines().collect::<Vec<_>>();
+    fw_lookups.push(config::FIRMWARE_SOURCE_DIR);
+    // Reverse sort so longest match first.
+    fw_lookups.sort_by_key(|b| std::cmp::Reverse(b.len()));
+
+    let source_string = source_path.to_string_lossy().to_string();
+    let suffix = fw_lookups
+        .iter()
+        .find_map(|prefix| source_string.strip_prefix(prefix).map(str::to_owned));
+
+    trace!("{source_path:?} appears to be valid overlay source");
+    suffix.ok_or_else(|| {
+        FpgadError::Argument(format!(
+            "Failed to find {source_path:?} in firmware lookup locations. Please use \
+            SetFirmwareSourceDir interface to add the containing path to lookup directories."
+        ))
+    })
 }
 
 /// Helper function to check that a device with given handle does exist.
