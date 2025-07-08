@@ -13,7 +13,7 @@
 use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::OverlayHandler;
-use crate::system_io::{extract_filename, fs_create_dir, fs_read, fs_remove_dir, fs_write};
+use crate::system_io::{fs_create_dir, fs_read, fs_remove_dir, fs_write};
 use log::{info, trace};
 use std::path::{Path, PathBuf};
 
@@ -37,16 +37,6 @@ pub struct UniversalOverlayHandler {
 }
 
 impl UniversalOverlayHandler {
-    /// setter for the stored overlay_source_path. Checks the file exists directly after assignment.
-    fn check_source_path(&self, source_path: &Path) -> Result<(), FpgadError> {
-        if !source_path.exists() | source_path.is_dir() {
-            return Err(FpgadError::Argument(format!(
-                "Overlay file '{source_path:?}' has invalid path."
-            )));
-        }
-        trace!("{source_path:?} appears to be valid overlay source");
-        Ok(())
-    }
     fn get_vfs_status(&self) -> Result<String, FpgadError> {
         let status_path = self.overlay_fs_path()?.join("status");
         trace!("Reading from {status_path:?}");
@@ -62,14 +52,13 @@ impl UniversalOverlayHandler {
 
     /// When an overlay fails to be applied, it may show as "applied" status but the path will
     /// be empty. Therefore, this checks both match what is expected.
-    fn vfs_check_applied(&self, source_path: &Path) -> Result<(), FpgadError> {
+    fn vfs_check_applied(&self, source_path_rel: &Path) -> Result<(), FpgadError> {
         let path_file_contents = self.get_vfs_path()?;
-        let dtbo_file_name = extract_filename(source_path)?;
-        if path_file_contents.contains(dtbo_file_name) {
+        if path_file_contents.contains(&source_path_rel.to_string_lossy().to_string()) {
             info!("overlay path contents is valid: '{path_file_contents}'");
         } else {
             return Err(FpgadError::OverlayStatus(format!(
-                "When trying to apply overlay '{dtbo_file_name}', the resulting vfs path contained '{path_file_contents}'"
+                "When trying to apply overlay '{source_path_rel:?}', the resulting vfs path contained '{path_file_contents}'"
             )));
         }
 
@@ -94,9 +83,7 @@ impl OverlayHandler for UniversalOverlayHandler {
     /// There are multiple ways to trigger a firmware load so this is not valid if the
     /// dtbo doesn't contain a firmware to load.
     /// Calls prepare_for_load to ensure paths are valid etc. beforehand.
-    fn apply_overlay(&self, source_path: &Path) -> Result<(), FpgadError> {
-        self.check_source_path(source_path)?;
-
+    fn apply_overlay(&self, source_path_rel: &Path) -> Result<(), FpgadError> {
         let overlay_fs_path = self.overlay_fs_path()?;
         if overlay_fs_path.exists() {
             return Err(FpgadError::Argument(format!(
@@ -118,14 +105,13 @@ impl OverlayHandler for UniversalOverlayHandler {
             )));
         }
 
-        let dtbo_file_name = extract_filename(source_path)?;
-        match fs_write(&overlay_path_file, false, dtbo_file_name) {
+        match fs_write(&overlay_path_file, false, source_path_rel.to_string_lossy()) {
             Ok(_) => {
-                trace!("'{dtbo_file_name}' successfully written to {overlay_path_file:?}");
+                trace!("'{source_path_rel:?}' successfully written to {overlay_path_file:?}");
             }
             Err(e) => return Err(e),
         }
-        self.vfs_check_applied(source_path)
+        self.vfs_check_applied(source_path_rel)
     }
 
     /// Attempts to delete overlay_fs_path
