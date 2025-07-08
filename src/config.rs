@@ -10,7 +10,6 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-pub static FIRMWARE_SOURCE_DIR: &str = "/lib/firmware/";
 pub static FPGA_MANAGERS_DIR: &str = "/sys/class/fpga_manager/";
 pub static OVERLAY_CONTROL_DIR: &str = "/sys/kernel/config/device-tree/overlays/";
 pub static FIRMWARE_LOC_CONTROL_PATH: &str = "/sys/module/firmware_class/parameters/path";

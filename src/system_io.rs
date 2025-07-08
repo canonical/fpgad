@@ -97,12 +97,24 @@ pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
     }
 }
 
-/// Helper function to extract the filename from a path and wrap the errors
-pub fn extract_filename(path: &Path) -> Result<&str, FpgadError> {
-    path.file_name()
-        .ok_or_else(|| FpgadError::Internal(format!("No filename in path: {path:?}")))?
-        .to_str()
-        .ok_or_else(|| FpgadError::Internal(format!("Filename not UTF-8: {path:?}")))
+pub fn extract_path_and_filename(path: &Path) -> Result<(String, String), FpgadError> {
+    // Extract filename
+    let filename = path
+        .file_name()
+        .and_then(|f| f.to_str())
+        .ok_or(FpgadError::Argument(format!(
+            "Provided bitstream path {path:?} is missing filename."
+        )))?;
+
+    // Extract parent directory
+    let base_path = path
+        .parent()
+        .and_then(|p| p.to_str())
+        .ok_or(FpgadError::Argument(format!(
+            "Provided bitstream path {path:?} is missing a parent dir."
+        )))?;
+
+    Ok((base_path.to_string(), filename.to_string()))
 }
 
 /// Helper function to check that a device with given handle does exist.
@@ -125,8 +137,7 @@ pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadErr
     Ok(())
 }
 
-#[allow(dead_code)]
-fn write_firmware_source_dir(new_path: &str) -> Result<(), FpgadError> {
+pub fn write_firmware_source_dir(new_path: &str) -> Result<(), FpgadError> {
     trace!(
         "Writing fw prefix {} to {}",
         new_path,
@@ -137,7 +148,7 @@ fn write_firmware_source_dir(new_path: &str) -> Result<(), FpgadError> {
 }
 
 #[allow(dead_code)]
-fn read_firmware_source_dir() -> Result<String, FpgadError> {
+pub fn read_firmware_source_dir() -> Result<String, FpgadError> {
     trace!(
         "Reading fw prefix from {}",
         config::FIRMWARE_LOC_CONTROL_PATH
