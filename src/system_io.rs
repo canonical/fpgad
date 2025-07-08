@@ -122,3 +122,23 @@ pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadErr
     };
     Ok(())
 }
+
+#[allow(dead_code)]
+fn write_firmware_source_dir(new_path: &str) -> Result<(), FpgadError> {
+    trace!(
+        "Writing fw prefix {} to {}",
+        new_path,
+        config::FIRMWARE_LOC_CONTROL_PATH
+    );
+    let fw_lookup_override = Path::new(config::FIRMWARE_LOC_CONTROL_PATH);
+    fs_write(fw_lookup_override, false, new_path)
+}
+#[allow(dead_code)]
+fn read_firmware_source_dir() -> Result<String, FpgadError> {
+    trace!(
+        "Reading fw prefix from {}",
+        config::FIRMWARE_LOC_CONTROL_PATH
+    );
+    let fw_lookup_override = Path::new(config::FIRMWARE_LOC_CONTROL_PATH);
+    fs_read(fw_lookup_override)
+}
