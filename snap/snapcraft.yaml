@@ -1,14 +1,26 @@
-name: fpgad # you probably want to 'snapcraft register <name>'
-base: core24 # the base snap is the execution environment for this snap
+name: fpgad
+base: core24
 adopt-info: version
 summary: An FPGA manager daemon that handles the dirty work for you
 description: |
   An FPGA manager daemon that handles the dirty work for you.
 grade: devel # must be 'stable' to release into candidate/stable channels
 confinement: devmode # use 'strict' once you have the right plugs and slots
+slots:
+  dbus-daemon:
+    interface: dbus
+    bus: system
+    name: com.canonical.fpgad
 apps:
   fpgad:
+    command: bin/cli
+  daemon:
     command: bin/fpgad
+    daemon: simple
+    restart-condition: always
+    start-timeout: 30s
+    install-mode: enable
+    bus-name: com.canonical.fpgad
 parts:
   version:
     plugin: nil
@@ -19,7 +31,15 @@ parts:
       craftctl default
       cargo_version=$(cargo metadata --no-deps --format-version 1 | jq -r .packages[0].version)
       craftctl set version="$cargo_version+git$(date +'%Y%m%d').$(git describe --always --exclude '*')"
+  # with `snapcraft remote-build` cargo build with workspace is not working as
+  # it is in local builds so keeping the parts separated to make sure `remote-build`
+  # also works as expected. see: https://github.com/canonical/fpgad/pull/52
+  # for details.
+  cli:
+    plugin: rust
+    source: .
+    rust-path:
+      - cli
   fpgad:
-    # See 'snapcraft plugins'
     plugin: rust
     source: .
