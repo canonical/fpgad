@@ -49,5 +49,3 @@ repos:
     rev: f01f898 # pre-commit hooks is not tagged yet
     hooks:
       - id: licensesnip
-        args:
-          - 'check'
