@@ -2,6 +2,12 @@ name: Code Formatting Check
 on:
   pull_request:
 jobs:
+  pre-commit-hooks:
+    name: Run pre-commit hooks for linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pre-commit/action@v3.0.1
   git-commit-check:
     name: Check Git Commit Formatting
     runs-on: ubuntu-latest
@@ -40,49 +46,3 @@ jobs:
           commits="$(git rev-list origin/${{ github.base_ref }}..HEAD --skip 1 | paste -s -d,)"
           echo "Checking commits: $commits"
           gitlint --debug --commits "$commits",
-  python-check:
-    name: Check Python Code Formatting
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install Dependencies
-        run: |
-          sudo env DEBIAN_FRONTEND=noninteractive apt update
-          sudo env DEBIAN_FRONTEND=noninteractive apt install -y python3-venv
-      - name: Linting with Ruff
-        run: |
-          python3 -m venv .venv
-          source .venv/bin/activate
-          pip install ruff==0.11.3
-          for python_file in $(git diff --name-only --diff-filter=ACMRTUXB origin/${{ github.base_ref }} | grep -E "\.py$");
-          do
-            ruff format --check -v "$python_file"
-            ruff check "$python_file"
-          done
-  yaml-check:
-    name: Check YAML Formatting
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '>=1.21.0'
-      - name: Run yamlfmt
-        run: |
-          go install github.com/google/yamlfmt/cmd/yamlfmt@v0.16.0
-          yamlfmt -lint .
-  rust-check:
-    name: Check Rust Code
-    runs-on: ubuntu-latest
-    env:
-      RUSTFLAGS: -Dwarnings
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run clippy
-        run: |
-          cargo clippy --workspace --all-targets --all-features -v
-      - name: Run fmt
-        run: |
-          cargo fmt --check -v
