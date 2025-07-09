@@ -20,18 +20,15 @@ use std::path::Path;
 #[derive(Clone, Copy)]
 enum PlatformType {
     Universal,
-    ZynqMP,
-    Zynq, // no mp
-    Versal,
+    Xilinx,
 }
 
-//  TODO: this may become generic `xilinx,` for all xilinx devices instead, depending on what
-//   the softener code ends up looking like.
-const PLATFORM_SUBSTRINGS: &[(&str, PlatformType)] = &[
-    ("universal", PlatformType::Universal),
-    ("zynqmp-", PlatformType::ZynqMP),
-    ("versal-", PlatformType::Versal),
-    ("zynq-", PlatformType::Zynq),
+const PLATFORM_SUBSTRINGS: &[(PlatformType, &[&str])] = &[
+    (PlatformType::Universal, &["universal"]),
+    (
+        PlatformType::Xilinx,
+        &["xlnx", "zynqmp-pcap-fpga", "versal-fpga", "zynq-devcfg-1.0"],
+    ),
 ];
 
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
@@ -95,9 +92,10 @@ pub trait OverlayHandler {
 }
 
 fn match_platform_string(platform_string: &str) -> Result<PlatformType, FpgadError> {
-    for (substr, platform) in PLATFORM_SUBSTRINGS {
-        if platform_string.contains(substr) {
-            trace!("Found '{substr}'");
+    for (platform, substrs) in PLATFORM_SUBSTRINGS {
+        let platform_subs: Vec<&str> = platform_string.split(',').collect();
+
+        if platform_subs.iter().all(|item| substrs.contains(item)) {
             return Ok(*platform);
         }
     }
@@ -117,10 +115,13 @@ pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError>
                 "Failed to read platform from {device_handle:?}: {e}\n\
                 Universal will be used as platform type.",
             );
-            return Ok("universal".to_string());
+            return Ok(PLATFORM_SUBSTRINGS[PlatformType::Universal as usize]
+                .1 // get strings
+                .first() // get "universal"
+                .unwrap()
+                .to_string());
         }
         Ok(s) => {
-            trace!("{s}");
             // often driver virtual files contain null terminated strings instead of EOF terminated.
             s.trim_end_matches('\0').to_string()
         }
