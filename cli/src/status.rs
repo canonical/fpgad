@@ -10,61 +10,10 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::proxies::status_proxy;
-use std::collections::HashMap;
-use zbus::Connection;
-
-/// Sends the dbus command to get a list of overlays and parses it
-pub async fn call_get_overlays() -> Result<Vec<String>, zbus::Error> {
-    let connection = Connection::system().await?;
-    let proxy = status_proxy::StatusProxy::new(&connection).await?;
-    let list_str = proxy.get_overlays().await?;
-    let ret_list: Vec<String> = list_str.lines().map(|line| line.to_string()).collect();
-    Ok(ret_list)
-}
-
-/// Sends the dbus command to get the state from an fpga device
-pub async fn call_get_fpga_state(device_handle: &str) -> Result<String, zbus::Error> {
-    let connection = Connection::system().await?;
-    let proxy = status_proxy::StatusProxy::new(&connection).await?;
-    proxy.get_fpga_state("", device_handle).await
-}
-
-/// Sends the dbus command to get the platform_compat_string for a given device
-pub async fn call_get_platform_type(device_handle: &str) -> Result<String, zbus::Error> {
-    let connection = Connection::system().await?;
-    let proxy = status_proxy::StatusProxy::new(&connection).await?;
-    proxy.get_platform_type(device_handle).await
-}
-
-/// Sends the dbus command to get the status string for a given overlay
-async fn call_get_overlay_status(
-    platform: &str,
-    overlay_handle: &str,
-) -> Result<String, zbus::Error> {
-    let connection = Connection::system().await?;
-    let proxy = status_proxy::StatusProxy::new(&connection).await?;
-    proxy.get_overlay_status(platform, overlay_handle).await
-}
-
-/// parses the string from `get_platform_types` interface into a HashMap of
-/// device: platform_compat_string
-pub async fn call_get_platform_types() -> Result<HashMap<String, String>, zbus::Error> {
-    let connection = Connection::system().await?;
-    let proxy = status_proxy::StatusProxy::new(&connection).await?;
-    let ret_str = proxy.get_platform_types().await?;
-    let ret_map = ret_str
-        .lines() // split by '\n'
-        .filter_map(|line| {
-            let mut parts = line.splitn(2, ':');
-            match (parts.next(), parts.next()) {
-                (Some(key), Some(value)) => Some((key.to_string(), value.to_string())),
-                _ => None, // ignore lines without a colon
-            }
-        })
-        .collect();
-    Ok(ret_map)
-}
+use fpgad_api::status::{
+    call_get_fpga_state, call_get_overlay_status, call_get_overlays, call_get_platform_type,
+    call_get_platform_types,
+};
 
 /// gets the first platform in the container from `call_get_platform_types`
 pub async fn get_first_platform() -> Result<String, zbus::Error> {

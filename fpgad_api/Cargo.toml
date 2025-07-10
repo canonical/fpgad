@@ -1,11 +1,9 @@
 [package]
-name = "fpga"
+name = "fpgad_api"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-fpgad_api = { path = "../fpgad_api" }
-clap = { version = "4.5.40", features = ["derive"] }
 env_logger = "0.11.8"
 log = "0.4.27"
 tokio = { version = "1.46.0", features = ["full"] }

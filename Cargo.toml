@@ -10,7 +10,7 @@ readme = "README.md"
 
 [workspace]
 resolver = "3"
-members = ["cli"]
+members = [".", "cli", "fpgad_api"]
 
 [dependencies]
 log = "0.4.27"

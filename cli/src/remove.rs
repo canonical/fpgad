@@ -11,24 +11,14 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::RemoveSubcommand;
-use crate::proxies::control_proxy;
-use crate::status::{call_get_platform_type, get_first_overlay, get_first_platform};
-use zbus::Connection;
+use crate::status::{get_first_overlay, get_first_platform};
+use fpgad_api::control::call_remove_overlay;
+use fpgad_api::status::call_get_platform_type;
 
 async fn remove_bitstream() -> Result<String, zbus::Error> {
     // TODO: so this is confusing because we don't have a way to remove a bitstream but with
     //  softeners we might end up with this functionality.
     Err(zbus::Error::Failure("Not implemented".to_string()))
-}
-
-/// Sends the dbus command to remove an overlay
-async fn call_remove_overlay(
-    device_handle: &str,
-    overlay_handle: &str,
-) -> Result<String, zbus::Error> {
-    let connection = Connection::system().await?;
-    let proxy = control_proxy::ControlProxy::new(&connection).await?;
-    proxy.remove_overlay(device_handle, overlay_handle).await
 }
 
 /// Populates the platform and overlay handle appropriately before calling `call_apply_overlay`

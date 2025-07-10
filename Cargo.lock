@@ -315,6 +315,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "env_logger",
+ "fpgad_api",
  "log",
  "tokio",
  "zbus",
@@ -327,6 +328,16 @@ dependencies = [
  "env_logger",
  "log",
  "thiserror",
+ "tokio",
+ "zbus",
+]
+
+[[package]]
+name = "fpgad_api"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "log",
  "tokio",
  "zbus",
 ]

@@ -11,40 +11,10 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::LoadSubcommand;
-use crate::proxies::control_proxy;
-use crate::status::{
-    call_get_platform_type, call_get_platform_types, get_first_device_handle, get_first_platform,
-};
-use zbus::Connection;
+use crate::status::{get_first_device_handle, get_first_platform};
 
-/// Sends the dbus command to load a bitstream
-async fn call_load_bitstream(
-    platform_str: &str,
-    device_handle: &str,
-    file_path: &str,
-    firmware_lookup_path: &str,
-) -> Result<String, zbus::Error> {
-    let connection = Connection::system().await?;
-    let proxy = control_proxy::ControlProxy::new(&connection).await?;
-    proxy
-        .write_bitstream_direct(platform_str, device_handle, file_path, firmware_lookup_path)
-        .await
-}
-
-/// Sends the dbus command to apply an overlay
-async fn call_apply_overlay(
-    platform: &str,
-    file_path: &str,
-    overlay_handle: &str,
-    firmware_lookup_path: &str,
-) -> Result<String, zbus::Error> {
-    let connection = Connection::system().await?;
-    let proxy = control_proxy::ControlProxy::new(&connection).await?;
-    proxy
-        .apply_overlay(platform, overlay_handle, file_path, firmware_lookup_path)
-        .await
-}
-
+use fpgad_api::control::{call_apply_overlay, call_load_bitstream};
+use fpgad_api::status::{call_get_platform_type, call_get_platform_types};
 /// Populates the platform and overlay handle appropriately before calling `call_apply_overlay`
 async fn apply_overlay(
     dev_handle: &Option<String>,
