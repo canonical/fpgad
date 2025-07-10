@@ -44,6 +44,8 @@ parts:
     source: .
     rust-path:
       - cli
+    rust-channel: "stable"
   fpgad:
     plugin: rust
     source: .
+    rust-channel: "stable"
