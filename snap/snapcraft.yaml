@@ -16,11 +16,15 @@ apps:
     command: bin/cli
   daemon:
     command: bin/fpgad
-    daemon: simple
+    daemon: dbus
     restart-condition: always
     start-timeout: 30s
     install-mode: enable
     bus-name: com.canonical.fpgad
+    slots:
+      - dbus-daemon
+    activates-on:
+      - dbus-daemon
 parts:
   version:
     plugin: nil
