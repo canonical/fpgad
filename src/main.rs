@@ -26,7 +26,7 @@ use crate::comm::dbus::{control_interface::ControlInterface, status_interface::S
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     // Upon load, the daemon will search each fpga device and determine what platform it is
     // based on its name in /sys/class/fpga_manager/{device}/name
