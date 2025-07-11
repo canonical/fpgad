@@ -10,11 +10,47 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::error::FpgadError;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
-use crate::system_io::validate_device_handle;
+use crate::system_io::{
+    extract_path_and_filename, validate_device_handle, write_firmware_source_dir,
+};
 use log::trace;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
+use std::sync::Arc;
+use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use zbus::{fdo, interface};
+
+static WRITE_LOCK: OnceCell<Arc<Mutex<()>>> = OnceCell::const_new();
+
+async fn get_write_lock_guard() -> MutexGuard<'static, ()> {
+    let lock = WRITE_LOCK
+        .get_or_init(|| async { Arc::new(Mutex::new(())) })
+        .await;
+    lock.lock().await
+}
+
+fn make_firmware_pair(
+    source_path: &Path,
+    firmware_path: &Path,
+) -> Result<(PathBuf, PathBuf), FpgadError> {
+    if firmware_path.as_os_str().is_empty() {
+        return extract_path_and_filename(source_path);
+    }
+
+    if let Ok(suffix) = source_path.strip_prefix(firmware_path) {
+        // Remove leading '/' if present
+        let cleaned_suffix_path = suffix
+            .components()
+            .skip_while(|c| matches!(c, Component::RootDir))
+            .collect::<PathBuf>();
+        Ok((firmware_path.to_path_buf(), cleaned_suffix_path))
+    } else {
+        Err(FpgadError::Argument(format!(
+            "Could not find {source_path:?} inside {firmware_path:?}"
+        )))
+    }
+}
 
 pub struct ControlInterface {}
 #[interface(name = "com.canonical.fpgad.control")]
@@ -37,6 +73,7 @@ impl ControlInterface {
         platform_string: &str,
         device_handle: &str,
         bitstream_path_str: &str,
+        firmware_lookup_path: &str,
     ) -> Result<String, fdo::Error> {
         trace!(
             "load_firmware called with name: {device_handle} and path_str: {bitstream_path_str}"
@@ -49,8 +86,16 @@ impl ControlInterface {
             )));
         }
         let platform = platform_from_compat_or_device(platform_string, device_handle)?;
-        platform.fpga(device_handle)?.load_firmware(path)?;
-        Ok(format!("{bitstream_path_str} loaded to {device_handle}"))
+        let (prefix, suffix) = make_firmware_pair(path, Path::new(firmware_lookup_path))?;
+
+        let _guard = get_write_lock_guard();
+        trace!("Got write lock.");
+        write_firmware_source_dir(&prefix.to_string_lossy())?;
+        platform.fpga(device_handle)?.load_firmware(&suffix)?;
+        Ok(format!(
+            "{bitstream_path_str} loaded to {device_handle} using firmware lookup path: '\
+         {firmware_lookup_path}'"
+        ))
     }
 
     async fn apply_overlay(
@@ -58,17 +103,27 @@ impl ControlInterface {
         platform_compat_str: &str,
         overlay_handle: &str,
         overlay_source_path: &str,
+        firmware_lookup_path: &str,
     ) -> Result<String, fdo::Error> {
         trace!(
-            "apply_overlay called with platform_compat_str:{platform_compat_str}, overlay_handle: \
+            "apply_overlay called with platform_compat_str: {platform_compat_str}, overlay_handle: \
             {overlay_handle} and overlay_path: {overlay_source_path}",
         );
         let platform = platform_for_known_platform(platform_compat_str)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
-        overlay_handler.apply_overlay(Path::new(overlay_source_path))?;
+        let (prefix, suffix) = make_firmware_pair(
+            Path::new(overlay_source_path),
+            Path::new(firmware_lookup_path),
+        )?;
+
+        let _guard = get_write_lock_guard();
+        trace!("Got write lock.");
+        write_firmware_source_dir(&prefix.to_string_lossy())?;
+        overlay_handler.apply_overlay(&suffix)?;
         Ok(format!(
-            "{overlay_source_path} loaded via {overlay_fs_path:?}"
+            "{overlay_source_path} loaded via {overlay_fs_path:?} using firmware lookup path: '\
+         {firmware_lookup_path}'"
         ))
     }
 

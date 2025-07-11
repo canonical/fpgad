@@ -48,7 +48,7 @@ impl Platform for UniversalPlatform {
     }
 
     /// Gets the `overlay_handler` associated with this device.
-    fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError> {
+    fn overlay_handler(&self, overlay_handle: &str) -> Result<&(dyn OverlayHandler), FpgadError> {
         // TODO: replace the return type of UniversalOverlayHandler to Result and use
         // get_or_try_init instead here when stable:
         // https://github.com/rust-lang/rust/issues/121641
