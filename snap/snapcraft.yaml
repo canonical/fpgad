@@ -23,6 +23,8 @@ apps:
     bus-name: com.canonical.fpgad
     slots:
       - dbus-daemon
+    plugs:
+      - fpga
     activates-on:
       - dbus-daemon
 parts:

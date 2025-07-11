@@ -89,3 +89,10 @@ sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.c
 
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control RemoveOverlay ss "fpga0" "fpga0"
 ```
+
+# Snap
+
+```shell
+sudo snap install fpgad
+sudo snap connect fpgad:fpga
+```
