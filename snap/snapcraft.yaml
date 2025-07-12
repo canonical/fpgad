@@ -1,3 +1,4 @@
+title: fpgad
 name: fpgad
 base: core24
 adopt-info: version
@@ -6,6 +7,11 @@ description: |
   An FPGA manager daemon that handles the dirty work for you.
 grade: devel # must be 'stable' to release into candidate/stable channels
 confinement: devmode # use 'strict' once you have the right plugs and slots
+source-code:
+  - https://github.com/canonical/fpgad
+license: GPL-3.0
+issues:
+  - https://github.com/canonical/fpgad/issues
 slots:
   dbus-daemon:
     interface: dbus
