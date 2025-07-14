@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::error::FpgadError;
-use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
+use crate::platforms::platform::{Fpga, OverlayHandler, Platform, PlatformType};
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use log::trace;
@@ -19,7 +19,6 @@ use std::sync::OnceLock;
 
 #[derive(Debug)]
 pub struct UniversalPlatform {
-    platform_type: &'static str,
     fpga: OnceLock<UniversalFPGA>,
     overlay_handler: OnceLock<UniversalOverlayHandler>,
 }
@@ -29,7 +28,6 @@ impl UniversalPlatform {
     pub fn new() -> Self {
         trace!("creating new universal_platform");
         UniversalPlatform {
-            platform_type: "Universal",
             fpga: OnceLock::new(),
             overlay_handler: OnceLock::new(),
         }
@@ -38,8 +36,8 @@ impl UniversalPlatform {
 
 impl Platform for UniversalPlatform {
     /// Returns the `name` of the [`UniversalPlatform`]
-    fn platform_type(&self) -> &str {
-        self.platform_type
+    fn platform_type(&self) -> PlatformType {
+        PlatformType::Universal
     }
 
     /// Initialises or get the fpga object called `name`

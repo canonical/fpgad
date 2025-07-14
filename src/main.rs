@@ -20,6 +20,7 @@ mod comm;
 
 mod config;
 mod platforms;
+mod softeners;
 mod system_io;
 
 use crate::comm::dbus::{control_interface::ControlInterface, status_interface::StatusInterface};
