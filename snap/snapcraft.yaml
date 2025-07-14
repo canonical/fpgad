@@ -20,7 +20,6 @@ apps:
     restart-condition: always
     start-timeout: 30s
     install-mode: enable
-    bus-name: com.canonical.fpgad
     slots:
       - dbus-daemon
     plugs:
