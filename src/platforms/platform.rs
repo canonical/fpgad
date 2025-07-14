@@ -32,12 +32,6 @@ const PLATFORM_SUBSTRINGS: &[(PlatformType, &[&str])] = &[
     ),
 ];
 
-/// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
-#[allow(dead_code)]
-pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
-    fs_read_dir(config::FPGA_MANAGERS_DIR.as_ref())
-}
-
 /// A sysfs map of an fpga in fpga_manager class.
 /// See the example below (not all sysfs files are implemented as methods):
 /// ubuntu@kria:~$ tree /sys/class/fpga_manager/fpga0
@@ -90,6 +84,22 @@ pub trait OverlayHandler {
     /// gets the overlay application status
     fn status(&self) -> Result<String, FpgadError>;
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError>;
+}
+
+pub trait Platform {
+    #[allow(dead_code)]
+    /// gets the name of the Platform type e.g. Universal or ZynqMP
+    fn platform_type(&self) -> PlatformType;
+    /// creates and inits an Fpga if not present otherwise gets the instance
+    fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError>;
+    /// creates and inits an OverlayHandler if not present otherwise gets the instance
+    fn overlay_handler(&self, overlay_handle: &str) -> Result<&(dyn OverlayHandler), FpgadError>;
+}
+
+/// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
+#[allow(dead_code)]
+pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
+    fs_read_dir(config::FPGA_MANAGERS_DIR.as_ref())
 }
 
 fn match_platform_string(platform_string: &str) -> Result<PlatformType, FpgadError> {
@@ -151,6 +161,7 @@ fn new_platform(platform_type: PlatformType) -> Box<dyn Platform> {
         }
     }
 }
+
 pub fn platform_from_compat_or_device(
     platform_string: &str,
     device_handle: &str,
@@ -167,14 +178,4 @@ pub fn platform_for_device(device_handle: &str) -> Result<Box<dyn Platform>, Fpg
 
 pub fn platform_for_known_platform(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
     Ok(new_platform(match_platform_string(platform_string)?))
-}
-
-pub trait Platform {
-    #[allow(dead_code)]
-    /// gets the name of the Platform type e.g. Universal or ZynqMP
-    fn platform_type(&self) -> PlatformType;
-    /// creates and inits an Fpga if not present otherwise gets the instance
-    fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError>;
-    /// creates and inits an OverlayHandler if not present otherwise gets the instance
-    fn overlay_handler(&self, overlay_handle: &str) -> Result<&(dyn OverlayHandler), FpgadError>;
 }
