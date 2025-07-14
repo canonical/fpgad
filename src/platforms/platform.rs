@@ -13,10 +13,14 @@
 use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
-use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
 use crate::system_io::{fs_read, fs_read_dir};
-use log::{error, info, trace, warn};
+use log::{trace, warn};
+use std::any::Any;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::sync::{Mutex, OnceLock};
+
+type PlatformConstructor = fn() -> Box<dyn Platform>;
 
 #[derive(Clone, Copy)]
 pub enum PlatformType {
@@ -24,13 +28,8 @@ pub enum PlatformType {
     Xilinx,
 }
 
-const PLATFORM_SUBSTRINGS: &[(PlatformType, &[&str])] = &[
-    (PlatformType::Universal, &["universal"]),
-    (
-        PlatformType::Xilinx,
-        &["xlnx", "zynqmp-pcap-fpga", "versal-fpga", "zynq-devcfg-1.0"],
-    ),
-];
+pub static PLATFORM_REGISTRY: OnceLock<Mutex<HashMap<&'static str, PlatformConstructor>>> =
+    OnceLock::new();
 
 /// A sysfs map of an fpga in fpga_manager class.
 /// See the example below (not all sysfs files are implemented as methods):
@@ -96,23 +95,36 @@ pub trait Platform {
     fn overlay_handler(&self, overlay_handle: &str) -> Result<&(dyn OverlayHandler), FpgadError>;
 }
 
-/// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
-#[allow(dead_code)]
-pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
-    fs_read_dir(config::FPGA_MANAGERS_DIR.as_ref())
-}
+fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
+    let registry = PLATFORM_REGISTRY
+        .get()
+        .ok_or(FpgadError::Internal(String::from(
+            "couldn't get PLATFORM_REGISTRY",
+        )))?
+        .lock()
+        .map_err(|_| FpgadError::Internal(String::from("couldn't lock PLATFORM_REGISTRY")))?;
 
-fn match_platform_string(platform_string: &str) -> Result<PlatformType, FpgadError> {
-    for (platform, substrs) in PLATFORM_SUBSTRINGS {
-        let platform_subs: Vec<&str> = platform_string.split(',').collect();
-
-        if platform_subs.iter().all(|item| substrs.contains(item)) {
-            return Ok(*platform);
+    for (compat_string, platform_constructor) in registry.iter() {
+        let compat_set: HashSet<&str> = compat_string.split(',').collect();
+        let compat_found = platform_string.split(',').all(|x| compat_set.contains(x));
+        if compat_found {
+            return Ok(platform_constructor());
         }
     }
+
     Err(FpgadError::Argument(format!(
         "FPGAd could not match {platform_string} to a known platform."
     )))
+}
+
+fn discover_platform(device_handle: &str) -> Result<Box<dyn Platform>, FpgadError> {
+    let compat_string = read_compatible_string(device_handle)?;
+    trace!("Found compatibility string: '{compat_string}'");
+
+    Ok(match_platform_string(&compat_string).unwrap_or({
+        warn!("{compat_string} not supported. Defaulting to Universal platform.");
+        Box::new(UniversalPlatform::new())
+    }))
 }
 
 pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError> {
@@ -122,15 +134,9 @@ pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError>
             .join("of_node/compatible"),
     ) {
         Err(e) => {
-            error!(
-                "Failed to read platform from {device_handle:?}: {e}\n\
-                Universal will be used as platform type.",
-            );
-            return Ok(PLATFORM_SUBSTRINGS[PlatformType::Universal as usize]
-                .1 // get strings
-                .first() // get "universal"
-                .unwrap()
-                .to_string());
+            return Err(FpgadError::Argument(format!(
+                "Failed to read platform from {device_handle:?}: {e}"
+            )));
         }
         Ok(s) => {
             // often driver virtual files contain null terminated strings instead of EOF terminated.
@@ -140,42 +146,34 @@ pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError>
     Ok(compat_string)
 }
 
-fn discover_platform_type(device_handle: &str) -> Result<PlatformType, FpgadError> {
-    let compat_string = read_compatible_string(device_handle)?;
-    trace!("Found compatibility string: '{compat_string}'");
-    Ok(match_platform_string(&compat_string).unwrap_or_else(|_| {
-        warn!("{compat_string} not supported. Defaulting to Universal platform.");
-        PlatformType::Universal
-    }))
-}
-
-fn new_platform(platform_type: PlatformType) -> Box<dyn Platform> {
-    match platform_type {
-        PlatformType::Universal => {
-            info!("Using platform: Universal");
-            Box::new(UniversalPlatform::new())
-        }
-        PlatformType::Xilinx => {
-            warn!("Xilinx not implemented yet: using Universal");
-            Box::new(XilinxDfxMgrPlatform::new())
-        }
-    }
-}
-
 pub fn platform_from_compat_or_device(
     platform_string: &str,
     device_handle: &str,
 ) -> Result<Box<dyn Platform>, FpgadError> {
     match platform_string.is_empty() {
-        true => platform_for_device(device_handle),
+        true => discover_platform(device_handle),
         false => platform_for_known_platform(platform_string),
     }
 }
 
-pub fn platform_for_device(device_handle: &str) -> Result<Box<dyn Platform>, FpgadError> {
-    Ok(new_platform(discover_platform_type(device_handle)?))
+pub fn platform_for_known_platform(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
+    match_platform_string(platform_string)
 }
 
-pub fn platform_for_known_platform(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
-    Ok(new_platform(match_platform_string(platform_string)?))
+pub fn init_platform_registry() -> Mutex<HashMap<&'static str, PlatformConstructor>> {
+    Mutex::new(HashMap::new())
+}
+
+pub fn register_platform(compatible: &'static str, constructor: PlatformConstructor) {
+    let mut registry = PLATFORM_REGISTRY
+        .get_or_init(init_platform_registry)
+        .lock()
+        .expect("couldnt get PLATFORM_REGISTRY");
+
+    registry.insert(compatible, constructor);
+}
+
+/// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
+pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
+    fs_read_dir(config::FPGA_MANAGERS_DIR.as_ref())
 }

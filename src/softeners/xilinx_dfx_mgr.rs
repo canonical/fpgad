@@ -14,6 +14,8 @@ pub struct XilinxDfxMgrPlatform {
     overlay_handler: OnceLock<UniversalOverlayHandler>,
 }
 
+// TODO: implement a proc_macro that registers the platform with compat string
+//#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0")]
 impl XilinxDfxMgrPlatform {
     pub fn new() -> Self {
         trace!("creating new XilinxDfxMgrPlatform");
