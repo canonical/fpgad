@@ -74,7 +74,7 @@ pub trait Fpga {
     fn set_flags(&self, flags: u32) -> Result<(), FpgadError>;
     #[allow(dead_code)]
     /// Directly load the firmware stored in bitstream_path to the device
-    fn load_firmware(&self, bitstream_path: &Path) -> Result<(), FpgadError>;
+    fn load_firmware(&self, bitstream_path_rel: &Path) -> Result<(), FpgadError>;
 }
 
 pub trait OverlayHandler {
@@ -159,7 +159,8 @@ pub fn platform_from_compat_or_device(
         false => platform_for_known_platform(platform_string),
     }
 }
-fn platform_for_device(device_handle: &str) -> Result<Box<dyn Platform>, FpgadError> {
+
+pub fn platform_for_device(device_handle: &str) -> Result<Box<dyn Platform>, FpgadError> {
     Ok(new_platform(discover_platform_type(device_handle)?))
 }
 
@@ -174,5 +175,5 @@ pub trait Platform {
     /// creates and inits an Fpga if not present otherwise gets the instance
     fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError>;
     /// creates and inits an OverlayHandler if not present otherwise gets the instance
-    fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError>;
+    fn overlay_handler(&self, overlay_handle: &str) -> Result<&(dyn OverlayHandler), FpgadError>;
 }

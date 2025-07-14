@@ -19,6 +19,19 @@ To do this, device tree of the system must be changed (overlaid).
 This device tree tells Ubuntu a lot of information about the device, such as how much ram the system has.
 It should be clear to see, then, that compromising the device tree is very powerful.
 
+# Key considerations
+
+#### fw_search_path:
+
+The kernel system only works with relative paths and searches relative to provided `fw_search_path` and hardcoded
+firmware
+locations see [the kernel docs](https://docs.kernel.org/driver-api/firmware/fw_search_path.html) for details. When
+loading an overlay, only the relative path of the loaded overlay file is retrievable. If there is a file with the same
+name in the default search paths (such as `/lib/firmware`), there is no guarantee that the loaded file is the one
+provided by the user since the system will successfully load from there even in the event that the file is not present
+at the provided path. It is up to the user to verify that the correct overlay is applied, such as by checking that the
+appropriate drivers are loaded.
+
 # Anticipated Architecture
 
 ![anticipated_architecture.png](docs/assets/anticipated_architecture.png)
@@ -83,11 +96,15 @@ busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonic
 ```
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags sx "fpga0" 0
 
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control ApplyOverlay sss "fpga0" "fpga0" "/lib/firmware/k26-starter-kits.dtbo"
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control ApplyOverlay ssss "xlnx" "fpga0" "/lib/firmware/k26-starter-kits.dtbo" ""
 
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ss "fpga0" "/lib/firmware/k26-starter-kits.bit.bin"
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ssss "" "fpga0" "/lib/firmware/k26-starter-kits.bit.bin" ""
 
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control RemoveOverlay ss "fpga0" "fpga0"
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control ApplyOverlay ssss "xlnx" "fpga0" "/lib/firmware/xilinx/k26-starter-kits/k26_starter_kits.dtbo" "/lib/firmware/xilinx/k26-starter-kits"
+
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ssss "" "fpga0" "/lib/firmware/xilinx/k26-starter-kits/k26_starter_kits.bit.bin" "/lib/firmware/"
+
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control RemoveOverlay ss "xlnx" "fpga0"
 ```
 
 # Snap
