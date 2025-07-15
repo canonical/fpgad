@@ -12,9 +12,7 @@
 
 use crate::config::FPGA_MANAGERS_DIR;
 use crate::error::FpgadError;
-use crate::platforms::platform::{
-    Platform, platform_for_known_platform, platform_from_compat_or_device,
-};
+use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 use crate::system_io::{
     extract_path_and_filename, fs_write, validate_device_handle, write_firmware_source_dir,
 };
@@ -47,6 +45,12 @@ fn make_firmware_pair(
             .components()
             .skip_while(|c| matches!(c, Component::RootDir))
             .collect::<PathBuf>();
+        if cleaned_suffix_path.as_os_str().is_empty() {
+            return Err(FpgadError::Argument(format!(
+                "The resulting filename from stripping {firmware_path:?} from {source_path:?} \
+                was empty. Cannot write empty string to fpga."
+            )));
+        }
         Ok((firmware_path.to_path_buf(), cleaned_suffix_path))
     } else {
         Err(FpgadError::Argument(format!(
