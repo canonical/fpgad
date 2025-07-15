@@ -103,7 +103,7 @@ pub fn extract_path_and_filename(path: &Path) -> Result<(PathBuf, PathBuf), Fpga
         .file_name()
         .and_then(|f| f.to_str())
         .ok_or(FpgadError::Argument(format!(
-            "Provided bitstream path {path:?} is missing filename."
+            "Provided bitstream path {path:?} is not a file or a valid directory."
         )))?;
 
     // Extract parent directory
