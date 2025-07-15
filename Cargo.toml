@@ -8,6 +8,12 @@ homepage = "https://github.com/talhaHavadar/fpgad"
 repository = "https://github.com/talhaHavadar/fpgad"
 readme = "README.md"
 
+[features]
+default = ["softeners-all"]
+softeners-all = ["softeners", "xilinx-dfx-mgr"]
+softeners = []
+xilinx-dfx-mgr = ["softeners"]
+
 [workspace]
 resolver = "3"
 members = ["cli", "fpgad_macros"]

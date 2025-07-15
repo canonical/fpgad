@@ -38,6 +38,7 @@ pub enum FpgadError {
     IODelete { file: PathBuf, e: std::io::Error },
     #[error("FpgadError::IOReadDir: An IO error occurred when reading directory {dir:?}: {e}")]
     IOReadDir { dir: PathBuf, e: std::io::Error },
+    #[cfg(feature = "softeners")]
     #[error("FpgadError::Softener: An error occurred using softener: {0}")]
     Softener(crate::softeners::error::FpgadSoftenerError),
     #[error("FpgadError::Internal: An Internal error occurred: {0}")]

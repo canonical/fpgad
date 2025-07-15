@@ -20,16 +20,20 @@ mod comm;
 
 mod config;
 mod platforms;
+#[cfg(feature = "softeners")]
 mod softeners;
 mod system_io;
+
+#[cfg(feature = "xilinx-dfx-mgr")]
+use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
 
 use crate::{
     comm::dbus::{control_interface::ControlInterface, status_interface::StatusInterface},
     platforms::universal::UniversalPlatform,
-    softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform,
 };
 
 fn register_platforms() {
+    #[cfg(feature = "xilinx-dfx-mgr")]
     XilinxDfxMgrPlatform::register_platform();
     UniversalPlatform::register_platform();
 }
