@@ -38,14 +38,8 @@ appropriate drivers are loaded.
 
 # To Run Daemon
 
-```
+```shell
 sudo RUST_LOG=trace RUST_BACKTRACE=full ./target/debug/fpgad
-```
-
-# Configure DBUS:
-
-```
-sudo cp ./data/dbus/com.canonical.fpgad.conf /etc/dbus-1/system.d/
 ```
 
 # Typical control sequence
@@ -83,34 +77,95 @@ To remove an overlay simply call:
 
 ### Status (unprivileged)
 
+To get the state of an FPGA device:
+
+```shell
+busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaState ss "" "fpga0"
 ```
-busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaState s "fpga0"
 
-busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaFlags s "fpga0"
+To get the currently set flags for an FPGA device:
 
-busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetOverlayStatus ss "fpga0" "fpga0"
+```shell
+busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaFlags ss "" "fpga0"
+```
+
+To get the current status of an overlay with given handle and platform:
+
+```shell
+busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetOverlayStatus ss "xlnx" "fpga0"
+```
+
+To get the compatibility string of a given FPGA device:
+
+```shell
+busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetPlatformType s "fpga0"
+```
+
+To get all platforms for all devices:
+
+```shell
+busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetPlatformTypes
+```
+
+To get all currently present overlay handles:
+
+```shell
+busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetOverlays
 ```
 
 ### Control (privileged)
 
+#### set flags
+
+To set the flags of an FPGA device:
+
+```shell
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags ssu "" "fpga0" 0
 ```
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags sx "fpga0" 0
 
+#### apply an overlay
+
+Using default `fw_search_path` generation:
+
+```shell
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control ApplyOverlay ssss "xlnx" "fpga0" "/lib/firmware/k26-starter-kits.dtbo" ""
+```
 
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ssss "" "fpga0" "/lib/firmware/k26-starter-kits.bit.bin" ""
+or manually specified `fw_search_path`:
 
+```shell
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control ApplyOverlay ssss "xlnx" "fpga0" "/lib/firmware/xilinx/k26-starter-kits/k26_starter_kits.dtbo" "/lib/firmware/xilinx/k26-starter-kits"
+```
 
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ssss "" "fpga0" "/lib/firmware/xilinx/k26-starter-kits/k26_starter_kits.bit.bin" "/lib/firmware/"
+#### write a bitstream
 
+Using automated platform detectoin and default `fw_search_path` generation:
+
+```shell
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ssss "" "fpga0" "/lib/firmware/k26-starter-kits.bit.bin" ""
+```
+
+or using specific platform and specific `fw_search_path`:
+
+```shell
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ssss "xlnx" "fpga0" "/lib/firmware/xilinx/k26-starter-kits/k26_starter_kits.bit.bin" "/lib/firmware/"
+```
+
+#### remove an overlay
+
+To remove an overlay with provided platform and handle:
+
+```shell
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control RemoveOverlay ss "xlnx" "fpga0"
 ```
 
+Consider using `GetOverlays` and/or `GetOverlayStatus` if you don't
+know the handle.
+
 #### other properties
 
-The virtual files cotaineed within `/sys/class/fpga_manager/fpga*/`, which do not have specific interfaces, can be
-access by using ReadProperty or WriteProperty e.g.
+The virtual files cotained within `/sys/class/fpga_manager/fpga*/`, which do not have specific interfaces, can be
+accessed by using ReadProperty or WriteProperty e.g.
 
 ```shell
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status ReadProperty s "/sys/class/fpga_manager/fpga0/name"
