@@ -13,12 +13,13 @@
 use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
+use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
 use crate::system_io::{fs_read, fs_read_dir};
 use log::{error, info, trace, warn};
 use std::path::Path;
 
 #[derive(Clone, Copy)]
-enum PlatformType {
+pub enum PlatformType {
     Universal,
     Xilinx,
 }
@@ -146,7 +147,7 @@ fn new_platform(platform_type: PlatformType) -> Box<dyn Platform> {
         }
         PlatformType::Xilinx => {
             warn!("Xilinx not implemented yet: using Universal");
-            Box::new(UniversalPlatform::new())
+            Box::new(XilinxDfxMgrPlatform::new())
         }
     }
 }
@@ -171,7 +172,7 @@ pub fn platform_for_known_platform(platform_string: &str) -> Result<Box<dyn Plat
 pub trait Platform {
     #[allow(dead_code)]
     /// gets the name of the Platform type e.g. Universal or ZynqMP
-    fn platform_type(&self) -> &str;
+    fn platform_type(&self) -> PlatformType;
     /// creates and inits an Fpga if not present otherwise gets the instance
     fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError>;
     /// creates and inits an OverlayHandler if not present otherwise gets the instance
