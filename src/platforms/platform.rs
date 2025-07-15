@@ -79,7 +79,7 @@ pub trait OverlayHandler {
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError>;
 }
 
-pub trait Platform {
+pub trait Platform: Any {
     /// creates and inits an Fpga if not present otherwise gets the instance
     fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError>;
     /// creates and inits an OverlayHandler if not present otherwise gets the instance
@@ -167,4 +167,140 @@ pub fn register_platform(compatible: &'static str, constructor: PlatformConstruc
 /// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
 pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
     fs_read_dir(config::FPGA_MANAGERS_DIR.as_ref())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
+    use std::any::Any;
+
+    fn setup_test_registry() {
+        register_platform("xlnx,versal-fpga,zynqmp-pcap-fpga,zynq-devcfg-1.0", || {
+            Box::new(XilinxDfxMgrPlatform::new())
+        });
+    }
+
+    fn assert_is_xilinx_platform(platform: &dyn Platform) {
+        let as_xilinx_platform = (platform as &dyn Any).downcast_ref::<XilinxDfxMgrPlatform>();
+        assert!(
+            as_xilinx_platform.is_some(),
+            "The platform should be of type XilinxDfxMgrPlatform"
+        );
+    }
+
+    #[test]
+    fn test_match_platform_string_empty_string_fails() {
+        setup_test_registry();
+        let result = match_platform_string("");
+
+        assert!(
+            result.is_err(),
+            "Empty string should fail to match any platform"
+        );
+    }
+
+    #[test]
+    fn test_match_platform_string_xlnx_succeeds() {
+        setup_test_registry();
+        let result = match_platform_string("xlnx");
+
+        assert!(result.is_ok(), "xlnx should match successfully");
+        let platform = result.unwrap();
+        assert_is_xilinx_platform(platform.as_ref());
+    }
+
+    #[test]
+    fn test_match_platform_string_partial_match_fails() {
+        setup_test_registry();
+        let result = match_platform_string("xlnx,pcap-");
+
+        assert!(result.is_err(), "Partial match 'xlnx,pcap-' should fail");
+    }
+
+    #[test]
+    fn test_match_platform_string_invalid_platform_fails() {
+        setup_test_registry();
+        let result = match_platform_string("invalid-platform");
+        assert!(result.is_err(), "Invalid platform should fail to match");
+    }
+
+    #[test]
+    fn test_match_platform_string_full_match_succeeds() {
+        setup_test_registry();
+        let result = match_platform_string("xlnx,zynqmp-pcap-fpga");
+
+        assert!(result.is_ok(), "Full match should succeed");
+        let platform = result.unwrap();
+        assert_is_xilinx_platform(platform.as_ref());
+    }
+
+    #[test]
+    fn test_match_platform_string_single_component_succeeds() {
+        setup_test_registry();
+        let result = match_platform_string("versal-fpga");
+
+        assert!(
+            result.is_ok(),
+            "Single component 'versal-fpga' should succeed"
+        );
+        let platform = result.unwrap();
+        assert_is_xilinx_platform(platform.as_ref());
+    }
+
+    #[test]
+    fn test_match_platform_string_multiple_components_succeeds() {
+        setup_test_registry();
+        let result = match_platform_string("xlnx,versal-fpga,zynq-devcfg-1.0");
+
+        assert!(result.is_ok(), "Multiple valid components should succeed");
+        let platform = result.unwrap();
+        assert_is_xilinx_platform(platform.as_ref());
+    }
+
+    #[test]
+    fn test_match_platform_string_mixed_valid_invalid_fails() {
+        setup_test_registry();
+        let result = match_platform_string("xlnx,invalid-component");
+
+        assert!(
+            result.is_err(),
+            "Mix of valid and invalid components should fail"
+        );
+    }
+
+    #[test]
+    fn test_match_platform_string_case_sensitive() {
+        setup_test_registry();
+        let result = match_platform_string("XLNX");
+
+        assert!(
+            result.is_err(),
+            "Case sensitive matching should fail for uppercase"
+        );
+    }
+
+    #[test]
+    fn test_platform_type_assertion_methods() {
+        setup_test_registry();
+        let platform = match_platform_string("xlnx").unwrap();
+
+        // Method 1: Using downcast_ref
+        let as_xilinx = (platform.as_ref() as &dyn Any).downcast_ref::<XilinxDfxMgrPlatform>();
+        assert!(as_xilinx.is_some(), "Downcast should succeed");
+
+        // Method 2: Using type_id comparison
+        let platform_any = platform.as_ref() as &dyn Any;
+        assert!(
+            platform_any.is::<XilinxDfxMgrPlatform>(),
+            "Type ID check should succeed"
+        );
+
+        // Method 3: Using type_name (for debugging)
+        let type_name = std::any::type_name_of_val(as_xilinx.unwrap());
+        assert!(
+            type_name.contains("XilinxDfxMgrPlatform"),
+            "Type name({type_name}) should contain XilinxDfxMgrPlatform"
+        );
+    }
 }
