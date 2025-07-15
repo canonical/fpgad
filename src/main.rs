@@ -25,16 +25,13 @@ mod system_io;
 
 use crate::{
     comm::dbus::{control_interface::ControlInterface, status_interface::StatusInterface},
-    platforms::{platform::register_platform, universal::UniversalPlatform},
+    platforms::universal::UniversalPlatform,
     softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform,
 };
 
 fn register_platforms() {
-    // TODO: implement a proc_macro that registers the platform with compat string
-    register_platform("xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0", || {
-        Box::new(XilinxDfxMgrPlatform::new())
-    });
-    register_platform("universal", || Box::new(UniversalPlatform::new()));
+    XilinxDfxMgrPlatform::register_platform();
+    UniversalPlatform::register_platform();
 }
 
 #[tokio::main]
