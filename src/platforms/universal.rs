@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::error::FpgadError;
-use crate::platforms::platform::{Fpga, OverlayHandler, Platform, PlatformType};
+use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use log::trace;
@@ -35,11 +35,6 @@ impl UniversalPlatform {
 }
 
 impl Platform for UniversalPlatform {
-    /// Returns the `name` of the [`UniversalPlatform`]
-    fn platform_type(&self) -> PlatformType {
-        PlatformType::Universal
-    }
-
     /// Initialises or get the fpga object called `name`
     fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError> {
         Ok(self.fpga.get_or_init(|| UniversalFPGA::new(device_handle)))

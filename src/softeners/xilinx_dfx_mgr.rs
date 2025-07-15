@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use log::trace;
 
-use crate::platforms::platform::{Platform, PlatformType};
+use crate::platforms::platform::Platform;
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use crate::softeners::error::FpgadSoftenerError;
@@ -26,10 +26,6 @@ impl XilinxDfxMgrPlatform {
     }
 }
 impl Platform for XilinxDfxMgrPlatform {
-    fn platform_type(&self) -> PlatformType {
-        PlatformType::Xilinx
-    }
-
     fn fpga(
         &self,
         device_handle: &str,

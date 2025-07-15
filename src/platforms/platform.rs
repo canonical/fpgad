@@ -22,12 +22,6 @@ use std::sync::{Mutex, OnceLock};
 
 type PlatformConstructor = fn() -> Box<dyn Platform>;
 
-#[derive(Clone, Copy)]
-pub enum PlatformType {
-    Universal,
-    Xilinx,
-}
-
 pub static PLATFORM_REGISTRY: OnceLock<Mutex<HashMap<&'static str, PlatformConstructor>>> =
     OnceLock::new();
 
@@ -86,9 +80,6 @@ pub trait OverlayHandler {
 }
 
 pub trait Platform {
-    #[allow(dead_code)]
-    /// gets the name of the Platform type e.g. Universal or ZynqMP
-    fn platform_type(&self) -> PlatformType;
     /// creates and inits an Fpga if not present otherwise gets the instance
     fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError>;
     /// creates and inits an OverlayHandler if not present otherwise gets the instance
