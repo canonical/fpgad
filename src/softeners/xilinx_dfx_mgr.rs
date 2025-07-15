@@ -37,6 +37,7 @@ impl XilinxDfxMgrPlatform {
         }
     }
 }
+
 impl Platform for XilinxDfxMgrPlatform {
     fn fpga(
         &self,

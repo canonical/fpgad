@@ -24,19 +24,23 @@ pub fn platform(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     }
     let compat_string = compat_string.expect("compat_string must be provided");
+    let register_fn_name = syn::Ident::new(
+        &format!("{struct_name}_register_platform"),
+        struct_name.span(),
+    );
 
     // Generate code to register the platform
     let expanded = quote! {
         #input_struct
 
-        impl #struct_name {
-            #[doc(hidden)]
-            pub fn register_platform() {
-                crate::platforms::platform::register_platform(
-                    #compat_string,
-                    || Box::new(Self::new())
-                );
-            }
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        #[ctor::ctor]
+        fn #register_fn_name() {
+            crate::platforms::platform::register_platform(
+                #compat_string,
+                || Box::new(#struct_name::new())
+            );
         }
     };
     TokenStream::from(expanded)
