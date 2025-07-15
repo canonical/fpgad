@@ -13,30 +13,17 @@
 use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::universal::UniversalPlatform;
-use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
 use crate::system_io::{fs_read, fs_read_dir};
-use log::{error, info, trace, warn};
+use log::{trace, warn};
+use std::any::Any;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::sync::{Mutex, OnceLock};
 
-#[derive(Clone, Copy)]
-pub enum PlatformType {
-    Universal,
-    Xilinx,
-}
+type PlatformConstructor = fn() -> Box<dyn Platform>;
 
-const PLATFORM_SUBSTRINGS: &[(PlatformType, &[&str])] = &[
-    (PlatformType::Universal, &["universal"]),
-    (
-        PlatformType::Xilinx,
-        &["xlnx", "zynqmp-pcap-fpga", "versal-fpga", "zynq-devcfg-1.0"],
-    ),
-];
-
-/// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
-#[allow(dead_code)]
-pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
-    fs_read_dir(config::FPGA_MANAGERS_DIR.as_ref())
-}
+pub static PLATFORM_REGISTRY: OnceLock<Mutex<HashMap<&'static str, PlatformConstructor>>> =
+    OnceLock::new();
 
 /// A sysfs map of an fpga in fpga_manager class.
 /// See the example below (not all sysfs files are implemented as methods):
@@ -92,17 +79,43 @@ pub trait OverlayHandler {
     fn overlay_fs_path(&self) -> Result<&Path, FpgadError>;
 }
 
-fn match_platform_string(platform_string: &str) -> Result<PlatformType, FpgadError> {
-    for (platform, substrs) in PLATFORM_SUBSTRINGS {
-        let platform_subs: Vec<&str> = platform_string.split(',').collect();
+pub trait Platform: Any {
+    /// creates and inits an Fpga if not present otherwise gets the instance
+    fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError>;
+    /// creates and inits an OverlayHandler if not present otherwise gets the instance
+    fn overlay_handler(&self, overlay_handle: &str) -> Result<&(dyn OverlayHandler), FpgadError>;
+}
 
-        if platform_subs.iter().all(|item| substrs.contains(item)) {
-            return Ok(*platform);
+fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
+    let registry = PLATFORM_REGISTRY
+        .get()
+        .ok_or(FpgadError::Internal(String::from(
+            "couldn't get PLATFORM_REGISTRY",
+        )))?
+        .lock()
+        .map_err(|_| FpgadError::Internal(String::from("couldn't lock PLATFORM_REGISTRY")))?;
+
+    for (compat_string, platform_constructor) in registry.iter() {
+        let compat_set: HashSet<&str> = compat_string.split(',').collect();
+        let compat_found = platform_string.split(',').all(|x| compat_set.contains(x));
+        if compat_found {
+            return Ok(platform_constructor());
         }
     }
+
     Err(FpgadError::Argument(format!(
         "FPGAd could not match {platform_string} to a known platform."
     )))
+}
+
+fn discover_platform(device_handle: &str) -> Result<Box<dyn Platform>, FpgadError> {
+    let compat_string = read_compatible_string(device_handle)?;
+    trace!("Found compatibility string: '{compat_string}'");
+
+    Ok(match_platform_string(&compat_string).unwrap_or({
+        warn!("{compat_string} not supported. Defaulting to Universal platform.");
+        Box::new(UniversalPlatform::new())
+    }))
 }
 
 pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError> {
@@ -112,15 +125,9 @@ pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError>
             .join("of_node/compatible"),
     ) {
         Err(e) => {
-            error!(
-                "Failed to read platform from {device_handle:?}: {e}\n\
-                Universal will be used as platform type.",
-            );
-            return Ok(PLATFORM_SUBSTRINGS[PlatformType::Universal as usize]
-                .1 // get strings
-                .first() // get "universal"
-                .unwrap()
-                .to_string());
+            return Err(FpgadError::Argument(format!(
+                "Failed to read platform from {device_handle:?}: {e}"
+            )));
         }
         Ok(s) => {
             // often driver virtual files contain null terminated strings instead of EOF terminated.
@@ -130,51 +137,170 @@ pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError>
     Ok(compat_string)
 }
 
-fn discover_platform_type(device_handle: &str) -> Result<PlatformType, FpgadError> {
-    let compat_string = read_compatible_string(device_handle)?;
-    trace!("Found compatibility string: '{compat_string}'");
-    Ok(match_platform_string(&compat_string).unwrap_or_else(|_| {
-        warn!("{compat_string} not supported. Defaulting to Universal platform.");
-        PlatformType::Universal
-    }))
-}
-
-fn new_platform(platform_type: PlatformType) -> Box<dyn Platform> {
-    match platform_type {
-        PlatformType::Universal => {
-            info!("Using platform: Universal");
-            Box::new(UniversalPlatform::new())
-        }
-        PlatformType::Xilinx => {
-            warn!("Xilinx not implemented yet: using Universal");
-            Box::new(XilinxDfxMgrPlatform::new())
-        }
-    }
-}
 pub fn platform_from_compat_or_device(
     platform_string: &str,
     device_handle: &str,
 ) -> Result<Box<dyn Platform>, FpgadError> {
     match platform_string.is_empty() {
-        true => platform_for_device(device_handle),
+        true => discover_platform(device_handle),
         false => platform_for_known_platform(platform_string),
     }
 }
 
-pub fn platform_for_device(device_handle: &str) -> Result<Box<dyn Platform>, FpgadError> {
-    Ok(new_platform(discover_platform_type(device_handle)?))
-}
-
 pub fn platform_for_known_platform(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
-    Ok(new_platform(match_platform_string(platform_string)?))
+    match_platform_string(platform_string)
 }
 
-pub trait Platform {
-    #[allow(dead_code)]
-    /// gets the name of the Platform type e.g. Universal or ZynqMP
-    fn platform_type(&self) -> PlatformType;
-    /// creates and inits an Fpga if not present otherwise gets the instance
-    fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError>;
-    /// creates and inits an OverlayHandler if not present otherwise gets the instance
-    fn overlay_handler(&self, overlay_handle: &str) -> Result<&(dyn OverlayHandler), FpgadError>;
+pub fn init_platform_registry() -> Mutex<HashMap<&'static str, PlatformConstructor>> {
+    Mutex::new(HashMap::new())
+}
+
+pub fn register_platform(compatible: &'static str, constructor: PlatformConstructor) {
+    let mut registry = PLATFORM_REGISTRY
+        .get_or_init(init_platform_registry)
+        .lock()
+        .expect("couldnt get PLATFORM_REGISTRY");
+
+    registry.insert(compatible, constructor);
+}
+
+/// Scans /sys/class/fpga_manager/ for all present device nodes and returns a Vec of their handles
+pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
+    fs_read_dir(config::FPGA_MANAGERS_DIR.as_ref())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
+    use std::any::Any;
+
+    fn setup_test_registry() {
+        register_platform("xlnx,versal-fpga,zynqmp-pcap-fpga,zynq-devcfg-1.0", || {
+            Box::new(XilinxDfxMgrPlatform::new())
+        });
+    }
+
+    fn assert_is_xilinx_platform(platform: &dyn Platform) {
+        let as_xilinx_platform = (platform as &dyn Any).downcast_ref::<XilinxDfxMgrPlatform>();
+        assert!(
+            as_xilinx_platform.is_some(),
+            "The platform should be of type XilinxDfxMgrPlatform"
+        );
+    }
+
+    #[test]
+    fn test_match_platform_string_empty_string_fails() {
+        setup_test_registry();
+        let result = match_platform_string("");
+
+        assert!(
+            result.is_err(),
+            "Empty string should fail to match any platform"
+        );
+    }
+
+    #[test]
+    fn test_match_platform_string_xlnx_succeeds() {
+        setup_test_registry();
+        let result = match_platform_string("xlnx");
+
+        assert!(result.is_ok(), "xlnx should match successfully");
+        let platform = result.unwrap();
+        assert_is_xilinx_platform(platform.as_ref());
+    }
+
+    #[test]
+    fn test_match_platform_string_partial_match_fails() {
+        setup_test_registry();
+        let result = match_platform_string("xlnx,pcap-");
+
+        assert!(result.is_err(), "Partial match 'xlnx,pcap-' should fail");
+    }
+
+    #[test]
+    fn test_match_platform_string_invalid_platform_fails() {
+        setup_test_registry();
+        let result = match_platform_string("invalid-platform");
+        assert!(result.is_err(), "Invalid platform should fail to match");
+    }
+
+    #[test]
+    fn test_match_platform_string_full_match_succeeds() {
+        setup_test_registry();
+        let result = match_platform_string("xlnx,zynqmp-pcap-fpga");
+
+        assert!(result.is_ok(), "Full match should succeed");
+        let platform = result.unwrap();
+        assert_is_xilinx_platform(platform.as_ref());
+    }
+
+    #[test]
+    fn test_match_platform_string_single_component_succeeds() {
+        setup_test_registry();
+        let result = match_platform_string("versal-fpga");
+
+        assert!(
+            result.is_ok(),
+            "Single component 'versal-fpga' should succeed"
+        );
+        let platform = result.unwrap();
+        assert_is_xilinx_platform(platform.as_ref());
+    }
+
+    #[test]
+    fn test_match_platform_string_multiple_components_succeeds() {
+        setup_test_registry();
+        let result = match_platform_string("xlnx,versal-fpga,zynq-devcfg-1.0");
+
+        assert!(result.is_ok(), "Multiple valid components should succeed");
+        let platform = result.unwrap();
+        assert_is_xilinx_platform(platform.as_ref());
+    }
+
+    #[test]
+    fn test_match_platform_string_mixed_valid_invalid_fails() {
+        setup_test_registry();
+        let result = match_platform_string("xlnx,invalid-component");
+
+        assert!(
+            result.is_err(),
+            "Mix of valid and invalid components should fail"
+        );
+    }
+
+    #[test]
+    fn test_match_platform_string_case_sensitive() {
+        setup_test_registry();
+        let result = match_platform_string("XLNX");
+
+        assert!(
+            result.is_err(),
+            "Case sensitive matching should fail for uppercase"
+        );
+    }
+
+    #[test]
+    fn test_platform_type_assertion_methods() {
+        setup_test_registry();
+        let platform = match_platform_string("xlnx").unwrap();
+
+        // Method 1: Using downcast_ref
+        let as_xilinx = (platform.as_ref() as &dyn Any).downcast_ref::<XilinxDfxMgrPlatform>();
+        assert!(as_xilinx.is_some(), "Downcast should succeed");
+
+        // Method 2: Using type_id comparison
+        let platform_any = platform.as_ref() as &dyn Any;
+        assert!(
+            platform_any.is::<XilinxDfxMgrPlatform>(),
+            "Type ID check should succeed"
+        );
+
+        // Method 3: Using type_name (for debugging)
+        let type_name = std::any::type_name_of_val(as_xilinx.unwrap());
+        assert!(
+            type_name.contains("XilinxDfxMgrPlatform"),
+            "Type name({type_name}) should contain XilinxDfxMgrPlatform"
+        );
+    }
 }

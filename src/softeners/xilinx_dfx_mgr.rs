@@ -1,10 +1,22 @@
+// This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
+//
+// Copyright 2025 Canonical Ltd.
+//
+// SPDX-License-Identifier: GPL-3.0-only
+//
+// fpgad is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 3, as published by the Free Software Foundation.
+//
+// fpgad is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranties of MERCHANTABILITY, SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
+
 use std::io;
 use std::process::Command;
 use std::sync::OnceLock;
 
 use log::trace;
 
-use crate::platforms::platform::{Platform, PlatformType};
+use crate::platforms::platform::Platform;
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use crate::softeners::error::FpgadSoftenerError;
@@ -14,6 +26,8 @@ pub struct XilinxDfxMgrPlatform {
     overlay_handler: OnceLock<UniversalOverlayHandler>,
 }
 
+// TODO: implement a proc_macro that registers the platform with compat string
+//#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0")]
 impl XilinxDfxMgrPlatform {
     pub fn new() -> Self {
         trace!("creating new XilinxDfxMgrPlatform");
@@ -24,10 +38,6 @@ impl XilinxDfxMgrPlatform {
     }
 }
 impl Platform for XilinxDfxMgrPlatform {
-    fn platform_type(&self) -> PlatformType {
-        PlatformType::Xilinx
-    }
-
     fn fpga(
         &self,
         device_handle: &str,
