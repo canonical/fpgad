@@ -1,4 +1,4 @@
-#![doc = include_str!("./README.md")]
+#![doc = include_str!("README.md")]
 // This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
 //
 // Copyright 2025 Canonical Ltd.
