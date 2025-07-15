@@ -107,6 +107,19 @@ sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.c
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control RemoveOverlay ss "xlnx" "fpga0"
 ```
 
+#### other properties
+
+The virtual files cotaineed within `/sys/class/fpga_manager/fpga*/`, which do not have specific interfaces, can be
+access by using ReadProperty or WriteProperty e.g.
+
+```shell
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status ReadProperty s "/sys/class/fpga_manager/fpga0/name"
+```
+
+```shell
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteProperty ss "/sys/class/fpga_manager/fpga0/key" ""
+```
+
 # Snap
 
 ```shell

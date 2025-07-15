@@ -10,10 +10,11 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::config::FPGA_MANAGERS_DIR;
 use crate::error::FpgadError;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 use crate::system_io::{
-    extract_path_and_filename, validate_device_handle, write_firmware_source_dir,
+    extract_path_and_filename, fs_write, validate_device_handle, write_firmware_source_dir,
 };
 use log::trace;
 use std::path::{Component, Path, PathBuf};
@@ -143,5 +144,19 @@ impl ControlInterface {
         Ok(format!(
             "{overlay_handle} removed by deleting {overlay_fs_path:?}"
         ))
+    }
+
+    /// use to write to a device property from /sys/class/fpga_manager/<device>/** that does not have a specific interface
+    async fn write_property(&self, property_path_str: &str, data: &str) -> Result<(), fdo::Error> {
+        trace!(
+            "write_property called with property_path_str: {property_path_str} and data: {data}"
+        );
+        let property_path = Path::new(property_path_str);
+        if !property_path.starts_with(Path::new(FPGA_MANAGERS_DIR)) {
+            return Err(fdo::Error::from(FpgadError::Argument(format!(
+                "Cannot access property {property_path_str}: does not begin with {FPGA_MANAGERS_DIR}"
+            ))));
+        }
+        Ok(fs_write(property_path, false, data)?)
     }
 }
