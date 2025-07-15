@@ -12,7 +12,9 @@
 
 use crate::config::FPGA_MANAGERS_DIR;
 use crate::error::FpgadError;
-use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
+use crate::platforms::platform::{
+    Platform, platform_for_known_platform, platform_from_compat_or_device,
+};
 use crate::system_io::{
     extract_path_and_filename, fs_write, validate_device_handle, write_firmware_source_dir,
 };
@@ -158,5 +160,127 @@ impl ControlInterface {
             ))));
         }
         Ok(fs_write(property_path, false, data)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::comm::dbus::control_interface::make_firmware_pair;
+    use crate::error::FpgadError;
+    use std::path::PathBuf;
+
+    #[derive(Debug, PartialEq)]
+    struct PathPair {
+        pub prefix: PathBuf,
+        pub suffix: PathBuf,
+    }
+
+    impl PathPair {
+        fn from(p0: &(PathBuf, PathBuf)) -> PathPair {
+            PathPair {
+                prefix: p0.0.clone(),
+                suffix: p0.1.clone(),
+            }
+        }
+    }
+
+    fn compare_results(
+        a: &Result<(PathBuf, PathBuf), FpgadError>,
+        b: &Result<PathPair, FpgadError>,
+    ) -> bool {
+        match (a, b) {
+            (Ok(pa), Ok(pb)) => PathPair::from(pa) == *pb,
+            (Err(_), Err(_)) => true,
+            _ => false,
+        }
+    }
+
+    #[derive(Debug)]
+    struct TestCase {
+        pub source: PathBuf,
+        pub fw_path: PathBuf,
+        pub expected: Result<PathPair, FpgadError>,
+    }
+
+    fn run_case(case: TestCase) {
+        let result = make_firmware_pair(&case.source, &case.fw_path);
+        assert!(
+            compare_results(&result, &case.expected),
+            "Result did not match expectation:\nexpected:\t{:?}\nresult:\t\t{:?}",
+            case.expected,
+            result
+        )
+    }
+
+    #[test]
+    fn test_make_firmware_pair_simple_working() {
+        let case = TestCase {
+            source: PathBuf::from("/lib/firmware/file.bin"),
+            fw_path: PathBuf::from("/lib/firmware/"),
+            expected: Ok(PathPair {
+                prefix: PathBuf::from("/lib/firmware/"),
+                suffix: PathBuf::from("file.bin"),
+            }),
+        };
+        run_case(case);
+    }
+
+    #[test]
+    fn test_make_firmware_pair_source_is_fw_path() {
+        let case = TestCase {
+            source: PathBuf::from("/lib/firmware/"),
+            fw_path: PathBuf::from("/lib/firmware/"),
+            expected: Err(FpgadError::Argument("".into())),
+        };
+        run_case(case);
+    }
+
+    #[test]
+    fn test_make_firmware_pair_source_is_dir() {
+        let case = TestCase {
+            source: PathBuf::from("/lib/firmware/xilinx"),
+            fw_path: PathBuf::from("/lib/firmware/"),
+            expected: Ok(PathPair {
+                prefix: PathBuf::from("/lib/firmware/"),
+                suffix: PathBuf::from("xilinx"),
+            }),
+        };
+        run_case(case);
+    }
+
+    #[test]
+    fn test_make_firmware_pair_not_in_dir() {
+        let case = TestCase {
+            source: PathBuf::from("/lib/firmware/file.bin"),
+            fw_path: PathBuf::from("/snap/x1/data/file.bin"),
+            expected: Err(FpgadError::Argument("".into())),
+        };
+        run_case(case);
+    }
+
+    #[test]
+    fn test_make_firmware_pair_no_fw_path() {
+        let case = TestCase {
+            source: PathBuf::from("/lib/firmware/file.bin"),
+            fw_path: PathBuf::from(""),
+            expected: Ok(PathPair {
+                prefix: PathBuf::from("/lib/firmware/"),
+                suffix: PathBuf::from("file.bin"),
+            }),
+        };
+        run_case(case);
+    }
+
+    #[test]
+    fn test_make_firmware_pair_no_fw_path_no_file() {
+        let case = TestCase {
+            source: PathBuf::from("/lib/firmware/"),
+            fw_path: PathBuf::from(""),
+            expected: Ok(PathPair {
+                prefix: PathBuf::from("/lib"),
+                suffix: PathBuf::from("firmware"),
+            }),
+        };
+        run_case(case);
     }
 }
