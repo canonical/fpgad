@@ -14,32 +14,70 @@ jobs:
           python-version: '3.13'
       - name: Install Python Dependencies
         run: |
+          echo "::group::install python dependencies"
           python -m venv .venv
           source .venv/bin/activate
           pip install -r scripts/ci/requirements.txt
+          echo "::endgroup::"
       - name: Check Signatures
         run: |
+          failed_commits=()
           for rev in $(git rev-list origin/${{ github.base_ref }}..HEAD --skip 1);
           do
               result=$(git -c log.showSignature=false show $rev --pretty="%G? %GS" --quiet)
 
-              echo "Checking $result"
+              echo "::group::Checking $rev"
 
               if [[ $result == N* ]]; then
                   # Commit has no signature
                   # https://git-scm.com/docs/git-show#Documentation/git-show.txt-emGem
                   echo "ERROR: There are unsigned commits!"
-                  exit 1
+                  failed_commits+=("$rev")
+              else
+                  echo "$result"
               fi
+              echo "::endgroup::"
           done
+
+          # Report any failures
+          if [ ${#failed_commits[@]} -ne 0 ]; then
+            echo "::error::The following commits have unsigned commits:"
+            for c in "${failed_commits[@]}"; do
+              echo "- $c"
+            done
+            exit 1
+          else
+            echo "✅ All commits signed."
+          fi
       - name: Check Format of Git Commits
         run: |
-          set -x
+          echo "::group::prepare git"
           source .venv/bin/activate
           git config log.showSignature false
+          echo "::endgroup::"
+
+          failed_commits=()
           commits="$(git rev-list origin/${{ github.base_ref }}..HEAD --skip 1 | paste -s -d,)"
-          echo "Checking commits: $commits"
-          gitlint --debug --commits "$commits",
+          IFS=','
+          for  commit in $commits; do
+            echo "::group::$commit"
+            if ! gitlint --debug --commit "$commit"; then
+              failed_commits+=("$commit")
+            fi
+            echo "::endgroup::"
+          done
+          unset IFS
+
+          # Report any failures
+          if [ ${#failed_commits[@]} -ne 0 ]; then
+            echo "::error::The following commits failed gitlint:"
+            for c in "${failed_commits[@]}"; do
+              echo "- $c"
+            done
+            exit 1
+          else
+            echo "✅ All commits passed gitlint."
+          fi
   python-check:
     name: Check Python Code Formatting
     runs-on: ubuntu-latest
@@ -49,18 +87,43 @@ jobs:
           fetch-depth: 0
       - name: Install Dependencies
         run: |
+          echo "::group::apt output"
           sudo env DEBIAN_FRONTEND=noninteractive apt update
           sudo env DEBIAN_FRONTEND=noninteractive apt install -y python3-venv
+          echo "::endgroup::"
       - name: Linting with Ruff
         run: |
+          echo "::group::prepare python"
           python3 -m venv .venv
           source .venv/bin/activate
           pip install ruff==0.11.3
-          for python_file in $(git diff --name-only --diff-filter=ACMRTUXB origin/${{ github.base_ref }} | grep -E "\.py$");
+          echo "::endgroup::"
+
+          changed_python_files=$(git diff --name-only --diff-filter=ACMRTUXB origin/${{ github.base_ref }} | grep -E "\.py$" || true)
+          if [ -z $changed_python_files ]; then
+            echo "✅ No changed python files to check."
+            exit 0
+          fi
+          bad_files=()
+          for python_file in $changed_python_files;
           do
-            ruff format --check -v "$python_file"
-            ruff check "$python_file"
+            echo "::group::checking $python_file"
+            if ! { ruff format --check -v "$python_file" && ruff check "$python_file"; }; then
+              bad_files+=("$python_file")
+            fi
+            echo "::endgroup::"
           done
+
+          # Report any failures
+          if [ ${#bad_files[@]} -ne 0 ]; then
+            echo "::error::The following python files failed Ruff checks:"
+            for c in "${bad_files[@]}"; do
+              echo "- $c"
+            done
+            exit 1
+          else
+            echo "✅ All python files passed Ruff checks."
+          fi
   yaml-check:
     name: Check YAML Formatting
     runs-on: ubuntu-latest
@@ -71,8 +134,13 @@ jobs:
           go-version: '>=1.21.0'
       - name: Run yamlfmt
         run: |
+          echo "::group::install yamlfmt"
           go install github.com/google/yamlfmt/cmd/yamlfmt@v0.16.0
+          echo "::endgroup::"
+
+          echo "::group::yamlfmt output"
           yamlfmt -lint .
+          echo "::endgroup::"
   rust-check:
     name: Check Rust Code
     runs-on: ubuntu-latest
@@ -82,7 +150,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run clippy
         run: |
+          echo "::group::cargo clippy output"
           cargo clippy --workspace --all-targets --all-features -v
+          echo "::endgroup::"
       - name: Run fmt
         run: |
+          echo "::group::cargo fmt results"
           cargo fmt --check -v
+          echo "::endgroup::"
+      - name: Run unit tests
+        run: |-
+          echo "::group::unit test results"
+          cargo test
+          echo "::endgroup::"
