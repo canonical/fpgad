@@ -21,33 +21,63 @@ jobs:
           echo "::endgroup::"
       - name: Check Signatures
         run: |
+          failed_commits=()
           for rev in $(git rev-list origin/${{ github.base_ref }}..HEAD --skip 1);
           do
               result=$(git -c log.showSignature=false show $rev --pretty="%G? %GS" --quiet)
 
-              echo "::group::Checking $result"
+              echo "::group::Checking $rev"
 
               if [[ $result == N* ]]; then
                   # Commit has no signature
                   # https://git-scm.com/docs/git-show#Documentation/git-show.txt-emGem
                   echo "ERROR: There are unsigned commits!"
-                  exit 1
+                  failed_commits+=("$rev")
+              else
+                  echo "$result"
               fi
               echo "::endgroup::"
           done
+
+          # Report any failures
+          if [ ${#failed_commits[@]} -ne 0 ]; then
+            echo "::error::The following commits have unsigned commits:"
+            for c in "${failed_commits[@]}"; do
+              echo "- $c"
+            done
+            exit 1
+          else
+            echo "✅ All commits signed."
+          fi
       - name: Check Format of Git Commits
         run: |
           echo "::group::prepare git"
-          set -x
           source .venv/bin/activate
           git config log.showSignature false
           echo "::endgroup::"
 
-          echo "::group::gitlint output"
+          failed_commits=()
           commits="$(git rev-list origin/${{ github.base_ref }}..HEAD --skip 1 | paste -s -d,)"
-          echo "Checking commits: $commits"
-          gitlint --debug --commits "$commits",
-          echo "::endgroup::"
+          IFS=','
+          for  commit in $commits; do
+            echo "::group::$commit"
+            if ! gitlint --debug --commit "$commit"; then
+              failed_commits+=("$commit")
+            fi
+            echo "::endgroup::"
+          done
+          unset IFS
+
+          # Report any failures
+          if [ ${#failed_commits[@]} -ne 0 ]; then
+            echo "::error::The following commits failed gitlint:"
+            for c in "${failed_commits[@]}"; do
+              echo "- $c"
+            done
+            exit 1
+          else
+            echo "✅ All commits passed gitlint."
+          fi
   python-check:
     name: Check Python Code Formatting
     runs-on: ubuntu-latest
