@@ -30,7 +30,7 @@ jobs:
           python3 -m venv .venv
           source .venv/bin/activate
           pip install -r scripts/ci/requirements.txt
-          echo ""::endgroup::"
+          echo "::endgroup::"
 
           echo "::group::Adding reviewers based on components"
           for component in $(echo "${{ steps.label-the-pr.outputs.all-labels }}" | sed "s/,/ /g"); do
