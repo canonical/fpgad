@@ -24,13 +24,15 @@ jobs:
         with:
           sync-labels: true
       - if: ${{ !github.event.pull_request.draft }}
-        run: |
+        run: |-
           # Add reviewers
+          echo "::group::python setup"
           python3 -m venv .venv
           source .venv/bin/activate
           pip install -r scripts/ci/requirements.txt
+          echo ""::endgroup::"
 
-          echo "Adding reviewers based on components"
+          echo "::group::Adding reviewers based on components"
           for component in $(echo "${{ steps.label-the-pr.outputs.all-labels }}" | sed "s/,/ /g"); do
             echo "Actor(${{ github.actor }}): Requesting reviewers for component: $component"
             # Below is not working due to a known issue: https://github.com/cli/cli/issues/4844
@@ -43,3 +45,4 @@ jobs:
               https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers \
               -d "{\"reviewers\":$(./scripts/ci/check_pull_request.py --get-component-owners $component,${{ github.actor }})}"
           done
+          echo "::endgroup::"
