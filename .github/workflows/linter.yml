@@ -98,13 +98,32 @@ jobs:
           source .venv/bin/activate
           pip install ruff==0.11.3
           echo "::endgroup::"
-          echo "::group::run Ruff"
-          for python_file in $(git diff --name-only --diff-filter=ACMRTUXB origin/${{ github.base_ref }} | grep -E "\.py$");
+
+          changed_python_files=$(git diff --name-only --diff-filter=ACMRTUXB origin/${{ github.base_ref }} | grep -E "\.py$" || true)
+          if [ -z $changed_python_files ]; then
+            echo "✅ No changed python files to check."
+            exit 0
+          fi
+          bad_files=()
+          for python_file in $changed_python_files;
           do
-            ruff format --check -v "$python_file"
-            ruff check "$python_file"
+            echo "::group::checking $python_file"
+            if ! { ruff format --check -v "$python_file" && ruff check "$python_file"; }; then
+              bad_files+=("$python_file")
+            fi
+            echo "::endgroup::"
           done
-          echo "::endgroup::"
+
+          # Report any failures
+          if [ ${#bad_files[@]} -ne 0 ]; then
+            echo "::error::The following python files failed Ruff checks:"
+            for c in "${bad_files[@]}"; do
+              echo "- $c"
+            done
+            exit 1
+          else
+            echo "✅ All python files passed Ruff checks."
+          fi
   yaml-check:
     name: Check YAML Formatting
     runs-on: ubuntu-latest
