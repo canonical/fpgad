@@ -17,8 +17,13 @@ use zbus::{Result, proxy};
     default_path = "/com/canonical/fpgad/control"
 )]
 pub trait Control {
-    async fn load_defaults(&self) -> Result<String>;
-    async fn set_fpga_flags(&self, device_handle: &str, flags: u32) -> Result<String>;
+    async fn set_fpga_flags(
+        &self,
+        platform_string: &str,
+        device_handle: &str,
+        flags: u32,
+    ) -> Result<String>;
+
     async fn write_bitstream_direct(
         &self,
         platform_string: &str,
@@ -36,4 +41,6 @@ pub trait Control {
     ) -> Result<String>;
 
     async fn remove_overlay(&self, platform_str: &str, overlay_handle: &str) -> Result<String>;
+
+    async fn write_property(&self, property_path_str: &str, data: &str) -> Result<String>;
 }
