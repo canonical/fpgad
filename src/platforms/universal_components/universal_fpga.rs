@@ -14,7 +14,7 @@ use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::Fpga;
 use crate::system_io::{fs_read, fs_write};
-use log::{error, info, trace};
+use log::{error, info, trace, warn};
 use std::path::Path;
 
 #[derive(Debug)]
@@ -101,7 +101,7 @@ impl Fpga for UniversalFPGA {
                     )
                 }
                 _ => {
-                    error!(
+                    warn!(
                         "{}'s state is '{}' after writing flags.",
                         self.device_handle, state
                     );
