@@ -10,12 +10,13 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+use crate::comm::dbus::{
+    extract_path_and_filename, validate_device_handle, write_firmware_source_dir,
+};
 use crate::config::FPGA_MANAGERS_DIR;
 use crate::error::FpgadError;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
-use crate::system_io::{
-    extract_path_and_filename, fs_write, validate_device_handle, write_firmware_source_dir,
-};
+use crate::system_io::fs_write;
 use log::trace;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;

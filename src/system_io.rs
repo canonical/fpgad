@@ -10,13 +10,12 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::config;
 use crate::error::FpgadError;
 use log::trace;
 use std::fs::OpenOptions;
 use std::fs::{create_dir_all, remove_dir};
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Convenient wrapper for reading the contents of `file_path` to String
 pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
@@ -95,66 +94,6 @@ pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
             e,
         }),
     }
-}
-
-pub fn extract_path_and_filename(path: &Path) -> Result<(PathBuf, PathBuf), FpgadError> {
-    // Extract filename
-    let filename = path
-        .file_name()
-        .and_then(|f| f.to_str())
-        .ok_or(FpgadError::Argument(format!(
-            "Provided bitstream path {path:?} is missing filename."
-        )))?;
-
-    // Extract parent directory
-    let base_path = path
-        .parent()
-        .and_then(|p| p.to_str())
-        .ok_or(FpgadError::Argument(format!(
-            "Provided bitstream path {path:?} is missing a parent dir."
-        )))?;
-
-    Ok((base_path.into(), filename.into()))
-}
-
-/// Helper function to check that a device with given handle does exist.
-pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadError> {
-    if device_handle.is_empty() || !device_handle.is_ascii() {
-        return Err(FpgadError::Argument(format!(
-            "{device_handle} is invalid name for fpga device.\
-                fpga name must be compliant with sysfs rules."
-        )));
-    }
-    let fpga_managers_dir = config::FPGA_MANAGERS_DIR;
-    if !PathBuf::from(fpga_managers_dir)
-        .join(device_handle)
-        .exists()
-    {
-        return Err(FpgadError::Argument(format!(
-            "Device {device_handle} not found."
-        )));
-    };
-    Ok(())
-}
-
-pub fn write_firmware_source_dir(new_path: &str) -> Result<(), FpgadError> {
-    trace!(
-        "Writing fw prefix {} to {}",
-        new_path,
-        config::FIRMWARE_LOC_CONTROL_PATH
-    );
-    let fw_lookup_override = Path::new(config::FIRMWARE_LOC_CONTROL_PATH);
-    fs_write(fw_lookup_override, false, new_path)
-}
-
-#[allow(dead_code)]
-pub fn read_firmware_source_dir() -> Result<String, FpgadError> {
-    trace!(
-        "Reading fw prefix from {}",
-        config::FIRMWARE_LOC_CONTROL_PATH
-    );
-    let fw_lookup_override = Path::new(config::FIRMWARE_LOC_CONTROL_PATH);
-    fs_read(fw_lookup_override)
 }
 
 /// Convenient wrapper for reading contents of a directory
