@@ -38,7 +38,6 @@ fn make_firmware_pair(
     if firmware_path.as_os_str().is_empty() {
         return extract_path_and_filename(source_path);
     }
-
     if let Ok(suffix) = source_path.strip_prefix(firmware_path) {
         // Remove leading '/' if present
         let cleaned_suffix_path = suffix
@@ -147,7 +146,11 @@ impl ControlInterface {
     }
 
     /// use to write to a device property from /sys/class/fpga_manager/<device>/** that does not have a specific interface
-    async fn write_property(&self, property_path_str: &str, data: &str) -> Result<(), fdo::Error> {
+    async fn write_property(
+        &self,
+        property_path_str: &str,
+        data: &str,
+    ) -> Result<String, fdo::Error> {
         trace!(
             "write_property called with property_path_str: {property_path_str} and data: {data}"
         );
@@ -157,6 +160,7 @@ impl ControlInterface {
                 "Cannot access property {property_path_str}: does not begin with {FPGA_MANAGERS_DIR}"
             ))));
         }
-        Ok(fs_write(property_path, false, data)?)
+        fs_write(property_path, false, data)?;
+        Ok(format!("{data} written to {property_path_str}"))
     }
 }
