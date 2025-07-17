@@ -142,3 +142,112 @@ impl ControlInterface {
         Ok(format!("{data} written to {property_path_str}"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::comm::dbus::control_interface::make_firmware_pair;
+    use crate::error::FpgadError;
+    use std::path::PathBuf;
+
+    #[derive(Debug, PartialEq)]
+    struct PathPair {
+        pub prefix: PathBuf,
+        pub suffix: PathBuf,
+    }
+
+    impl PathPair {
+        fn from(p0: &(PathBuf, PathBuf)) -> PathPair {
+            PathPair {
+                prefix: p0.0.clone(),
+                suffix: p0.1.clone(),
+            }
+        }
+    }
+
+    fn compare_results(
+        a: &Result<(PathBuf, PathBuf), FpgadError>,
+        b: &Result<PathPair, FpgadError>,
+    ) -> bool {
+        match (a, b) {
+            (Ok(pa), Ok(pb)) => PathPair::from(pa) == *pb,
+            (Err(_), Err(_)) => true,
+            _ => false,
+        }
+    }
+
+    #[derive(Debug)]
+    struct TestCase {
+        pub source: PathBuf,
+        pub fw_path: PathBuf,
+        pub expected: Result<PathPair, FpgadError>,
+    }
+
+    fn run_case(case: TestCase) {
+        let result = make_firmware_pair(&case.source, &case.fw_path);
+        println!("out: {result:?}");
+        assert!(compare_results(&result, &case.expected))
+    }
+
+    #[test]
+    fn test_make_firmware_pair_simple_working() {
+        let case = TestCase {
+            source: PathBuf::from("/lib/firmware/file.bin"),
+            fw_path: PathBuf::from("/lib/firmware/"),
+            expected: Ok(PathPair {
+                prefix: PathBuf::from("/lib/firmware/"),
+                suffix: PathBuf::from("file.bin"),
+            }),
+        };
+        run_case(case);
+    }
+
+    #[test]
+    fn test_make_firmware_pair_no_file() {
+        let case = TestCase {
+            source: PathBuf::from("/lib/firmware/"),
+            fw_path: PathBuf::from("/lib/firmware/"),
+            expected: Err(FpgadError::Argument("".into())),
+        };
+        println!("in: {case:?}");
+        run_case(case);
+    }
+
+    #[test]
+    fn test_make_firmware_pair_not_in_dir() {
+        let case = TestCase {
+            source: PathBuf::from("/lib/firmware/file.bin"),
+            fw_path: PathBuf::from("/snap/x1/data/file.bin"),
+            expected: Err(FpgadError::Argument("".into())),
+        };
+        println!("in: {case:?}");
+        run_case(case);
+    }
+
+    #[test]
+    fn test_make_firmware_pair_no_fw_path() {
+        let case = TestCase {
+            source: PathBuf::from("/lib/firmware/file.bin"),
+            fw_path: PathBuf::from(""),
+            expected: Ok(PathPair {
+                prefix: PathBuf::from("/lib/firmware/"),
+                suffix: PathBuf::from("file.bin"),
+            }),
+        };
+        println!("in: {case:?}");
+        run_case(case);
+    }
+
+    #[test]
+    fn test_make_firmware_pair_no_fw_path_no_file() {
+        let case = TestCase {
+            source: PathBuf::from("/lib/firmware/"),
+            fw_path: PathBuf::from(""),
+            expected: Ok(PathPair {
+                prefix: PathBuf::from("/lib"),
+                suffix: PathBuf::from("firmware"),
+            }),
+        };
+        println!("in: {case:?}");
+        run_case(case);
+    }
+}
