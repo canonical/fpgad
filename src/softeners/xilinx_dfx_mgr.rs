@@ -20,14 +20,14 @@ use crate::platforms::platform::Platform;
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use crate::softeners::error::FpgadSoftenerError;
+use fpgad_macros::platform;
 
+#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0")]
 pub struct XilinxDfxMgrPlatform {
     fpga: OnceLock<UniversalFPGA>,
     overlay_handler: OnceLock<UniversalOverlayHandler>,
 }
 
-// TODO: implement a proc_macro that registers the platform with compat string
-//#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0")]
 impl XilinxDfxMgrPlatform {
     pub fn new() -> Self {
         trace!("creating new XilinxDfxMgrPlatform");

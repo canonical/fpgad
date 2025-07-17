@@ -10,9 +10,10 @@ readme = "README.md"
 
 [workspace]
 resolver = "3"
-members = ["cli"]
+members = ["cli", "fpgad_macros"]
 
 [dependencies]
+fpgad_macros = { path = "fpgad_macros" }
 log = "0.4.27"
 env_logger = "0.11.8"
 tokio = { version = "1.46.1", features = ["full"] }

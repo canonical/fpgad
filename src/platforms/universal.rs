@@ -14,9 +14,11 @@ use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
+use fpgad_macros::platform;
 use log::trace;
 use std::sync::OnceLock;
 
+#[platform(compat_string = "universal")]
 #[derive(Debug)]
 pub struct UniversalPlatform {
     fpga: OnceLock<UniversalFPGA>,

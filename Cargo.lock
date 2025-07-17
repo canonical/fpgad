@@ -325,10 +325,19 @@ name = "fpgad"
 version = "0.1.0"
 dependencies = [
  "env_logger",
+ "fpgad_macros",
  "log",
  "thiserror",
  "tokio",
  "zbus",
+]
+
+[[package]]
+name = "fpgad_macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]
