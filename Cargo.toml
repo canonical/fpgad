@@ -10,7 +10,7 @@ readme = "README.md"
 
 [workspace]
 resolver = "3"
-members = ["cli", "fpgad_macros"]
+members = ["cli", "fpgad_macros", "integration-tests"]
 
 [dependencies]
 fpgad_macros = { path = "fpgad_macros" }
