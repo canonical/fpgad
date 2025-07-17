@@ -103,6 +103,12 @@ pub(crate) fn make_firmware_pair(
             .components()
             .skip_while(|c| matches!(c, Component::RootDir))
             .collect::<PathBuf>();
+        if cleaned_suffix_path.as_os_str().is_empty() {
+            return Err(FpgadError::Argument(format!(
+                "The resulting filename from stripping {firmware_path:?} from {source_path:?} \
+                was empty. Cannot write empty string to fpga."
+            )));
+        }
         Ok((firmware_path.to_path_buf(), cleaned_suffix_path))
     } else {
         Err(FpgadError::Argument(format!(
