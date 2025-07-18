@@ -23,21 +23,11 @@ mod platforms;
 mod softeners;
 mod system_io;
 
-use crate::{
-    comm::dbus::{control_interface::ControlInterface, status_interface::StatusInterface},
-    platforms::universal::UniversalPlatform,
-    softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform,
-};
-
-fn register_platforms() {
-    XilinxDfxMgrPlatform::register_platform();
-    UniversalPlatform::register_platform();
-}
+use crate::comm::dbus::{control_interface::ControlInterface, status_interface::StatusInterface};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    register_platforms();
 
     // Upon load, the daemon will search each fpga device and determine what platform it is
     // based on its name in /sys/class/fpga_manager/{device}/name
