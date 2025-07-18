@@ -11,13 +11,12 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::config;
-use crate::config::FPGA_MANAGERS_DIR;
-use crate::error::FpgadError;
 use crate::platforms::platform::{list_fpga_managers, read_compatible_string};
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
-use crate::system_io::{fs_read, fs_read_dir, validate_device_handle};
+
+use crate::comm::dbus::{fs_read_property, validate_device_handle};
+use crate::system_io::fs_read_dir;
 use log::{error, trace};
-use std::path::Path;
 use zbus::{fdo, interface};
 
 pub struct StatusInterface {}
@@ -94,12 +93,6 @@ impl StatusInterface {
     /// use to read a device property from /sys/class/fpga_manager/<device>/** that does not have a specific interface
     async fn read_property(&self, property_path_str: &str) -> Result<String, fdo::Error> {
         trace!("read_property called with property_path_str: {property_path_str}");
-        let property_path = Path::new(property_path_str);
-        if !property_path.starts_with(Path::new(FPGA_MANAGERS_DIR)) {
-            return Err(fdo::Error::from(FpgadError::Argument(format!(
-                "Cannot access property {property_path_str}: does not begin with {FPGA_MANAGERS_DIR}"
-            ))));
-        }
-        Ok(fs_read(property_path)?)
+        Ok(fs_read_property(property_path_str)?)
     }
 }
