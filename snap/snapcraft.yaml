@@ -55,4 +55,6 @@ parts:
   fpgad:
     plugin: rust
     source: .
+    rust-path:
+      - daemon
     rust-channel: "stable"
