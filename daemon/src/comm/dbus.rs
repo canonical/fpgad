@@ -90,6 +90,28 @@ pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadErr
     Ok(())
 }
 
+/// Helper function to find the overlap between two paths and to return a tuple of the overlap and
+/// the difference. Note: the paths must both share the same root otherwise no overlap will be found
+///
+/// Typically, this is used to create a fw_lookup_path and a corresponding relative path which points
+/// to the source file
+///
+/// # Arguments
+///
+/// * `source_path`: the full path to the target file (or containing directory?)
+/// * `firmware_path`: the root common path for all files to be loaded by the FW subsystem
+///
+/// returns: Result<(PathBuf, PathBuf), FpgadError> A tuple of (prefix, suffix) where prefix is
+/// typically used as the fw_lookup_path and the suffix is remaining relative path from that prefix
+///
+/// # Examples
+///
+/// ```
+/// let (prefix, suffix) = make_firmware_pair(
+///      Path::new("/lib/firmware/file.bin"),
+///      Path::new("/lib/firmware/"),
+/// )?; // returns prefix = "/lib/firmware/", suffix = "file.bin"
+/// ```
 pub(crate) fn make_firmware_pair(
     source_path: &Path,
     firmware_path: &Path,
