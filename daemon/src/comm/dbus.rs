@@ -18,7 +18,7 @@ use crate::config::FPGA_MANAGERS_DIR;
 use crate::error::FpgadError;
 use crate::system_io::{fs_read, fs_write};
 use log::trace;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 pub fn fs_read_property(property_path_str: &str) -> Result<String, FpgadError> {
     let property_path = Path::new(property_path_str);
@@ -88,4 +88,94 @@ pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadErr
         )));
     };
     Ok(())
+}
+
+/// Helper function to find the overlap between two paths and to return a tuple of the overlap and
+/// the difference. Note: the paths must both share the same root otherwise no overlap will be found
+///
+/// Typically, this is used to create a fw_lookup_path and a corresponding relative path which points
+/// to the source file
+///
+/// # Arguments
+///
+/// * `source_path`: the full path to the target file (or containing directory?)
+/// * `firmware_path`: the root common path for all files to be loaded by the FW subsystem
+///
+/// returns: Result<(PathBuf, PathBuf), FpgadError> A tuple of (prefix, suffix) where prefix is
+/// typically used as the fw_lookup_path and the suffix is remaining relative path from that prefix
+///
+/// # Examples
+///
+/// ```
+/// let (prefix, suffix) = make_firmware_pair(
+///      Path::new("/lib/firmware/file.bin"),
+///      Path::new("/lib/firmware/"),
+/// )?; // returns prefix = "/lib/firmware/", suffix = "file.bin"
+/// ```
+pub(crate) fn make_firmware_pair(
+    source_path: &Path,
+    firmware_path: &Path,
+) -> Result<(PathBuf, PathBuf), FpgadError> {
+    if firmware_path.as_os_str().is_empty() {
+        return extract_path_and_filename(source_path);
+    }
+    if let Ok(suffix) = source_path.strip_prefix(firmware_path) {
+        // Remove leading '/' if present
+        let cleaned_suffix_path = suffix
+            .components()
+            .skip_while(|c| matches!(c, Component::RootDir))
+            .collect::<PathBuf>();
+        if cleaned_suffix_path.as_os_str().is_empty() {
+            return Err(FpgadError::Argument(format!(
+                "The resulting filename from stripping {firmware_path:?} from {source_path:?} \
+                was empty. Cannot write empty string to fpga."
+            )));
+        }
+        Ok((firmware_path.to_path_buf(), cleaned_suffix_path))
+    } else {
+        Err(FpgadError::Argument(format!(
+            "Could not find {source_path:?} inside {firmware_path:?}"
+        )))
+    }
+}
+
+#[cfg(test)]
+mod test_make_firmware_pair {
+    use crate::comm::dbus::make_firmware_pair;
+    use crate::error::FpgadError;
+    use googletest::prelude::*;
+    use rstest::*;
+    use std::path::PathBuf;
+
+    #[gtest]
+    #[rstest]
+    #[case::all_good("/lib/firmware/file.bin","/lib/firmware/", Ok(("/lib/firmware/", "file.bin")))]
+    #[case::no_file("/lib/firmware/", "/lib/firmware/", Err(FpgadError::Argument("".into())))]
+    #[case::not_in_dir("/lib/firmware/file.bin", "/snap/x1/data/file.bin", Err(FpgadError::Argument("".into())))]
+    #[case::no_fw_path("/lib/firmware/file.bin", "", Ok(("/lib/firmware/", "file.bin")))]
+    #[case::no_fw_path_no_file("/lib/firmware/", "", Ok(("/lib/", "firmware")))]
+    fn test_make_firmware_pair(
+        #[case] source: &str,
+        #[case] fw_path: &str,
+        #[case] expected: core::result::Result<(&str, &str), FpgadError>,
+    ) {
+        let result = make_firmware_pair(&PathBuf::from(source), &PathBuf::from(fw_path));
+
+        match (result, expected) {
+            (Ok((res_prefix, res_suffix)), Ok((exp_prefix, exp_suffix))) => {
+                assert_eq!(res_prefix, PathBuf::from(exp_prefix), "source mismatch");
+                assert_eq!(res_suffix, PathBuf::from(exp_suffix), "firmware mismatch");
+            }
+            (Err(res_err), Err(exp_err)) => {
+                assert_that!(
+                    res_err.to_string(),
+                    contains_substring(exp_err.to_string()),
+                    "Mismatched error signature"
+                );
+            }
+            (res, exp) => {
+                panic!("Result mismatch: got {res:?}, expected {exp:?}");
+            }
+        }
+    }
 }
