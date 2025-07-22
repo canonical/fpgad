@@ -1,27 +1,3 @@
-[package]
-name = "fpgad"
-version = "0.1.0"
-edition = "2024"
-license = "GPL-3.0"
-description = "An FPGA manager daemon that handles the dirty work for you."
-homepage = "https://github.com/talhaHavadar/fpgad"
-repository = "https://github.com/talhaHavadar/fpgad"
-readme = "README.md"
-
-[features]
-default = ["softeners-all"]
-softeners-all = ["softeners", "xilinx-dfx-mgr"]
-softeners = []
-xilinx-dfx-mgr = ["softeners"]
-
 [workspace]
 resolver = "3"
-members = ["cli", "fpgad_macros"]
-
-[dependencies]
-fpgad_macros = { path = "fpgad_macros" }
-log = "0.4.27"
-env_logger = "0.11.8"
-tokio = { version = "1.46.1", features = ["full"] }
-zbus = { version = "5.5.0", default-features = false, features = ["tokio"] }
-thiserror = "2.0.12"
+members = ["daemon", "cli", "fpgad_macros"]
