@@ -18,7 +18,7 @@ use crate::config::FPGA_MANAGERS_DIR;
 use crate::error::FpgadError;
 use crate::system_io::{fs_read, fs_write};
 use log::trace;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 pub fn fs_read_property(property_path_str: &str) -> Result<String, FpgadError> {
     let property_path = Path::new(property_path_str);
@@ -88,4 +88,31 @@ pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadErr
         )));
     };
     Ok(())
+}
+
+pub(crate) fn make_firmware_pair(
+    source_path: &Path,
+    firmware_path: &Path,
+) -> Result<(PathBuf, PathBuf), FpgadError> {
+    if firmware_path.as_os_str().is_empty() {
+        return extract_path_and_filename(source_path);
+    }
+    if let Ok(suffix) = source_path.strip_prefix(firmware_path) {
+        // Remove leading '/' if present
+        let cleaned_suffix_path = suffix
+            .components()
+            .skip_while(|c| matches!(c, Component::RootDir))
+            .collect::<PathBuf>();
+        if cleaned_suffix_path.as_os_str().is_empty() {
+            return Err(FpgadError::Argument(format!(
+                "The resulting filename from stripping {firmware_path:?} from {source_path:?} \
+                was empty. Cannot write empty string to fpga."
+            )));
+        }
+        Ok((firmware_path.to_path_buf(), cleaned_suffix_path))
+    } else {
+        Err(FpgadError::Argument(format!(
+            "Could not find {source_path:?} inside {firmware_path:?}"
+        )))
+    }
 }
