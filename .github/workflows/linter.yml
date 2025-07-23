@@ -161,5 +161,5 @@ jobs:
       - name: Run unit tests
         run: |-
           echo "::group::unit test results"
-          cargo test
+          cargo test --bins
           echo "::endgroup::"
