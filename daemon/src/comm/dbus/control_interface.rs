@@ -59,9 +59,10 @@ impl ControlInterface {
         validate_device_handle(device_handle)?;
         let path = Path::new(bitstream_path_str);
         if !path.exists() || path.is_dir() {
-            return Err(fdo::Error::InvalidArgs(format!(
+            return Err(FpgadError::Argument(format!(
                 "{bitstream_path_str} is not a valid path to a bitstream file."
-            )));
+            ))
+            .into());
         }
         let platform = platform_from_compat_or_device(platform_string, device_handle)?;
         let (prefix, suffix) = make_firmware_pair(path, Path::new(firmware_lookup_path))?;
