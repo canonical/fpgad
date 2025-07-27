@@ -24,4 +24,4 @@ thiserror = "2.0.12"
 
 [dev-dependencies]
 googletest = "0.14.2"
-rstest = "0.25.0"
+rstest = "0.26.0"
