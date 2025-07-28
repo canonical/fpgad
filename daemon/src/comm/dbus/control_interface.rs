@@ -64,10 +64,10 @@ impl ControlInterface {
             ))
             .into());
         }
+        let _guard = get_write_lock_guard().await;
         let platform = platform_from_compat_or_device(platform_string, device_handle)?;
         let (prefix, suffix) = make_firmware_pair(path, Path::new(firmware_lookup_path))?;
 
-        let _guard = get_write_lock_guard();
         trace!("Got write lock.");
         write_firmware_source_dir(&prefix.to_string_lossy())?;
         platform.fpga(device_handle)?.load_firmware(&suffix)?;
@@ -88,6 +88,7 @@ impl ControlInterface {
             "apply_overlay called with platform_compat_str: {platform_compat_str}, overlay_handle: \
             {overlay_handle} and overlay_path: {overlay_source_path}",
         );
+        let _guard = get_write_lock_guard().await;
         let platform = platform_for_known_platform(platform_compat_str)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
@@ -96,7 +97,6 @@ impl ControlInterface {
             Path::new(firmware_lookup_path),
         )?;
 
-        let _guard = get_write_lock_guard();
         trace!("Got write lock.");
         write_firmware_source_dir(&prefix.to_string_lossy())?;
         overlay_handler.apply_overlay(&suffix)?;
@@ -141,5 +141,15 @@ impl ControlInterface {
         }
         fs_write(property_path, false, data)?;
         Ok(format!("{data} written to {property_path_str}"))
+    }
+}
+
+#[cfg(test)]
+mod test_get_write_lock_guard {
+    use crate::comm::dbus::control_interface::get_write_lock_guard;
+
+    #[tokio::test]
+    async fn test_get_write_lock_guard() {
+        let _guard = get_write_lock_guard().await;
     }
 }
