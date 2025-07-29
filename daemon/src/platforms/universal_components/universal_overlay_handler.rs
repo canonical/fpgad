@@ -54,8 +54,8 @@ impl UniversalOverlayHandler {
     /// When an overlay fails to be applied, it may show as "applied" status but the path will
     /// be empty. Therefore, this checks both match what is expected.
     fn vfs_check_applied(&self, source_path_rel: &Path) -> Result<(), FpgadError> {
-        let path_file_contents = self.get_vfs_path()?;
-        if source_path_rel.ends_with(&path_file_contents) {
+        let path_file_contents = &self.get_vfs_path()?;
+        if path_file_contents.ends_with(source_path_rel) {
             info!("overlay path contents is valid: '{path_file_contents:?}'");
         } else {
             return Err(FpgadError::OverlayStatus(format!(

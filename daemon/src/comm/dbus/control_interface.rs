@@ -88,6 +88,13 @@ impl ControlInterface {
             "apply_overlay called with platform_compat_str: {platform_compat_str}, overlay_handle: \
             {overlay_handle} and overlay_path: {overlay_source_path}",
         );
+        let path = Path::new(overlay_source_path);
+        if !path.exists() || path.is_dir() {
+            return Err(FpgadError::Argument(format!(
+                "{overlay_source_path} is not a valid path to an overlay file."
+            ))
+            .into());
+        }
         let _guard = get_write_lock_guard().await;
         let platform = platform_for_known_platform(platform_compat_str)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
