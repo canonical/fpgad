@@ -107,6 +107,7 @@ pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadErr
 /// # Examples
 ///
 /// ```
+/// use std::path::Path;
 /// let (prefix, suffix) = make_firmware_pair(
 ///      Path::new("/lib/firmware/file.bin"),
 ///      Path::new("/lib/firmware/"),
@@ -149,33 +150,45 @@ mod test_make_firmware_pair {
 
     #[gtest]
     #[rstest]
-    #[case::all_good("/lib/firmware/file.bin","/lib/firmware/", Ok(("/lib/firmware/", "file.bin")))]
-    #[case::no_file("/lib/firmware/", "/lib/firmware/", Err(FpgadError::Argument("".into())))]
-    #[case::not_in_dir("/lib/firmware/file.bin", "/snap/x1/data/file.bin", Err(FpgadError::Argument("".into())))]
-    #[case::no_fw_path("/lib/firmware/file.bin", "", Ok(("/lib/firmware/", "file.bin")))]
-    #[case::no_fw_path_no_file("/lib/firmware/", "", Ok(("/lib/", "firmware")))]
-    fn test_make_firmware_pair(
+    #[case::all_good(
+        "/lib/firmware/file.bin",
+        "/lib/firmware/",
+        "/lib/firmware/",
+        "file.bin"
+    )]
+    #[case::no_fw_path("/lib/firmware/file.bin", "", "/lib/firmware/", "file.bin")]
+    #[case::no_fw_path_no_file("/lib/firmware/", "", "/lib/", "firmware")]
+    fn should_pass(
         #[case] source: &str,
         #[case] fw_path: &str,
-        #[case] expected: core::result::Result<(&str, &str), FpgadError>,
+        #[case] exp_prefix: &str,
+        #[case] exp_suffix: &str,
     ) {
         let result = make_firmware_pair(&PathBuf::from(source), &PathBuf::from(fw_path));
+        assert_that!(
+            result,
+            ok(eq(&(PathBuf::from(exp_prefix), PathBuf::from(exp_suffix))))
+        );
+    }
 
-        match (result, expected) {
-            (Ok((res_prefix, res_suffix)), Ok((exp_prefix, exp_suffix))) => {
-                assert_eq!(res_prefix, PathBuf::from(exp_prefix), "source mismatch");
-                assert_eq!(res_suffix, PathBuf::from(exp_suffix), "firmware mismatch");
-            }
-            (Err(res_err), Err(exp_err)) => {
-                assert_that!(
-                    res_err.to_string(),
-                    contains_substring(exp_err.to_string()),
-                    "Mismatched error signature"
-                );
-            }
-            (res, exp) => {
-                panic!("Result mismatch: got {res:?}, expected {exp:?}");
-            }
-        }
+    #[gtest]
+    #[rstest]
+    #[case::no_file(
+        "/lib/firmware/",
+        "/lib/firmware/",
+        err(displays_as(contains_substring("The resulting filename from stripping")))
+    )]
+    #[case::not_in_dir(
+        "/lib/firmware/file.bin",
+        "/snap/x1/data/file.bin",
+        err(displays_as(contains_substring("Could not find")))
+    )]
+    fn should_fail<M: for<'a> Matcher<&'a std::result::Result<(PathBuf, PathBuf), FpgadError>>>(
+        #[case] source: &str,
+        #[case] fw_path: &str,
+        #[case] condition: M,
+    ) {
+        let result = make_firmware_pair(&PathBuf::from(source), &PathBuf::from(fw_path));
+        assert_that!(&result, condition);
     }
 }
