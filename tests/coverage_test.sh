@@ -22,14 +22,14 @@ export RUSTFLAGS="$RUSTFLAGS -C llvm-args=-runtime-counter-relocation"
 # build the daemon only, to avoid getting coverage for cli (no tests written)
 cargo build --bin fpgad
 # build the test binaries avoiding cli as well
-cargo test --bin fpgad --test universal --no-run
+cargo test --bin fpgad --test integration_tests --no-run
 # only run fpgad unit tests
 cargo test --bin fpgad
 
 # extract the name of the integration test binary
-universal_test="$(\
-cargo test --no-run --test universal 2>&1 |\
-  grep 'tests/universal.rs' |\
+integration_tests="$(\
+cargo test --no-run --test integration_tests 2>&1 |\
+  grep 'tests/integration_tests' |\
   awk '{gsub(/[()]/,""); print $3}'\
 )"
 daemon_bin=${CARGO_LLVM_COV_TARGET_DIR}/debug/fpgad
@@ -54,7 +54,7 @@ timeout 5 bash -c '
 '
 
 # run the test binary
-sudo env LLVM_PROFILE_FILE="${CARGO_LLVM_COV_TARGET_DIR}/test_universal-%p.profraw" "$universal_test" --test-threads=1 --no-capture
+sudo env LLVM_PROFILE_FILE="${CARGO_LLVM_COV_TARGET_DIR}/test_universal-%p.profraw" "$integration_tests" --test-threads=1 --no-capture
 
 
 # kill the daemon

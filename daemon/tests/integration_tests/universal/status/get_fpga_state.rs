@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::common::proxies::status_proxy;
-use crate::universal::setup;
+use crate::integration_tests::universal::setup;
 use googletest::prelude::*;
 use rstest::*;
 use zbus::Connection;
@@ -19,14 +19,31 @@ use zbus::Connection;
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::all_good(ok(eq("fpga0:xlnx,zynqmp-pcap-fpga\n")))]
-async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(#[case] condition: M, _setup: ()) {
+#[case::no_platform("", "fpga0", ok(contains_substring("operating")))]
+#[case::no_device(
+    "universal",
+    "",
+    err(displays_as(contains_substring("FpgadError::Argument:")))
+)]
+#[case::bad_platform("x", "", err(displays_as(contains_substring("FpgadError::Argument:"))))]
+#[case::bad_device(
+    "universal",
+    "dev0",
+    err(displays_as(contains_substring("FpgadError::Argument:")))
+)]
+#[case::all_good("universal", "fpga0", ok(contains_substring("operating")))]
+async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
+    #[case] platform_string: &str,
+    #[case] device_handle: &str,
+    #[case] condition: M,
+    _setup: (),
+) {
     let connection = Connection::system()
         .await
         .expect("failed to get fpga state");
     let proxy = status_proxy::StatusProxy::new(&connection)
         .await
         .expect("failed to create control proxy");
-    let res = proxy.get_platform_types().await;
+    let res = proxy.get_fpga_state(platform_string, device_handle).await;
     expect_that!(&res, condition);
 }

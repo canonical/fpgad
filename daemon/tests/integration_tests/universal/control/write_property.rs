@@ -10,42 +10,39 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::common::proxies::status_proxy;
-use crate::universal::setup;
+use crate::common::proxies::control_proxy::ControlProxy;
+use crate::integration_tests::universal::setup;
 use googletest::prelude::*;
-use rstest::*;
-use zbus::Connection;
+use rstest::rstest;
+use tokio;
+use zbus::{Connection, Result};
 
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::no_platform(
+#[case::out_of_tree(
+    "/lib/firmware/new_file",
     "",
-    "fpga0",
-    err(displays_as(contains_substring("FpgadError::Argument:")))
+    err(displays_as(contains_substring("Cannot access property")))
 )]
-#[case::no_device(
-    "universal",
+#[case::missing_file(
+    "/sys/class/fpga_manager/fpga0/write_not_exist.txt",
     "",
-    err(displays_as(contains_substring("FpgadError::Argument:")))
+    err(displays_as(contains_substring("FpgadError::IOWrite: ")))
 )]
-#[case::bad_platform("x", "", err(displays_as(contains_substring("FpgadError::Argument:"))))]
-#[case::bad_device("universal", "dev0", ok(contains_substring("not present")))]
-#[case::all_good("universal", "fpga0", ok(anything()))]
-async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
-    #[case] platform_string: &str,
-    #[case] device_handle: &str,
+#[case::reset_key("/sys/class/fpga_manager/fpga0/key", "", ok(anything()))]
+pub async fn cases<M: for<'a> Matcher<&'a Result<String>>>(
+    #[case] path: &str,
+    #[case] data: &str,
     #[case] condition: M,
     _setup: (),
 ) {
     let connection = Connection::system()
         .await
-        .expect("failed to get fpga state");
-    let proxy = status_proxy::StatusProxy::new(&connection)
+        .expect("failed to create connection");
+    let proxy = ControlProxy::new(&connection)
         .await
         .expect("failed to create control proxy");
-    let res = proxy
-        .get_overlay_status(platform_string, device_handle)
-        .await;
+    let res = proxy.write_property(path, data).await;
     expect_that!(&res, condition);
 }

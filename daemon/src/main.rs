@@ -14,20 +14,11 @@ use log::info;
 use std::error::Error;
 use std::future::pending;
 use zbus::connection;
-mod error;
-
-mod comm;
-
-mod config;
-mod platforms;
-#[cfg(feature = "softeners")]
-mod softeners;
-mod system_io;
 
 #[cfg(feature = "xilinx-dfx-mgr")]
-use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
+use fpgad::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
 
-use crate::{
+use fpgad::{
     comm::dbus::{control_interface::ControlInterface, status_interface::StatusInterface},
     platforms::universal::UniversalPlatform,
 };

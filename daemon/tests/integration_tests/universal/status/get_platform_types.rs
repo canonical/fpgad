@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::common::proxies::status_proxy;
-use crate::universal::setup;
+use crate::integration_tests::universal::setup;
 use googletest::prelude::*;
 use rstest::*;
 use zbus::Connection;
@@ -19,7 +19,7 @@ use zbus::Connection;
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::all_good(ok(anything()))]
+#[case::all_good(ok(eq("fpga0:xlnx,zynqmp-pcap-fpga\n")))]
 async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(#[case] condition: M, _setup: ()) {
     let connection = Connection::system()
         .await
@@ -27,6 +27,6 @@ async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(#[case] condition: 
     let proxy = status_proxy::StatusProxy::new(&connection)
         .await
         .expect("failed to create control proxy");
-    let res = proxy.get_overlays().await;
+    let res = proxy.get_platform_types().await;
     expect_that!(&res, condition);
 }

@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::common::proxies::status_proxy;
-use crate::universal::setup;
+use crate::integration_tests::universal::setup;
 use googletest::prelude::*;
 use rstest::*;
 use zbus::Connection;
@@ -19,22 +19,16 @@ use zbus::Connection;
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::no_platform("", "fpga0", ok(eq("0")))]
-#[case::no_device(
-    "universal",
-    "",
-    err(displays_as(contains_substring("FpgadError::Argument:")))
+#[case::missing_file(
+    "/sys/class/fpga_manager/fpga0/read_not_exist.txt",
+    err(displays_as(contains_substring("FpgadError::IORead")))
 )]
-#[case::bad_platform("x", "", err(displays_as(contains_substring("FpgadError::Argument:"))))]
-#[case::bad_device(
-    "universal",
-    "dev0",
-    err(displays_as(contains_substring("FpgadError::Argument:")))
+#[case::read_name(
+    "/sys/class/fpga_manager/fpga0/name",
+    ok(eq("Xilinx ZynqMP FPGA Manager\n"))
 )]
-#[case::all_good("universal", "fpga0", ok(eq("0")))]
 async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
-    #[case] platform_string: &str,
-    #[case] device_handle: &str,
+    #[case] property_path: &str,
     #[case] condition: M,
     _setup: (),
 ) {
@@ -44,6 +38,6 @@ async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
     let proxy = status_proxy::StatusProxy::new(&connection)
         .await
         .expect("failed to create control proxy");
-    let res = proxy.get_fpga_flags(platform_string, device_handle).await;
+    let res = proxy.read_property(property_path).await;
     expect_that!(&res, condition);
 }

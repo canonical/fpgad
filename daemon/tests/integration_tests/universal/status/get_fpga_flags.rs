@@ -10,39 +10,40 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::common::proxies::control_proxy::ControlProxy;
-use crate::universal::setup;
+use crate::common::proxies::status_proxy;
+use crate::integration_tests::universal::setup;
 use googletest::prelude::*;
-use rstest::rstest;
-use tokio;
-use zbus::{Connection, Result};
+use rstest::*;
+use zbus::Connection;
 
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::out_of_tree(
-    "/lib/firmware/new_file",
+#[case::no_platform("", "fpga0", ok(eq("0")))]
+#[case::no_device(
+    "universal",
     "",
-    err(displays_as(contains_substring("Cannot access property")))
+    err(displays_as(contains_substring("FpgadError::Argument:")))
 )]
-#[case::missing_file(
-    "/sys/class/fpga_manager/fpga0/write_not_exist.txt",
-    "",
-    err(displays_as(contains_substring("FpgadError::IOWrite: ")))
+#[case::bad_platform("x", "", err(displays_as(contains_substring("FpgadError::Argument:"))))]
+#[case::bad_device(
+    "universal",
+    "dev0",
+    err(displays_as(contains_substring("FpgadError::Argument:")))
 )]
-#[case::reset_key("/sys/class/fpga_manager/fpga0/key", "", ok(anything()))]
-pub async fn cases<M: for<'a> Matcher<&'a Result<String>>>(
-    #[case] path: &str,
-    #[case] data: &str,
+#[case::all_good("universal", "fpga0", ok(eq("0")))]
+async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
+    #[case] platform_string: &str,
+    #[case] device_handle: &str,
     #[case] condition: M,
     _setup: (),
 ) {
     let connection = Connection::system()
         .await
-        .expect("failed to create connection");
-    let proxy = ControlProxy::new(&connection)
+        .expect("failed to get fpga state");
+    let proxy = status_proxy::StatusProxy::new(&connection)
         .await
         .expect("failed to create control proxy");
-    let res = proxy.write_property(path, data).await;
+    let res = proxy.get_fpga_flags(platform_string, device_handle).await;
     expect_that!(&res, condition);
 }

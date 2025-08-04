@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::common::proxies::control_proxy::ControlProxy;
-use crate::universal::{PLATFORM_STRING, setup};
+use crate::integration_tests::universal::{PLATFORM_STRING, setup};
 use googletest::prelude::*;
 use rstest::rstest;
 use tokio;
