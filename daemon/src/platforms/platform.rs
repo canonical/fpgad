@@ -170,6 +170,7 @@ pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
 }
 
 #[cfg(test)]
+#[cfg(feature = "xilinx-dfx-mgr")]
 mod tests {
     use super::*;
     use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
