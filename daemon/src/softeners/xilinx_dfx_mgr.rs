@@ -28,6 +28,12 @@ pub struct XilinxDfxMgrPlatform {
     overlay_handler: OnceLock<UniversalOverlayHandler>,
 }
 
+impl Default for XilinxDfxMgrPlatform {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl XilinxDfxMgrPlatform {
     pub fn new() -> Self {
         trace!("creating new XilinxDfxMgrPlatform");
