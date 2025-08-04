@@ -24,12 +24,12 @@ cargo build --bin fpgad
 # build the test binaries avoiding cli as well
 cargo test --bin fpgad --test integration_tests --no-run
 # only run fpgad unit tests
-cargo test --bin fpgad
+cargo test --lib --bin fpgad
 
 # extract the name of the integration test binary
 integration_tests="$(\
 cargo test --no-run --test integration_tests 2>&1 |\
-  grep 'tests/integration_tests' |\
+  grep 'tests/integration_tests.rs' |\
   awk '{gsub(/[()]/,""); print $3}'\
 )"
 daemon_bin=${CARGO_LLVM_COV_TARGET_DIR}/debug/fpgad
