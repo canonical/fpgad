@@ -25,6 +25,12 @@ pub struct UniversalPlatform {
     overlay_handler: OnceLock<UniversalOverlayHandler>,
 }
 
+impl Default for UniversalPlatform {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UniversalPlatform {
     /// Creates a new [`UniversalPlatform`].
     pub fn new() -> Self {

@@ -86,8 +86,8 @@ impl Fpga for UniversalFPGA {
         let flag_path = Path::new(config::FPGA_MANAGERS_DIR)
             .join(self.device_handle.clone())
             .join("flags");
-        trace!("Writing '{flags}' to '{flag_path:?}");
-        if let Err(e) = fs_write(&flag_path, false, flags.to_string()) {
+        trace!("Writing '{flags:x}' to '{flag_path:?}");
+        if let Err(e) = fs_write(&flag_path, false, format!("{flags:x}")) {
             error!("Failed to read state.");
             return Err(e);
         }

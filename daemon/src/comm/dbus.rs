@@ -108,6 +108,7 @@ pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadErr
 /// # Examples
 ///
 /// ```
+/// use std::path::Path;
 /// let (prefix, suffix) = make_firmware_pair(
 ///      Path::new("/lib/firmware/file.bin"),
 ///      Path::new("/lib/firmware/"),

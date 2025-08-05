@@ -126,7 +126,7 @@ know the handle.
 
 #### other properties
 
-The virtual files cotained within `/sys/class/fpga_manager/fpga*/`, which do not have specific interfaces, can be
+The virtual files contained within `/sys/class/fpga_manager/fpga*/`, which do not have specific interfaces, can be
 accessed by using ReadProperty or WriteProperty e.g.
 
 ```shell
