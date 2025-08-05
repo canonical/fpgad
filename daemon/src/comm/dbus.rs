@@ -14,7 +14,6 @@ pub mod control_interface;
 pub mod status_interface;
 
 use crate::config;
-use crate::config::FPGA_MANAGERS_DIR;
 use crate::error::FpgadError;
 use crate::system_io::{fs_read, fs_write};
 use log::trace;
@@ -22,9 +21,11 @@ use std::path::{Component, Path, PathBuf};
 
 pub fn fs_read_property(property_path_str: &str) -> Result<String, FpgadError> {
     let property_path = Path::new(property_path_str);
-    if !property_path.starts_with(Path::new(FPGA_MANAGERS_DIR)) {
+    if !property_path.starts_with(Path::new(config::FPGA_MANAGERS_DIR)) {
         return Err(FpgadError::Argument(format!(
-            "Cannot access property {property_path_str}: does not begin with {FPGA_MANAGERS_DIR}"
+            "Cannot access property {}: does not begin with {}",
+            property_path_str,
+            config::FPGA_MANAGERS_DIR
         )));
     }
     fs_read(property_path)
