@@ -73,7 +73,7 @@ impl ControlInterface {
         platform.fpga(device_handle)?.load_firmware(&suffix)?;
         Ok(format!(
             "{bitstream_path_str} loaded to {device_handle} using firmware lookup path: '\
-         {firmware_lookup_path}'"
+         {prefix:?}'"
         ))
     }
 
@@ -109,7 +109,7 @@ impl ControlInterface {
         overlay_handler.apply_overlay(&suffix)?;
         Ok(format!(
             "{overlay_source_path} loaded via {overlay_fs_path:?} using firmware lookup path: '\
-         {firmware_lookup_path}'"
+         {prefix:?}'"
         ))
     }
 

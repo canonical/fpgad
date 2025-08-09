@@ -6,7 +6,7 @@ summary: An FPGA manager daemon that handles the dirty work for you
 description: |
   An FPGA manager daemon that handles the dirty work for you.
 grade: devel # must be 'stable' to release into candidate/stable channels
-confinement: devmode # use 'strict' once you have the right plugs and slots
+confinement: strict # use 'strict' once you have the right plugs and slots
 source-code:
   - https://github.com/canonical/fpgad
 license: GPL-3.0
@@ -17,6 +17,13 @@ slots:
     interface: dbus
     bus: system
     name: com.canonical.fpgad
+plugs:
+  device-tree-overlays:
+    interface: system-files
+    read:
+      - /sys/kernel/config/device-tree/overlays
+    write:
+      - /sys/kernel/config/device-tree/overlays
 apps:
   fpgad:
     command: bin/cli
@@ -30,6 +37,8 @@ apps:
       - dbus-daemon
     plugs:
       - fpga
+      - kernel-firmware-control
+      - device-tree-overlays
     activates-on:
       - dbus-daemon
 parts:
