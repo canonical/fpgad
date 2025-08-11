@@ -17,6 +17,13 @@ slots:
     interface: dbus
     bus: system
     name: com.canonical.fpgad
+plugs:
+  device-tree-overlays:
+    interface: system-files
+    read:
+      - /sys/kernel/config/device-tree/overlays
+    write:
+      - /sys/kernel/config/device-tree/overlays
 apps:
   fpgad:
     command: bin/cli
@@ -31,6 +38,7 @@ apps:
     plugs:
       - fpga
       - kernel-firmware-control
+      - device-tree-overlays
     activates-on:
       - dbus-daemon
 parts:
