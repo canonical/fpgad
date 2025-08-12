@@ -21,17 +21,18 @@ export RUSTFLAGS="$RUSTFLAGS -C llvm-args=-runtime-counter-relocation"
 
 # build the daemon only, to avoid getting coverage for cli (no tests written)
 cargo build --bin fpgad
-# build the test binaries avoiding cli as well
-cargo test --bin fpgad --test universal --no-run
-# only run fpgad unit tests
-cargo test --bin fpgad
-
-# extract the name of the integration test binary
+# build the test binaries avoiding cli as well. Also extract the name of the integration test binary
 universal_test="$(\
-cargo test --no-run --test universal 2>&1 |\
+cargo test --no-run --bin fpgad --test universal 2>&1 |\
   grep 'tests/universal.rs' |\
   awk '{gsub(/[()]/,""); print $3}'\
 )"
+echo "universal test binary: $universal_test"
+
+# only run fpgad unit tests
+cargo test --bin fpgad
+
+
 daemon_bin=${CARGO_LLVM_COV_TARGET_DIR}/debug/fpgad
 
 # Kill any leftover processes or other daemon instances (this will not stop the snap version from spawning due to 'activates-on:`

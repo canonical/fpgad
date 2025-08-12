@@ -1,0 +1,28 @@
+job_queue: xilinx-kv260-c34038
+provision_data:
+  url: https://tel-image-cache.canonical.com/oem-share/limerick/kria-24.04/classic-24.04-x07/iot-limerick-kria-classic-server-2404-classic-24.04-x07-20250423.img.xz
+test_data:
+  attachments: # these are replaced in the workflow - local testing only
+    - agent: fpgad.gz
+      local: ./fpgad.gz
+    - agent: device-script.sh
+      local: ./device-script.sh
+  test_cmds: |
+    # get hw-cert-team helper tools
+    echo "INFO: setting up scriptlets"
+    export TOOLS_PATH=tools
+    git clone -q --depth=1 --branch main https://github.com/canonical/hwcert-jenkins-tools.git tools > /dev/null
+    export PATH="$PATH:$(pwd)/tools/scriptlets"
+
+    echo "INFO: putting files on device"
+    _put attachments/test/* :
+    echo "INFO: files in home:"
+    _run 'echo $(ls -al)'
+
+    echo "INFO: Running script on DUT"
+    _run 'chmod +x /home/ubuntu/device-script.sh'
+    _run '/home/ubuntu/device-script.sh'
+
+    echo "INFO: Retrieving artifacts"
+    mkdir -p artifacts
+    _get fpgad/artifacts/* artifacts
