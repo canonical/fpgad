@@ -1,0 +1,22 @@
+name: Run integration tests on a DUT via testflinger
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+      - labeled
+jobs:
+  testflinger-integration-tests:
+    runs-on: [self-hosted, self-hosted-linux-amd64-jammy-private-endpoint-medium]
+    #    todo: enable testflinger environment
+    #    environment:
+    #      name: testflinger
+    if: ${{ vars.TESTFLINGER_TESTS_ENABLED == '1' && ! github.event.pull_request.draft}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
