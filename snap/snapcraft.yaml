@@ -18,12 +18,12 @@ slots:
     bus: system
     name: com.canonical.fpgad
 plugs:
-  bitstreams:
+  fpgad-bitstreams:
     interface: content
     target: $SNAP_DATA/bitstreams
 apps:
   bitstreams:
-    command: ls -lah $SNAP_DATA/bitstreams/
+    command: usr/bin/find $SNAP_DATA/bitstreams/ -type f
   fpgad:
     command: bin/cli
   daemon:
@@ -40,6 +40,10 @@ apps:
     activates-on:
       - dbus-daemon
 parts:
+  find-utils:
+    plugin: nil
+    stage-packages:
+      - findutils
   version:
     plugin: nil
     source: .
