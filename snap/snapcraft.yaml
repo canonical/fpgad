@@ -17,7 +17,13 @@ slots:
     interface: dbus
     bus: system
     name: com.canonical.fpgad
+plugs:
+  bitstreams:
+    interface: content
+    target: $SNAP_DATA/bitstreams
 apps:
+  bitstreams:
+    command: ls -lah $SNAP_DATA/bitstreams/
   fpgad:
     command: bin/cli
   daemon:
