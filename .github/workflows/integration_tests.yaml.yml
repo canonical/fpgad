@@ -16,7 +16,59 @@ jobs:
     #    todo: enable testflinger environment
     #    environment:
     #      name: testflinger
-    if: ${{ vars.TESTFLINGER_TESTS_ENABLED == '1' && ! github.event.pull_request.draft}}
+    #    if: ${{ vars.TESTFLINGER_TESTS_ENABLED == '1' && ! github.event.pull_request.draft}}
+    if: ${{ !github.event.pull_request.draft }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+      - name: Install dependencies
+        shell: bash
+        run: |
+          echo "::group::install dependencies"
+            sudo snap install yq
+          echo "::endgroup::"
+      - name: Prepare Testflinger Job
+        id: prepare-tf-job
+        shell: bash
+        run: |
+          echo "::group::creating fpgad.gz tarball"
+            tar -czvf ../fpgad.gz --exclude="target" --exclude=".git" -C ../ ./fpgad
+            mv ../fpgad.gz ./fpgad.gz
+          echo "::endgroup::"
+
+          echo "::group::creating job.yaml"
+            yq '.test_data.attachments = [{ "agent": "device-script.sh", "local": "'$(pwd)'/.github/testflinger-assets/device-script.sh"}, { "agent": "fpgad.gz", "local":"'$(pwd)'/fpgad.gz"}]' .github/testflinger-assets/testflinger_job.yaml | tee job.yaml
+          echo "::endgroup::"
+
+          echo "test_path=job.yaml" >> $GITHUB_OUTPUT
+      - name: Submit TF job
+        id: submit
+        uses: canonical/testflinger/.github/actions/submit@main
+        continue-on-error: true
+        with:
+          poll: true
+          job-path: ${{ steps.prepare-tf-job.outputs.test_path }}
+      - name: Fetch and Display Artifacts
+        shell: bash
+        run: |
+          echo "::group::retrieve llvm-cov artifacts"
+            testflinger artifacts ${{steps.submit.outputs.id }}
+            tar -xvzf artifacts.tgz
+          echo "::endgroup::"
+
+          for f in artifacts/* ; do
+            echo "::group::$f"
+            cat "$f"
+            echo "::endgroup::"
+          done
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-cov-artifacts
+          path: artifacts/*
+      - name: Report test status
+        shell: bash
+        run: |
+          if [ "${{ steps.submit.outcome }}" != "success" ]; then
+            exit 1
+          fi
