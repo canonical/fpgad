@@ -34,3 +34,7 @@ docs:
 config:
   owners:
     - artiepoole
+snap:
+  owners:
+    - artiepoole
+    - talhaHavadar
