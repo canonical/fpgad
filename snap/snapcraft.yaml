@@ -17,9 +17,16 @@ slots:
     interface: dbus
     bus: system
     name: com.canonical.fpgad
+plugs:
+  fpgad-dbus:
+    interface: dbus
+    bus: system
+    name: com.canonical.fpgad
 apps:
   fpgad:
     command: bin/cli
+    plugs:
+      - fpgad-dbus
   daemon:
     command: bin/fpgad
     daemon: dbus
@@ -31,6 +38,7 @@ apps:
     plugs:
       - fpga
       - kernel-firmware-control
+      - hardware-observe
     activates-on:
       - dbus-daemon
 parts:
