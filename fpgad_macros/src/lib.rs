@@ -13,14 +13,12 @@ pub fn platform(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let mut compat_string: Option<String> = None;
     for arg in args {
-        if let Meta::NameValue(nv) = arg {
-            if nv.path.is_ident("compat_string") {
-                if let Expr::Lit(lit_expr) = nv.value {
-                    if let Lit::Str(litstr) = lit_expr.lit {
-                        compat_string = Some(litstr.value());
-                    }
-                }
-            }
+        if let Meta::NameValue(nv) = arg
+            && nv.path.is_ident("compat_string")
+            && let Expr::Lit(ref lit_expr) = nv.value
+            && let Lit::Str(ref litstr) = lit_expr.lit
+        {
+            compat_string = Some(litstr.value());
         }
     }
     let compat_string = compat_string.expect("compat_string must be provided");
