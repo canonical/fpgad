@@ -15,7 +15,7 @@ use crate::config::FPGA_MANAGERS_DIR;
 use crate::error::FpgadError;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 use crate::system_io::fs_write;
-use log::trace;
+use log::{info, trace};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
@@ -39,7 +39,7 @@ impl ControlInterface {
         device_handle: &str,
         flags: u32,
     ) -> Result<String, fdo::Error> {
-        trace!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
+        info!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
         let platform = platform_from_compat_or_device(platform_string, device_handle)?;
         platform.fpga(device_handle)?.set_flags(flags)?;
@@ -53,9 +53,7 @@ impl ControlInterface {
         bitstream_path_str: &str,
         firmware_lookup_path: &str,
     ) -> Result<String, fdo::Error> {
-        trace!(
-            "load_firmware called with name: {device_handle} and path_str: {bitstream_path_str}"
-        );
+        info!("load_firmware called with name: {device_handle} and path_str: {bitstream_path_str}");
         validate_device_handle(device_handle)?;
         let path = Path::new(bitstream_path_str);
         if !path.exists() || path.is_dir() {
@@ -84,7 +82,7 @@ impl ControlInterface {
         overlay_source_path: &str,
         firmware_lookup_path: &str,
     ) -> Result<String, fdo::Error> {
-        trace!(
+        info!(
             "apply_overlay called with platform_compat_str: {platform_compat_str}, overlay_handle: \
             {overlay_handle} and overlay_path: {overlay_source_path}",
         );
@@ -118,7 +116,7 @@ impl ControlInterface {
         platform_compat_str: &str,
         overlay_handle: &str,
     ) -> Result<String, fdo::Error> {
-        trace!(
+        info!(
             "remove_overlay called with platform_compat_str: {platform_compat_str} and overlay_handle:\
              {overlay_handle}"
         );
@@ -137,9 +135,7 @@ impl ControlInterface {
         property_path_str: &str,
         data: &str,
     ) -> Result<String, fdo::Error> {
-        trace!(
-            "write_property called with property_path_str: {property_path_str} and data: {data}"
-        );
+        info!("write_property called with property_path_str: {property_path_str} and data: {data}");
         let property_path = Path::new(property_path_str);
         if !property_path.starts_with(Path::new(FPGA_MANAGERS_DIR)) {
             return Err(fdo::Error::from(FpgadError::Argument(format!(

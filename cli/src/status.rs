@@ -117,9 +117,23 @@ async fn get_full_status_message() -> Result<String, zbus::Error> {
         let state = call_get_fpga_state(&dev).await?;
         ret_string += format!("| {dev} | {platform} | {state} |\n").as_str();
     }
-    ret_string += "\n---- OVERLAYS ----\n\
+
+    // If overlayfs not enabled, or interface not connected this will be an error.
+    let overlays = match call_get_overlays().await {
+        Ok(overlays) => {
+            ret_string += "\n---- OVERLAYS ----\n\
                    | overlay | status |\n";
-    for overlay in call_get_overlays().await? {
+            overlays
+        }
+        Err(e) => {
+            ret_string += "\n---- OVERLAYS NOT ACCESSIBLE ----\n\n\
+            errors encountered:\n";
+            ret_string += e.to_string().as_str();
+            Vec::new()
+        }
+    };
+
+    for overlay in overlays {
         // TODO: overlays do not provide enough information to work out what platform to use.
         //  so maybe the status command can take a platform type instead or something.
         //  This is tricky.
