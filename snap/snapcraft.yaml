@@ -13,12 +13,12 @@ license: GPL-3.0
 issues:
   - https://github.com/canonical/fpgad/issues
 slots:
-  dbus-daemon:
+  daemon-dbus:
     interface: dbus
     bus: system
     name: com.canonical.fpgad
 plugs:
-  fpgad-dbus:
+  cli-dbus:
     interface: dbus
     bus: system
     name: com.canonical.fpgad
@@ -26,7 +26,7 @@ apps:
   fpgad:
     command: bin/cli
     plugs:
-      - fpgad-dbus
+      - cli-dbus
   daemon:
     command: bin/fpgad
     daemon: dbus
@@ -34,13 +34,13 @@ apps:
     start-timeout: 30s
     install-mode: enable
     slots:
-      - dbus-daemon
+      - daemon-dbus
     plugs:
       - fpga
       - kernel-firmware-control
       - hardware-observe
     activates-on:
-      - dbus-daemon
+      - daemon-dbus
 parts:
   version:
     plugin: nil
