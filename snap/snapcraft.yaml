@@ -22,6 +22,9 @@ plugs:
     interface: dbus
     bus: system
     name: com.canonical.fpgad
+  provider-content:
+    interface: content
+    target: $SNAP_DATA/provider-content
 apps:
   fpgad:
     command: bin/cli
