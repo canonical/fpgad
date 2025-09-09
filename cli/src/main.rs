@@ -18,8 +18,11 @@ mod remove;
 
 mod status;
 
+mod set;
+
 use crate::load::load_handler;
 use crate::remove::remove_handler;
+use crate::set::set_handler;
 use crate::status::status_handler;
 use clap::{Parser, Subcommand, arg, command};
 use log::{debug, error};
@@ -78,6 +81,8 @@ enum Commands {
         #[command(subcommand)]
         command: LoadSubcommand,
     },
+    /// Set an option (e.g. flags) to a specific value for a given device handle
+    Set { attribute: String, value: String },
     /// Get the status information for the given device handle
     Status,
     /// Remove bitstream or an overlay
@@ -95,6 +100,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let result = match cli.command {
         Commands::Load { command } => load_handler(&cli.handle, &command).await,
         Commands::Remove { command } => remove_handler(&cli.handle, &command).await,
+        Commands::Set { attribute, value } => set_handler(&cli.handle, &attribute, &value).await,
         Commands::Status => status_handler(&cli.handle).await,
     };
     match result {
