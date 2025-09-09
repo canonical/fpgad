@@ -31,7 +31,7 @@ apps:
     plugs:
       - cli-dbus
   daemon:
-    command: bin/fpgad
+    command: bin/daemon
     daemon: dbus
     restart-condition: always
     start-timeout: 30s
@@ -64,7 +64,7 @@ parts:
     rust-path:
       - cli
     rust-channel: 'stable'
-  fpgad:
+  daemon:
     plugin: rust
     source: .
     rust-path:
