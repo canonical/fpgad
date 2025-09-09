@@ -12,11 +12,11 @@
 
 mod proxies;
 
-mod status;
-
 mod load;
 
 mod remove;
+
+mod status;
 
 use crate::load::load_handler;
 use crate::remove::remove_handler;
@@ -73,13 +73,13 @@ enum RemoveSubcommand {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Get the status information for the given device handle
-    Status,
     /// Load a bitstream or an overlay for the given device handle
     Load {
         #[command(subcommand)]
         command: LoadSubcommand,
     },
+    /// Get the status information for the given device handle
+    Status,
     /// Remove bitstream or an overlay
     Remove {
         #[command(subcommand)]
@@ -93,9 +93,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     debug!("parsed cli command with {cli:?}");
     let result = match cli.command {
-        Commands::Status => status_handler(&cli.handle).await,
         Commands::Load { command } => load_handler(&cli.handle, &command).await,
         Commands::Remove { command } => remove_handler(&cli.handle, &command).await,
+        Commands::Status => status_handler(&cli.handle).await,
     };
     match result {
         Ok(msg) => {
