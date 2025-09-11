@@ -166,3 +166,33 @@ jobs:
           echo "::group::unit test results"
           cargo test --bins
           echo "::endgroup::"
+  tics:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    env:
+      TICS_CHANGED_LIST: tics_changed.list
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get PR files
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          gh pr diff "$PR_NUMBER" --name-only >> "$TICS_CHANGED_LIST"
+          echo "::group::===== Changed Files ====="
+          cat "$TICS_CHANGED_LIST"
+          echo "::endgroup::"
+      - name: Run TICS analysis
+        uses: tiobe/tics-github-action@v3.4.0
+        with:
+          mode: client
+          project: fpgad
+          viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
+          ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
+          installTics: true
+          filelist: ${{ env.TICS_CHANGED_LIST }}
