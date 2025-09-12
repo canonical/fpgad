@@ -20,31 +20,31 @@ eval "$(cargo llvm-cov show-env --export-prefix)"
 export RUSTFLAGS="$RUSTFLAGS -C llvm-args=-runtime-counter-relocation"
 
 # build the daemon only, to avoid getting coverage for cli (no tests written)
-cargo build --bin fpgad
+cargo build --bin daemon
 # build the test binaries avoiding cli as well. Also extract the name of the integration test binary
 universal_test="$(\
-cargo test --no-run --bin fpgad --test universal 2>&1 |\
+cargo test --no-run --bin daemon --test universal 2>&1 |\
   grep 'tests/universal.rs' |\
   awk '{gsub(/[()]/,""); print $3}'\
 )"
 echo "universal test binary: $universal_test"
 
-# only run fpgad unit tests
-cargo test --bin fpgad
+# only run daemon unit tests
+cargo test --bin daemon
 
 
-daemon_bin=${CARGO_LLVM_COV_TARGET_DIR}/debug/fpgad
+daemon_bin=${CARGO_LLVM_COV_TARGET_DIR}/debug/daemon
 
 # Kill any leftover processes or other daemon instances (this will not stop the snap version from spawning due to 'activates-on:`
 
-sudo pkill fpgad || true
+sudo pkill daemon || true
 
 sudo cp ./daemon/tests/test_data/com.canonical.fpgad.conf /etc/dbus-1/system.d/com.canonical.fpgad.conf
-sudo systemctl reload dbus
+sudo systemctl reload dbus || sudo systemctl start dbus
 
 mkdir -p artifacts
 # Run the daemon with continuous log tracing
-sudo -E env RUST_LOG=trace LLVM_PROFILE_FILE="${CARGO_LLVM_COV_TARGET_DIR}/fpgad-%p%c.profraw" "$daemon_bin" &> artifacts/daemon.log &
+sudo -E env RUST_LOG=trace LLVM_PROFILE_FILE="${CARGO_LLVM_COV_TARGET_DIR}/daemon-%p%c.profraw" "$daemon_bin" &> artifacts/daemon.log &
 DAEMON_PID=$!
 
 # Wait up to 5 seconds for the daemon to print that it is ready
