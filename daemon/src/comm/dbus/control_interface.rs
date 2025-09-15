@@ -14,7 +14,7 @@ use crate::comm::dbus::{make_firmware_pair, validate_device_handle, write_firmwa
 use crate::config::FPGA_MANAGERS_DIR;
 use crate::error::FpgadError;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
-use crate::system_io::fs_write;
+use crate::system_io::{fs_write, fs_write_bytes};
 use log::{info, trace};
 use std::path::Path;
 use std::sync::Arc;
@@ -144,6 +144,24 @@ impl ControlInterface {
         }
         fs_write(property_path, false, data)?;
         Ok(format!("{data} written to {property_path_str}"))
+    }
+
+    async fn write_property_bytes(
+        &self,
+        property_path_str: &str,
+        data: &[u8],
+    ) -> Result<String, fdo::Error> {
+        info!(
+            "write_property called with property_path_str: {property_path_str} and data: {data:?}"
+        );
+        let property_path = Path::new(property_path_str);
+        if !property_path.starts_with(Path::new(FPGA_MANAGERS_DIR)) {
+            return Err(fdo::Error::from(FpgadError::Argument(format!(
+                "Cannot access property {property_path_str}: does not begin with {FPGA_MANAGERS_DIR}"
+            ))));
+        }
+        fs_write_bytes(property_path, false, data)?;
+        Ok(format!("{data:?} written to {property_path_str}"))
     }
 }
 

@@ -134,7 +134,12 @@ sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.ca
 ```
 
 ```shell
-sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteProperty ss "/sys/class/fpga_manager/fpga0/key" ""
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteProperty ss "/sys/class/fpga_manager/fpga0/flags" 0
+```
+
+```shell
+sudo busctl call --system   com.canonical.fpgad   /com/canonical/fpgad/control   com.canonical.fpgad.control   WritePropertyBytes say "/sys/class/fpga_manager/fpga0/key" 4 0xAB 0xAD 0xC0 0xDE
+sudo busctl call --system   com.canonical.fpgad   /com/canonical/fpgad/control   com.canonical.fpgad.control   WritePropertyBytes say "/sys/class/fpga_manager/fpga0/key" 8 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 # requires manual reset on kria xilinx kernels
 ```
 
 # Snap
