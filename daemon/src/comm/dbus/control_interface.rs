@@ -43,7 +43,7 @@ impl ControlInterface {
         validate_device_handle(device_handle)?;
         let platform = platform_from_compat_or_device(platform_string, device_handle)?;
         platform.fpga(device_handle)?.set_flags(flags)?;
-        Ok(format!("Flags set to {flags} for {device_handle}"))
+        Ok(format!("Flags set to 0x{flags:X} for {device_handle}"))
     }
 
     async fn write_bitstream_direct(
