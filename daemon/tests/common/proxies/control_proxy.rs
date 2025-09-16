@@ -42,4 +42,5 @@ pub trait Control {
 
     async fn remove_overlay(&self, platform_str: &str, overlay_handle: &str) -> Result<String>;
     async fn write_property(&self, property_path_str: &str, data: &str) -> Result<String>;
+    async fn write_property_bytes(&self, property_path_str: &str, data: &[u8]) -> Result<String>;
 }
