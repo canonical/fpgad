@@ -65,4 +65,4 @@ wait $DAEMON_PID || true
 
 # create a summary and full log
 cargo llvm-cov report &> artifacts/summary.txt
-cargo llvm-cov report --text &> artifacts/full_report.txt
+cargo llvm-cov report --lcov --output-path artifacts/coverage.lcov

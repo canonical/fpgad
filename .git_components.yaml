@@ -34,3 +34,6 @@ docs:
 config:
   owners:
     - artiepoole
+tests:
+  owners:
+    - artiepoole
