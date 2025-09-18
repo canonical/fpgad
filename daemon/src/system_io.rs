@@ -64,6 +64,29 @@ pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Resul
     }
 }
 
+/// Convenient wrapper for writing a vector of integers as bytes to a file
+pub fn fs_write_bytes(file_path: &Path, create: bool, data: &[u8]) -> Result<(), FpgadError> {
+    // Open the file
+    let result = OpenOptions::new()
+        .create(create)
+        .write(true)
+        .truncate(true) // usually good to overwrite old content
+        .open(file_path)
+        .and_then(|mut f| f.write_all(data));
+
+    match result {
+        Ok(_) => {
+            trace!("Write done.");
+            Ok(())
+        }
+        Err(e) => Err(FpgadError::IOWrite {
+            data: format!("{:?}", data),
+            file: file_path.into(),
+            e,
+        }),
+    }
+}
+
 /// Convenient wrapper for recursively creating directories up to `path`
 pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
     trace!("Attempting to Create '{path:?}'");
