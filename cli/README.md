@@ -1,21 +1,38 @@
 # FPGAd's CLI application
 
 ## Usage
-
 ```
 Usage: [snap run] fpgad [OPTIONS] <COMMAND>
 
-Commands:
-  load    Load a bitstream or an overlay for the given device handle
-  remove  Remove bitstream or an overlay
-  set     Write a value to an attribute within the sysfs folder e.g. to edit /sys/class/fpga_manager/fpga0/flags
-  status  Get the status information for the given device handle
-  help    Print this message or the help of the given subcommand(s)
+OPTIONs:
+  -h, --help            Print help
+      --handle <DEVICE_HANDLE>  fpga device `HANDLE` to be used for the operations.
+                       Default value for this option is calculated in runtime
+                       and the application picks the first available fpga device
+                       in the system (under `/sys/class/fpga_manager/`)
 
-Options:
-      --handle <HANDLE>  fpga device `HANDLE` to be used for the operations. Default value for this option is calculated in runtime and the application picks the first available fpga in the system (under /sys/class/fpga_manager)
-  -h, --help             Print help
-
+COMMANDs:
+├── load                Load a bitstream or overlay
+│   ├── overlay <FILE> [--handle <OVERLAY_HANDLE>]
+│   │       Load overlay (.dtbo) into the system using the default OVERLAY_HANDLE
+│   │           (either the provided DEVICE_HANDLE or "overlay0") or provide
+│   │       --handle: to name the overlay directory
+│   └── bitstream <FILE>
+│           Load bitstream (e.g. `.bit.bin` file) into the FPGA
+│
+├── set <ATTRIBUTE> <VALUE>
+│       Set an attribute/flag under `/sys/class/fpga_manager/<DEVICE_HANDLE>/<ATTRIBUTE>`
+│
+├── status [--handle <DEVICE_HANDLE>]
+│       Show FPGA status (all devices and overlays) or provide
+│       --handle: for a specific device status
+│
+└── remove              Remove an overlay or bitstream
+    ├── overlay [--handle <OVERLAY_HANDLE>]
+    │       Removes the first overlay found (call repeatedly to remove all) or provide
+    │       --handle: to remove overlay previously loaded with given OVERLAY_HANDLE
+    └── bitstream
+            Remove active bitstream from FPGA (bitstream removal is vendor specific)
 ```
 
 ### Loading

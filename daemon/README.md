@@ -45,7 +45,7 @@ To get the state of an FPGA device:
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaState ss "" "fpga0"
 ```
 
-To get the currently set flags for an FPGA device:
+To get the currently set flags for an FPGA device in hex with `0x` prefix:
 
 ```shell
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaFlags ss "" "fpga0"
@@ -79,10 +79,15 @@ busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonic
 
 #### set flags
 
-To set the flags of an FPGA device:
+To set the flags of an FPGA device to a value.
+Note, the value string is interpreted by a string parser into hex so, for example, "12" , "0b1100" or "0xB" can be used to set to the value of 12 (in decimal)
 
 ```shell
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags ssu "" "fpga0" 0
+
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags ssu "" "fpga0" 12 (converts to hex so is stored as 0xC
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags ssu "" "fpga0" 0x0C
+sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control SetFpgaFlags ssu "" "fpga0" 0b1100 (converts to hex so is stored as 0xC)
 ```
 
 #### apply an overlay
