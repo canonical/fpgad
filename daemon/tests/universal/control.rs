@@ -10,6 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+pub mod set_bytes;
 pub mod set_fpga_flags;
 pub mod write_bitstream_direct;
 pub mod write_property;
