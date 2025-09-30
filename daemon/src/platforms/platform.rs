@@ -83,7 +83,7 @@ pub trait Platform: Any {
     /// creates and inits an Fpga if not present otherwise gets the instance
     fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError>;
     /// creates and inits an OverlayHandler if not present otherwise gets the instance
-    fn overlay_handler(&self, overlay_handle: &str) -> Result<&(dyn OverlayHandler), FpgadError>;
+    fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError>;
 }
 
 fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
