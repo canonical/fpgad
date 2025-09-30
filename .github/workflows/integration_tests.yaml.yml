@@ -70,5 +70,14 @@ jobs:
         shell: bash
         run: |
           if [ "${{ steps.submit.outcome }}" != "success" ]; then
+            echo "::error::test job didn't complete successfully"
+            exit 1
+          fi
+          if [[ ! -f artifacts/coverage_test.log ]]; then
+            echo "::error::coverage_test.log not found, did the tests fail to start?"
+            exit 1
+          fi
+          if grep -q "test result: FAILED" artifacts/coverage_test.log; then
+            echo "::error::found failure phrase in coverage_test.log"
             exit 1
           fi

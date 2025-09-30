@@ -15,4 +15,5 @@ tar -xzvf fpgad.gz
 
 echo "INFO: Running test script"
 cd fpgad
-./tests/coverage_test.sh
+mkdir -p artifacts
+./tests/coverage_test.sh 2>&1 | tee artifacts/coverage_test.log
