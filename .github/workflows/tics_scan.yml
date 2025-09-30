@@ -8,6 +8,10 @@ jobs:
     secrets: inherit
     uses: ./.github/workflows/integration_tests.yml
   TICS:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     needs:
       - integration-tests
     runs-on: [self-hosted, amd64, tiobe]
