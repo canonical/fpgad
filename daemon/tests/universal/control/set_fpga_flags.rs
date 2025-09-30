@@ -33,7 +33,7 @@ use zbus::Result;
     0,
     err(displays_as(contains_substring("FpgadError::Argument:")))
 )]
-#[case::no_platform_str("", "fpga0", 0, ok(contains_substring("Flags set to 0 for fpga0")))]
+#[case::no_platform_str("", "fpga0", 0, ok(contains_substring("Flags set to 0x0 for fpga0")))]
 #[case::max_u32_val(
     PLATFORM_STRING,
     "fpga0",
@@ -50,7 +50,7 @@ use zbus::Result;
     PLATFORM_STRING,
     "fpga0",
     0,
-    ok(contains_substring("Flags set to 0 for fpga0"))
+    ok(contains_substring("Flags set to 0x0 for fpga0"))
 )]
 async fn cases<M: for<'a> Matcher<&'a Result<String>>>(
     #[case] platform_string: &str,
