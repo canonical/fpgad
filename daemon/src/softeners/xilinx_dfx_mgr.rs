@@ -54,7 +54,7 @@ impl Platform for XilinxDfxMgrPlatform {
     fn overlay_handler(
         &self,
         overlay_handle: &str,
-    ) -> Result<&(dyn crate::platforms::platform::OverlayHandler), crate::error::FpgadError> {
+    ) -> Result<&dyn crate::platforms::platform::OverlayHandler, crate::error::FpgadError> {
         Ok(self
             .overlay_handler
             .get_or_init(|| UniversalOverlayHandler::new(overlay_handle)))

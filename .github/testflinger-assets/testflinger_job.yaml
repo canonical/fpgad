@@ -1,4 +1,4 @@
-job_queue: xilinx-kv260-c34038
+job_queue: xilinx-kv260-c36973
 provision_data:
   url: https://tel-image-cache.canonical.com/oem-share/limerick/kria-24.04/classic-24.04-x07/iot-limerick-kria-classic-server-2404-classic-24.04-x07-20250423.img.xz
 test_data:
