@@ -167,6 +167,7 @@ jobs:
           cargo test --bins
           echo "::endgroup::"
   tics:
+    if: false # disabled until we get confirmation
     permissions:
       contents: read
       issues: write
