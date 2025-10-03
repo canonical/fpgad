@@ -31,9 +31,9 @@ use zbus::Connection;
 #[case::bad_path(
     PLATFORM_STRING,
     "fpga0",
-    "k26_starter_kits.bit.bin",
+    "this_file_does_not_exist.bit.bin",
     "",
-    err(displays_as(contains_substring("FpgadError::Argument:")))
+    err(displays_as(contains_substring("FpgadError::IOWrite:")))
 )]
 async fn should_fail_not_timeout<M: for<'a> Matcher<&'a zbus::Result<String>>>(
     #[case] platform_str: &str,
