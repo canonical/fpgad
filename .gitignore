@@ -13,3 +13,6 @@ __pycache__/
 
 # IDE files
 .idea
+
+# local data
+sandbox/

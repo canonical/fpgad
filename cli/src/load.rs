@@ -15,8 +15,15 @@ use crate::proxies::control_proxy;
 use crate::status::{
     call_get_platform_type, call_get_platform_types, get_first_device_handle, get_first_platform,
 };
+use std::path;
 use zbus::Connection;
 
+fn sanitize_path_str(in_str: &str) -> String {
+    path::absolute(in_str)
+        .expect("Failed to resolve path")
+        .to_string_lossy()
+        .to_string()
+}
 /// Sends the dbus command to load a bitstream
 async fn call_load_bitstream(
     platform_str: &str,
@@ -84,8 +91,13 @@ async fn apply_overlay(
             (platform, overlay)
         }
     };
-
-    call_apply_overlay(&platform, file_path, &overlay_handle_to_use, "").await
+    call_apply_overlay(
+        &platform,
+        sanitize_path_str(file_path).as_str(),
+        &overlay_handle_to_use,
+        "",
+    )
+    .await
 }
 
 /// Populates the device_handle appropriately before calling `call_load_bitstream`
@@ -97,7 +109,7 @@ async fn load_bitstream(
         None => get_first_device_handle().await?,
         Some(dev) => dev.clone(),
     };
-    call_load_bitstream("", &dev, file_path, "").await
+    call_load_bitstream("", &dev, sanitize_path_str(file_path).as_str(), "").await
 }
 
 /// Argument parser for the load command
