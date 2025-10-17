@@ -80,7 +80,7 @@ pub fn fs_write_bytes(file_path: &Path, create: bool, data: &[u8]) -> Result<(),
             Ok(())
         }
         Err(e) => Err(FpgadError::IOWrite {
-            data: format!("{:?}", data),
+            data: format!("{data:?}"),
             file: file_path.into(),
             e,
         }),
