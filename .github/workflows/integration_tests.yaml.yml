@@ -62,7 +62,7 @@ jobs:
             echo "::endgroup::"
           done
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: llvm-cov-artifacts
           path: artifacts/*
