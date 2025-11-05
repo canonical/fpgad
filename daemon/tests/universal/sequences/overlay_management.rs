@@ -369,7 +369,7 @@ async fn io_errors(
             .get_overlay_status(good_platform_handle, overlay_handle)
             .await
             .expect("failed to read overlay status");
-        expect_that!(s, contains_substring("not present"));
+        expect_that!(s, contains_substring("unapplied"));
     }
 
     // remove if applied by accident
