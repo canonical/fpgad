@@ -41,15 +41,19 @@ plugs:
     target: $SNAP_DATA/provider-content
   device-tree-overlays:
     interface: system-files
-    read:
-      - /sys/kernel/config/device-tree/overlays
     write:
       - /sys/kernel/config/device-tree/overlays
+  dfx-mgr-socket:
+    interface: system-files
+    write:
+      - /run/dfx-mgrd.socket
 apps:
   fpgad:
     command: bin/fpgad_cli
     plugs:
       - cli-dbus
+    aliases:
+      - cli
   daemon:
     command: bin/fpgad
     daemon: dbus
@@ -90,3 +94,21 @@ parts:
     rust-path:
       - daemon
     rust-channel: 'stable'
+  dfx-mgr:
+    plugin: nil
+    stage-packages:
+      - dfx-mgr
+    override-stage: |
+      craftctl default
+      cat << 'EOF' > $SNAPCRAFT_PART_INSTALL/etc/dfx-mgrd/daemon.conf
+      {
+        "firmware_location": [
+          "/var/snap/fpgad/current/provider-content/"
+        ]
+      }
+      EOF
+# TODO: the daemon.conf should be copied into $SNAP_COMMON on install hook if - and only if - it doesn't already exist
+layout:
+  # For configuration files
+  /etc/dfx-mgrd:
+    bind: $SNAP_COMMON/etc/dfx-mgrd
