@@ -424,7 +424,7 @@ impl ControlInterface {
         sleep(Duration::from_secs(2)).await;
 
         let output = Command::new(&dfx_mgr_client_path)
-            .arg("--list")
+            .args(cmd_string.split_whitespace())
             .output()
             .await
             .expect("failed to run dfx-mgr client"); // todo: return error instead
