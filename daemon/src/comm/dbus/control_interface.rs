@@ -22,9 +22,13 @@ use crate::error::FpgadError;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 use crate::system_io::{fs_write, fs_write_bytes};
 use log::{info, trace};
+use std::env;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::process::Command;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
+use tokio::time::sleep;
 use zbus::{fdo, interface};
 
 /// A mutex lock which implicitly inhibits asynchronous control of the firmware search path.
@@ -395,6 +399,55 @@ impl ControlInterface {
         fs_write_bytes(property_path, false, data)?;
         Ok(format!(
             "Byte string successfully written to {property_path_str}"
+        ))
+    }
+
+    #[cfg(feature = "xilinx-dfx-mgr")]
+    async fn dfx_mgr(&self, cmd_string: &str) -> Result<String, fdo::Error> {
+        let snap_env = env::var("SNAP").map_err(|_| {
+            fdo::Error::Failed(
+                "Cannot find dfx-mgr because $SNAP not specified in environment".into(),
+            )
+        })?;
+        let dfx_mgrd_path = format!("{}/usr/bin/dfx-mgrd", snap_env);
+        let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", snap_env);
+
+        let mut daemon = Command::new(&dfx_mgrd_path)
+            .arg("--config")
+            .arg("/etc/dfx-mgrd/daemon.conf")
+            .spawn()
+            .expect("failed to start dfx-mgrd"); // todo: return error instead
+
+        info!("dfx-mgrd started (pid = {:?})", daemon.id());
+
+        //  todo: find a better way to wait for service to start.
+        sleep(Duration::from_secs(2)).await;
+
+        let output = Command::new(&dfx_mgr_client_path)
+            .arg("--list")
+            .output()
+            .await
+            .expect("failed to run dfx-mgr client"); // todo: return error instead
+
+        // Exit status
+        if output.status.success() {
+            info!("Command ran successfully!");
+        } else {
+            info!("Command failed with code: {:?}", output.status.code());
+        }
+
+        daemon
+            .kill()
+            .await
+            .map_err(|_| fdo::Error::Failed("Could not send kill to dfx-mgrd?".into()))?;
+        daemon
+            .wait()
+            .await
+            .map_err(|_| fdo::Error::Failed("Failed to wait for dfx-mgrd to stop".into()))?;
+
+        info!("dfx-mgrd stopped cleanly");
+        Ok(format!(
+            "dfx-mgr called with args {cmd_string}. dfx-mgr-client output: {output:?}"
         ))
     }
 }
