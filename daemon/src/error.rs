@@ -126,3 +126,12 @@ impl From<FpgadError> for fdo::Error {
         }
     }
 }
+
+/// Helper function to map IO errors to fdo::Error with a custom message.
+///
+/// This is useful when you want to provide more context about what operation failed
+/// without creating a full FpgadError variant.
+pub(crate) fn map_error_io_to_fdo(custom_msg: &str, err: impl std::fmt::Display) -> fdo::Error {
+    fdo::Error::Failed(format!("{custom_msg}:\n{err}"))
+}
+

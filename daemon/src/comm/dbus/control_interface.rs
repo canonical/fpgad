@@ -19,11 +19,14 @@
 use crate::comm::dbus::{
     make_firmware_pair, validate_device_handle, validate_property_path, write_firmware_source_dir,
 };
+use crate::error::map_error_io_to_fdo;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 use crate::system_io::{fs_write, fs_write_bytes};
 use log::{info, trace};
+use std::env;
 use std::path::Path;
 use std::sync::Arc;
+use tokio::process::Command;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use zbus::{fdo, interface};
 
@@ -385,6 +388,40 @@ impl ControlInterface {
         fs_write_bytes(&property_path, false, data)?;
         Ok(format!(
             "Byte string successfully written to {property_path_str}"
+        ))
+    }
+
+    #[cfg(feature = "xilinx-dfx-mgr")]
+    async fn dfx_mgr(&self, cmd_string: &str) -> Result<String, fdo::Error> {
+        let snap_env = env::var("SNAP").map_err(|_| {
+            fdo::Error::Failed(
+                "Cannot find dfx-mgr because $SNAP not specified in environment".into(),
+            )
+        })?;
+
+        let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", snap_env);
+
+        let output = Command::new(&dfx_mgr_client_path)
+            .args(cmd_string.split_whitespace())
+            .output()
+            .await
+            .map_err(|e| {
+                map_error_io_to_fdo("dfx-mgr-client call failed to produce any output", e)
+            })?;
+
+        // Exit status
+        if output.status.success() {
+            info!("Command ran successfully!");
+        } else {
+            info!("Command failed with code: {:#?}", output.status.code());
+        }
+
+        Ok(format!(
+            "dfx-mgr called with args {}.\nExit status: {}\nStdout:\n{}\nStderr:\n{}",
+            cmd_string,
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
         ))
     }
 }
