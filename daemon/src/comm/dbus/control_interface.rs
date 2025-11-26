@@ -18,7 +18,7 @@
 
 use crate::comm::dbus::{make_firmware_pair, validate_device_handle, write_firmware_source_dir};
 use crate::config::FPGA_MANAGERS_DIR;
-use crate::error::FpgadError;
+use crate::error::{FpgadError, map_error_io_to_fdo};
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 use crate::system_io::{fs_write, fs_write_bytes};
 use log::{info, trace};
@@ -416,7 +416,7 @@ impl ControlInterface {
             .arg("--config")
             .arg("/etc/dfx-mgrd/daemon.conf")
             .spawn()
-            .expect("failed to start dfx-mgrd"); // todo: return error instead
+            .map_err(|e| map_error_io_to_fdo("Could not start dfx-mgrd.", e))?;
 
         info!("dfx-mgrd started (pid = {:?})", daemon.id());
 
@@ -427,7 +427,9 @@ impl ControlInterface {
             .args(cmd_string.split_whitespace())
             .output()
             .await
-            .expect("failed to run dfx-mgr client"); // todo: return error instead
+            .map_err(|e| {
+                map_error_io_to_fdo("dfx-mgr-client call failed to produce any output", e)
+            })?;
 
         // Exit status
         if output.status.success() {
@@ -439,11 +441,11 @@ impl ControlInterface {
         daemon
             .kill()
             .await
-            .map_err(|_| fdo::Error::Failed("Could not send kill to dfx-mgrd?".into()))?;
+            .map_err(|e| map_error_io_to_fdo("Could not send kill to dfx-mgrd?", e))?;
         daemon
             .wait()
             .await
-            .map_err(|_| fdo::Error::Failed("Failed to wait for dfx-mgrd to stop".into()))?;
+            .map_err(|e| map_error_io_to_fdo("Failed to wait for dfx-mgrd to stop?", e))?;
 
         info!("dfx-mgrd stopped cleanly");
         Ok(format!(
