@@ -48,6 +48,9 @@ impl Platform for XilinxDfxMgrPlatform {
         &self,
         device_handle: &str,
     ) -> Result<&dyn crate::platforms::platform::Fpga, crate::error::FpgadError> {
+        // TODO(artie): perhaps this should warn the user that they are using a dfx-mgr capable
+        // system but are not currently using that backend - warn that this is not suitable for
+        // versal
         Ok(self.fpga.get_or_init(|| UniversalFPGA::new(device_handle)))
     }
 
@@ -55,6 +58,9 @@ impl Platform for XilinxDfxMgrPlatform {
         &self,
         overlay_handle: &str,
     ) -> Result<&dyn crate::platforms::platform::OverlayHandler, crate::error::FpgadError> {
+        // TODO(artie): perhaps this should warn the user that they are using a dfx-mgr capable
+        // system but are not currently using that backend - warn that this is not suitable for
+        // versal
         Ok(self
             .overlay_handler
             .get_or_init(|| UniversalOverlayHandler::new(overlay_handle)))
