@@ -10,31 +10,23 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use std::io;
+use std::env;
 use std::path::Path;
-use std::process::Command;
 use std::sync::OnceLock;
 
-use log::trace;
-
-use crate::platforms::platform::Platform;
-use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
-use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
+use crate::error::FpgadError;
+use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use crate::softeners::error::FpgadSoftenerError;
+use crate::softeners::xilinx_dfx_mgr_fpga::XilinxDfxMgrFPGA;
+use crate::softeners::xilinx_dfx_mgr_overlay_handler::XilinxDfxMgrOverlayHandler;
 use fpgad_macros::platform;
+use log::trace;
 
 #[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0")]
 pub struct XilinxDfxMgrPlatform {
-    fpga: OnceLock<UniversalFPGA>,
-    overlay_handler: OnceLock<UniversalOverlayHandler>,
+    fpga: OnceLock<XilinxDfxMgrFPGA>,
+    overlay_handler: OnceLock<XilinxDfxMgrOverlayHandler>,
 }
-
-impl Default for XilinxDfxMgrPlatform {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 
 impl XilinxDfxMgrPlatform {
     pub fn new() -> Self {
@@ -45,21 +37,24 @@ impl XilinxDfxMgrPlatform {
         }
     }
 }
+
 impl Platform for XilinxDfxMgrPlatform {
-    fn fpga(
-        &self,
-        device_handle: &str,
-    ) -> Result<&dyn crate::platforms::platform::Fpga, crate::error::FpgadError> {
-        Ok(self.fpga.get_or_init(|| UniversalFPGA::new(device_handle)))
+    fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError> {
+        // TODO(artie): perhaps this should warn the user that they are using a dfx-mgr capable
+        // system but are not currently using that backend - warn that this is not suitable for
+        // versal
+        Ok(self
+            .fpga
+            .get_or_init(|| XilinxDfxMgrFPGA::new(device_handle)))
     }
 
-    fn overlay_handler(
-        &self,
-        overlay_handle: &str,
-    ) -> Result<&dyn crate::platforms::platform::OverlayHandler, crate::error::FpgadError> {
+    fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError> {
+        // TODO(artie): perhaps this should warn the user that they are using a dfx-mgr capable
+        // system but are not currently using that backend - warn that this is not suitable for
+        // versal
         Ok(self
             .overlay_handler
-            .get_or_init(|| UniversalOverlayHandler::new(overlay_handle)))
+            .get_or_init(|| XilinxDfxMgrOverlayHandler::new(overlay_handle)))
     }
 }
 
@@ -155,15 +150,6 @@ pub fn get_clock_fd() -> Result<String, FpgadSoftenerError> {
     run_dfx_mgr(&["-getClockFD"])
 }
 
-/// Load a bitstream file using dfx-mgr
-///
-/// # Arguments
-///
-/// * `bitstream_path` - Path to the bitstream file to load
-///
-/// # Returns: `Result<String, FpgadSoftenerError>`
-/// * `Ok(String)` - Output from dfx-mgr-client
-/// * `Err(FpgadSoftenerError::DfxMgr)` - Path contains invalid UTF-8 or dfx-mgr-client failed
 pub fn load_bitstream(bitstream_path: &Path) -> Result<String, FpgadSoftenerError> {
     let path_str = bitstream_path.to_str().ok_or_else(|| {
         FpgadSoftenerError::DfxMgr(format!(
@@ -178,35 +164,50 @@ pub fn load_bitstream(bitstream_path: &Path) -> Result<String, FpgadSoftenerErro
 ///
 /// # Arguments
 ///
-/// * `_bitstream_path` - Path to the bitstream file (unused, TODO)
-/// * `_dtbo_path` - Path to the device tree overlay file (unused, TODO)
+/// * `bitstream_path` - Path to the bitstream file
+/// * `dtbo_path` - Path to the device tree overlay file
 ///
 /// # Returns: `Result<String, FpgadSoftenerError>`
-/// * This function is not yet implemented and will panic with `todo!()`
-///
-/// # Note
-///
-/// This function is a placeholder for future implementation.
+/// * `Ok(String)` - Output from dfx-mgr-client
+/// * `Err(FpgadSoftenerError::DfxMgr)` - Path contains invalid UTF-8 or dfx-mgr-client failed
 #[allow(dead_code)]
-pub fn load_overlay(
-    _bitstream_path: &Path,
-    _dtbo_path: &Path,
-) -> Result<String, FpgadSoftenerError> {
-    todo!()
+pub fn load_overlay(bitstream_path: &Path, dtbo_path: &Path) -> Result<String, FpgadSoftenerError> {
+    let bitstream_str = bitstream_path.to_str().ok_or_else(|| {
+        FpgadSoftenerError::DfxMgr(format!(
+            "Bitstream path contains invalid UTF-8: {}",
+            bitstream_path.display()
+        ))
+    })?;
+
+    let dtbo_str = dtbo_path.to_str().ok_or_else(|| {
+        FpgadSoftenerError::DfxMgr(format!(
+            "DTBO path contains invalid UTF-8: {}",
+            dtbo_path.display()
+        ))
+    })?;
+
+    run_dfx_mgr(&["-o", dtbo_str, "-b", bitstream_str])
 }
 
 /// Helper to run the dfx-mgr-client binary with arguments
 fn run_dfx_mgr(args: &[&str]) -> Result<String, FpgadSoftenerError> {
-    let output = Command::new("sudo")
-        .arg("dfx-mgr-client")
+    let snap_env = env::var("SNAP").unwrap_or("".to_string());
+
+    let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", snap_env);
+    trace!("Calling dfx-mgr with args {:#?}", args);
+    let output = std::process::Command::new(&dfx_mgr_client_path)
         .args(args)
         .output()
-        .map_err(FpgadSoftenerError::DfxMgr)?;
+        .map_err(|e| {
+            FpgadSoftenerError::DfxMgr(format!("dfx-mgr-client failed to produce output: {e}"))
+        })?;
+
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
-        Err(FpgadSoftenerError::DfxMgr(io::Error::other(
-            String::from_utf8_lossy(&output.stderr).to_string(),
+        Err(FpgadSoftenerError::DfxMgr(format!(
+            "dfx-mgr-client failed. Exit status: {}\nStdout:\n{:#?}\nStderr:\n{:#?}",
+            output.status, output.status, output.stderr
         )))
     }
 }

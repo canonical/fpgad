@@ -415,11 +415,8 @@ impl ControlInterface {
 
     #[cfg(feature = "xilinx-dfx-mgr")]
     async fn dfx_mgr(&self, cmd_string: &str) -> Result<String, fdo::Error> {
-        let snap_env = env::var("SNAP").map_err(|_| {
-            fdo::Error::Failed(
-                "Cannot find dfx-mgr because $SNAP not specified in environment".into(),
-            )
-        })?;
+        if cfg!(feature = "xilinx-dfx-mgr") {
+            let snap_env = env::var("SNAP").unwrap_or("".to_string());
 
         let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", snap_env);
 
