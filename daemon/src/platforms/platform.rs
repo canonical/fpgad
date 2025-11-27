@@ -312,6 +312,7 @@ pub fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>,
         let compat_set: HashSet<&str> = compat_string.split(',').collect();
         let compat_found = platform_string.split(',').all(|x| compat_set.contains(x));
         if compat_found {
+            trace!("found `{compat_found}` for platform with compat string `{platform_string}`");
             return Ok(platform_constructor());
         }
     }
@@ -349,10 +350,16 @@ pub fn discover_platform(device_handle: &str) -> Result<Box<dyn Platform>, Fpgad
     let compat_string = read_compatible_string(device_handle)?;
     trace!("Found compatibility string: '{compat_string}'");
 
-    Ok(match_platform_string(&compat_string).unwrap_or({
-        warn!("{compat_string} not supported. Defaulting to Universal platform.");
-        Box::new(UniversalPlatform::new())
-    }))
+    match match_platform_string(&compat_string) {
+        Ok(platform) => {
+            trace!("Matched platform for compatibility string: '{compat_string}'");
+            Ok(platform)
+        }
+        Err(_) => {
+            warn!("{compat_string} not supported. Defaulting to Universal platform.");
+            Ok(Box::new(UniversalPlatform::new()))
+        }
+    }
 }
 
 /// Read the device tree compatible string for an FPGA device.
@@ -536,7 +543,7 @@ pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
     fs_read_dir(config::FPGA_MANAGERS_DIR.as_ref())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "xilinx-dfx-mgr"))]
 mod tests {
     use super::*;
     use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
