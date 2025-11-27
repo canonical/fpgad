@@ -13,9 +13,10 @@
 use crate::error::FpgadError;
 use crate::platforms::platform::OverlayHandler;
 use crate::softeners::error::FpgadSoftenerError;
-use crate::softeners::xilinx_dfx_mgr;
+use crate::softeners::{xilinx_dfx_mgr, xilinx_dfx_mgr_helpers};
+use crate::system_io;
+use log::{debug, trace};
 use std::option::Option;
-
 use std::path::Path;
 
 pub struct XilinxDfxMgrOverlayHandler {}
@@ -26,14 +27,34 @@ impl XilinxDfxMgrOverlayHandler {
     }
 }
 impl OverlayHandler for XilinxDfxMgrOverlayHandler {
-    fn apply_overlay(
-        &self,
-        _source_path: &Path,
-        _lookup_path: &Path,
-    ) -> Result<String, FpgadError> {
-        // todo: search for bitstream in overlay dir
-        //  xilinx_dfx_mgr::load_overlay(bitstream_path, _source_path)
-        todo!()
+    fn apply_overlay(&self, source_path: &Path, lookup_path: &Path) -> Result<String, FpgadError> {
+        trace!(
+            "apply_overlay called with source_path='{}', lookup_path='{}'",
+            source_path.display(),
+            lookup_path.display()
+        );
+        let (parent_dir, _) = system_io::extract_path_and_filename(source_path)?;
+        // Extract firmware-name from the .dtbo file using fdtdump
+        let firmware_name = xilinx_dfx_mgr_helpers::extract_firmware_name(source_path)?;
+        debug!("Extracted firmware-name='{}' from dtbo", firmware_name);
+
+        // Construct the bitstream path in the lookup_path
+        let bitstream_path = parent_dir.join(&firmware_name);
+
+        // Verify the bitstream file exists
+        if !bitstream_path.exists() {
+            return Err(FpgadSoftenerError::DfxMgr(format!(
+                "Bitstream file '{}' not found in lookup path '{}'",
+                firmware_name,
+                parent_dir.display()
+            ))
+            .into());
+        }
+
+        trace!("Found bitstream at '{}'", bitstream_path.display());
+
+        // Call dfx-mgr with -o <source_path> -b <bitstream_path>
+        xilinx_dfx_mgr::load_overlay(&bitstream_path, source_path).map_err(|e| e.into())
     }
 
     fn remove_overlay(&self, slot_handle: Option<&str>) -> Result<String, FpgadError> {

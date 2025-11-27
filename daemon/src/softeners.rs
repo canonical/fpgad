@@ -15,3 +15,9 @@ pub mod error;
 
 #[cfg(feature = "xilinx-dfx-mgr")]
 pub mod xilinx_dfx_mgr;
+#[cfg(feature = "xilinx-dfx-mgr")]
+mod xilinx_dfx_mgr_fpga;
+#[cfg(feature = "xilinx-dfx-mgr")]
+mod xilinx_dfx_mgr_helpers;
+#[cfg(feature = "xilinx-dfx-mgr")]
+mod xilinx_dfx_mgr_overlay_handler;
