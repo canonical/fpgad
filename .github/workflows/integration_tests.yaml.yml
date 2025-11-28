@@ -82,10 +82,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: canonical/action-build@v1.3.0
+        id: snapcraft
       - uses: actions/upload-artifact@v4
         id: upload-snap
         with:
-          name: snap-fpgad-${{ github.event.pull_request.head.sha }}
+          name: snap-fpgad-${{ github.event.pull_request != null && github.event.pull_request.head.sha || 'workflow-dispatch' }}
           path: ${{ steps.snapcraft.outputs.snap }}
   # This will test the snap using cli
   snap-integration-tests:
