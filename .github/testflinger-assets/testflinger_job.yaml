@@ -5,8 +5,8 @@ test_data:
   attachments: # these are replaced in the workflow - local testing only
     - agent: fpgad.gz
       local: ./fpgad.gz
-    - agent: device-script.sh
-      local: ./device-script.sh
+    - agent: device_script.sh
+      local: ./device_script.sh
   test_cmds: |
     # get hw-cert-team helper tools
     echo "INFO: setting up scriptlets"
@@ -20,8 +20,8 @@ test_data:
     _run 'echo $(ls -al)'
 
     echo "INFO: Running script on DUT"
-    _run 'chmod +x /home/ubuntu/device-script.sh'
-    _run '/home/ubuntu/device-script.sh'
+    _run 'chmod +x /home/ubuntu/device_script.sh'
+    _run '/home/ubuntu/device_script.sh'
 
     echo "INFO: Retrieving artifacts"
     mkdir -p artifacts
