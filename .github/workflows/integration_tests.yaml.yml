@@ -113,13 +113,11 @@ jobs:
         id: prepare-tf-job
         run: |
           echo "::group::Preparing fpgad.snap"
-            SRC="${{ steps.download-snap.outputs.download-path }}"
+            SRC=$(find "${{ steps.download-snap.outputs.download-path }}" -maxdepth 1 -name "*.snap" | head -n 1)
             DEST="$(pwd)/fpgad.snap"
-            echo "Downloaded snap path: $SRC"
-            echo "Target path: $DEST"
             # Check that the source file exists
-            if [ ! -f "$SRC" ]; then
-              echo "::error::ERROR: Snap file not found at: $SRC"
+            if [[ -z "$SRC" || ! -f "$SRC" ]]; then
+            echo "::error::Snap file not found at: $SRC"
               exit 1
             fi
             # Move file
