@@ -8,6 +8,7 @@ import subprocess
 
 import unittest
 from pathlib import Path
+from subprocess import CompletedProcess
 from typing import List
 
 import shutil
@@ -131,6 +132,35 @@ class TestStringMethods(unittest.TestCase):
 
         return 0
 
+    def load_bitstream(self, path: Path) -> CompletedProcess[str]:
+        """
+        One line wrapper for calling fpgad to load a bitstream
+        (may have more functionality added in future)
+        :rtype: CompletedProcess[str]
+        :param path: path to the bitstream to load
+        :return:
+        """
+        return self.run_fpgad(["load", "bitstream", str(path)])
+
+    def load_overlay(self, path: Path) -> CompletedProcess[str]:
+        """
+        One line wrapper for calling fpgad to load an overlay
+        (may have more functionality added in future)
+        :rtype: CompletedProcess[str]
+        :param path: path to the overlay to load
+        :return: the completed process object, containing return code and captured output
+        """
+        return self.run_fpgad(["load", "overlay", str(path)])
+
+    def cleanup_applied_overlays(self):
+        """
+        Wrapper to handle discovering and removing all overlays.
+        Use before attempting to test the loading of an overlay.
+        :return: the completed process object, containing return code and captured output
+        """
+        # todo: implement
+        raise NotImplementedError()
+
     def run_fpgad(self, args: List[str]) -> subprocess.CompletedProcess[str]:
         """
         Run the fpgad cli with provided args as a subprocess
@@ -154,9 +184,10 @@ class TestStringMethods(unittest.TestCase):
     # --------------------------------------------------------
     # load bitstream tests
     # --------------------------------------------------------
+
     def test_load_bitstream_local(self):
         path_str = "./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"
-        proc = self.run_fpgad(["load", "bitstream", path_str])
+        proc = self.load_bitstream(Path(path_str))
         self.assertEqual(
             proc.returncode,
             0,
@@ -166,7 +197,7 @@ class TestStringMethods(unittest.TestCase):
 
     def test_load_bitstream_home_fullpath(self):
         path_str = "$(pwd)/fpgad/k26-starter-kits/k26_starter_kits.bit.bin"
-        proc = self.run_fpgad(["load", "bitstream", path_str])
+        proc = self.load_bitstream(Path(path_str))
         self.assertEqual(
             proc.returncode,
             0,
@@ -187,7 +218,7 @@ class TestStringMethods(unittest.TestCase):
             )
             raise e
 
-        proc = self.run_fpgad(["load", "bitstream", str(test_file_paths.target)])
+        proc = self.load_bitstream(test_file_paths.target)
 
         try:
             self.cleanup_test_data_files(test_file_paths)
@@ -222,7 +253,7 @@ class TestStringMethods(unittest.TestCase):
             )
             raise e
 
-        proc = self.run_fpgad(["load", "bitstream", str(test_file_paths.target)])
+        proc = self.load_bitstream(test_file_paths.target)
 
         try:
             self.cleanup_test_data_files(test_file_paths)
@@ -243,7 +274,7 @@ class TestStringMethods(unittest.TestCase):
         )
 
     def test_load_bitstream_path_not_exist(self):
-        proc = self.run_fpgad(["load", "bitstream", "/this/path/is/fake.bit.bin"])
+        proc = self.load_bitstream(Path("/this/path/is/fake.bit.bin"))
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("FpgadError::IOWrite:", proc.stderr)
         self.assertIn(
@@ -253,7 +284,7 @@ class TestStringMethods(unittest.TestCase):
         )
 
     def test_load_bitstream_containing_dir(self):
-        proc = self.run_fpgad(["load", "bitstream", "$(pwd)/fpgad/k26-starter-kits/"])
+        proc = self.load_bitstream(Path("$(pwd)/fpgad/k26-starter-kits/"))
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("FpgadError::IOWrite:", proc.stderr)
         self.assertIn(
@@ -269,6 +300,25 @@ class TestStringMethods(unittest.TestCase):
     # --------------------------------------------------------
     # status tests
     # --------------------------------------------------------
+
+    ### status cases:
+    #  with only bitstream, no overlay
+    #  with loaded bitstream and overlay
+    #  after failing to load an overlay (bad path/bitstream name)
+
+    def test_status_with_bitstream(self):
+        self.cleanup_applied_overlays()
+        pass
+
+    def test_status_with_overlay(self):
+        # todo: check for existing overlay, and remove if there.
+        self.cleanup_applied_overlays()
+        pass
+
+    def test_status_failed_overlay(self):
+        # todo: check for existing overlay, and remove if there.
+        self.cleanup_applied_overlays()
+        pass
 
     # --------------------------------------------------------
     # set tests
