@@ -60,7 +60,7 @@ class Colors:
     RESET = "\033[0m"
 
 
-class TestStringMethods(unittest.TestCase):
+class TestFPGAdCLI(unittest.TestCase):
     # ============================================================
     # ======================= USEFUL DATA ========================
     # ============================================================
@@ -168,23 +168,26 @@ class TestStringMethods(unittest.TestCase):
 
     @staticmethod
     def cleanup_applied_overlays():
-        """
-        Wrapper to handle discovering and removing all overlays using system calls instead of fpgad.
-        Use before attempting to test the loading of an overlay.
-        :return: the completed process object, containing return code and captured output
-        """
-        directory = r"/sys/kernel/config/device-tree/overlays/"
+        directory = "/sys/kernel/config/device-tree/overlays/"
         print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} Cleaning up applied overlays")
-        # Loop through all overlays and delete them
+
         for item in os.listdir(directory):
             item_path = os.path.join(directory, item)
-            # Check if the item is a folder
             if os.path.isdir(item_path):
-                # Delete the folder and all its contents
-                shutil.rmtree(item_path)
-                print(
-                    f"\n{Colors.CYAN}[INFO]{Colors.RESET} deleting overlay at {item_path}"
-                )
+                try:
+                    os.rmdir(item_path)  # Remove the directory itself
+                    print(
+                        f"{Colors.CYAN}[INFO]{Colors.RESET} Removed overlay directory at {item_path}"
+                    )
+                except PermissionError:
+                    print(
+                        f"{Colors.RED}[ERROR]{Colors.RESET} Permission denied removing {item_path}. Run as root."
+                    )
+                except OSError as e:
+                    # This happens if the directory is not empty
+                    print(
+                        f"{Colors.RED}[ERROR]{Colors.RESET} Failed to remove {item_path}: {e}"
+                    )
 
     @staticmethod
     def reset_flags():
