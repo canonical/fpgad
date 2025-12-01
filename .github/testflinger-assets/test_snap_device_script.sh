@@ -9,9 +9,7 @@ echo "INFO: Preparing device"
 echo "- Removing fpgad that was installed from snap store"
 sudo snap remove fpgad --purge
 echo "- Removing dfx-mgr"
-sudo apt remove dfx-mgr || true
-echo "- Resetting flags to 0"
-echo 0 | sudo tee /sys/class/fpga_manager/fpga0/flags
+sudo apt remove -y dfx-mgr || true
 
 echo "- Ensuring snapd is not too busy"
 # Otherwise attempting to make connections will error due to, e.g., `error: snap "snapd" has "auto-refresh" change in progress`

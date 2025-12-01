@@ -4,6 +4,7 @@ FPGA snap test framework using a well-defined named test type
 with human-readable output.
 """
 
+import os
 import subprocess
 
 import unittest
@@ -41,6 +42,7 @@ import shutil
 # set RO value like state?
 # set flags to 0
 
+
 ### help cases:
 # check help at root
 # check for load
@@ -50,17 +52,18 @@ import shutil
 # check for status
 
 
+class Colors:
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    CYAN = "\033[96m"
+    RESET = "\033[0m"
+
+
 class TestStringMethods(unittest.TestCase):
     # ============================================================
     # ======================= USEFUL DATA ========================
     # ============================================================
-
-    class Colors:
-        GREEN = "\033[92m"
-        RED = "\033[91m"
-        YELLOW = "\033[93m"
-        CYAN = "\033[96m"
-        RESET = "\033[0m"
 
     class TestData:
         def __init__(self, source: Path, target: Path):
@@ -77,7 +80,24 @@ class TestStringMethods(unittest.TestCase):
     # ===================== HELPER FUNCTIONS =====================
     # ============================================================
 
-    def copy_test_data_files(self, test_file: TestData) -> int:
+    @classmethod
+    def setUpClass(cls):
+        """
+        Runs once before all tests in this class. cls can only be used to call class methods or static methods
+        """
+        cls.cleanup_applied_overlays()
+        cls.reset_flags()
+
+    @classmethod
+    def tearDownClass(cls):
+        """
+        Runs once after all tests in this class
+        """
+        cls.cleanup_applied_overlays()
+        cls.reset_flags()
+
+    @staticmethod
+    def copy_test_data_files(test_file: TestData) -> int:
         """
         Copied a file from test_file.source to test_file.target, use to, e.g., copy a bitstream.
         Use in conjunction with cleanup_test_data_files to test loading from a custom location.
@@ -88,9 +108,7 @@ class TestStringMethods(unittest.TestCase):
         src = Path(test_file.source)
 
         if not src.exists():
-            print(
-                f"\n{self.Colors.YELLOW}[WARN]{self.Colors.RESET} Source file missing: {src}"
-            )
+            print(f"\n{Colors.YELLOW}[WARN]{Colors.RESET} Source file missing: {src}")
             return -1
 
         target = test_file.target
@@ -99,35 +117,31 @@ class TestStringMethods(unittest.TestCase):
         # Ensure directory exists
         target_path.parent.mkdir(parents=True, exist_ok=True)
 
-        print(
-            f"\n{self.Colors.CYAN}[INFO]{self.Colors.RESET} Copying {src} → {target_path}"
-        )
+        print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} Copying {src} → {target_path}")
         shutil.copy2(src, target_path)
         return 0
 
-    def cleanup_test_data_files(self, test_file: TestData) -> int:
+    @staticmethod
+    def cleanup_test_data_files(test_file: TestData) -> int:
         """
         Cleans up the file located at test_file.target, use after copy_test_data_files
+        :return:
         :rtype: int
         :param test_file: A TestData object which contains the location to which the file was originally copied
         :return: 0 on success, -1 on failure
         """
         target = test_file.target
         path = Path(target)
-        print(
-            f"\n{self.Colors.CYAN}[INFO]{self.Colors.RESET} deleting {test_file.target}"
-        )
+        print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} deleting {test_file.target}")
         if not path.exists():
             print(
-                f"{self.Colors.YELLOW}[WARN]{self.Colors.RESET} Missing file during cleanup: {path}"
+                f"{Colors.YELLOW}[WARN]{Colors.RESET} Missing file during cleanup: {path}"
             )
             return -1
         try:
             path.unlink()
         except Exception as e:
-            print(
-                f"{self.Colors.RED}[ERROR]{self.Colors.RESET} Failed to remove {path}: {e}"
-            )
+            print(f"{Colors.RED}[ERROR]{Colors.RESET} Failed to remove {path}: {e}")
             return -1
 
         return 0
@@ -152,14 +166,49 @@ class TestStringMethods(unittest.TestCase):
         """
         return self.run_fpgad(["load", "overlay", str(path)])
 
-    def cleanup_applied_overlays(self):
+    @staticmethod
+    def cleanup_applied_overlays():
         """
-        Wrapper to handle discovering and removing all overlays.
+        Wrapper to handle discovering and removing all overlays using system calls instead of fpgad.
         Use before attempting to test the loading of an overlay.
         :return: the completed process object, containing return code and captured output
         """
-        # todo: implement
-        raise NotImplementedError()
+        directory = r"/sys/kernel/config/device-tree/overlays/"
+        print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} Cleaning up applied overlays")
+        # Loop through all overlays and delete them
+        for item in os.listdir(directory):
+            item_path = os.path.join(directory, item)
+            # Check if the item is a folder
+            if os.path.isdir(item_path):
+                # Delete the folder and all its contents
+                shutil.rmtree(item_path)
+                print(
+                    f"\n{Colors.CYAN}[INFO]{Colors.RESET} deleting overlay at {item_path}"
+                )
+
+    @staticmethod
+    def reset_flags():
+        """
+        Reset flags (to zero) using system calls, instead of fpgad.
+        :return: the completed process object, containing return code and captured output
+        """
+        flags_path = r"/sys/class/fpga_manager/fpga0/flags"
+        default_flags = "0"
+        print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} Resetting fpga0's flags")
+        try:
+            with open(flags_path, "w") as f:
+                f.write(default_flags)
+            print(
+                f"{Colors.CYAN}[INFO]{Colors.RESET} Successfully wrote {default_flags} to {flags_path}"
+            )
+        except PermissionError:
+            print(
+                f"{Colors.RED}[ERROR]{Colors.RESET} Permission denied: you probably need to run as root"
+            )
+        except FileNotFoundError:
+            print(f"{Colors.RED}[ERROR]{Colors.RESET} {flags_path} does not exist")
+        except Exception as e:
+            print(f"Error writing to {flags_path}: {e}")
 
     def run_fpgad(self, args: List[str]) -> subprocess.CompletedProcess[str]:
         """
@@ -169,7 +218,7 @@ class TestStringMethods(unittest.TestCase):
         :return: the completed process object, containing return code and captured output
         """
         cmd = ["fpgad"] + args
-        print(f"\n{self.Colors.CYAN}[INFO]{self.Colors.RESET} Running: {' '.join(cmd)}")
+        print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} Running: {' '.join(cmd)}")
 
         proc = subprocess.run(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
@@ -306,19 +355,139 @@ class TestStringMethods(unittest.TestCase):
     #  with loaded bitstream and overlay
     #  after failing to load an overlay (bad path/bitstream name)
 
+    def test_status_executes(self):
+        proc = self.run_fpgad(["status"])
+        self.assertEqual(
+            proc.returncode,
+            0,
+            f"failed to execute status command.\n"
+            f"Status code:\t{proc.returncode}\n"
+            f"stdout:\t{proc.stdout}\n"
+            f"stderr:\t{proc.stderr}",
+        )
+
     def test_status_with_bitstream(self):
         self.cleanup_applied_overlays()
-        pass
+
+        loaded = self.load_bitstream(
+            Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin")
+        )
+        self.assertEqual(
+            loaded.returncode,
+            0,
+            "Failed to load a bitstream before checking status."
+            f"Status code:\t{loaded.returncode}\n"
+            f"stdout:\t{loaded.stdout}\n"
+            f"stderr:\t{loaded.stderr}",
+        )
+
+        proc = self.run_fpgad(["status"])
+        self.assertEqual(
+            proc.returncode,
+            0,
+            f"failed to execute status command.\n"
+            f"Status code:\t{proc.returncode}\n"
+            f"stdout:\t{proc.stdout}\n"
+            f"stderr:\t{proc.stderr}",
+        )
+        self.assertIn(
+            "operating",
+            proc.stdout,
+            "operating not found in stdout.\n"
+            f"stdout:\t{proc.stdout}\n"
+            f"stderr:\t{proc.stderr}",
+        )
 
     def test_status_with_overlay(self):
-        # todo: check for existing overlay, and remove if there.
         self.cleanup_applied_overlays()
-        pass
+
+        test_file_paths = self.TestData(
+            source=Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"),
+            target=Path("./fpgad/k26-starter-kits/k26-starter-kits.bit.bin"),
+        )
+        try:
+            self.copy_test_data_files(test_file_paths) != 0
+        except Exception as e:
+            print(
+                f"Failed to copy {test_file_paths.source} to {test_file_paths.target}"
+            )
+            raise e
+        load_proc = self.load_overlay(
+            Path("./fpgad/k26-starter-kits/k26_starter_kits.dtbo")
+        )
+        self.cleanup_test_data_files(test_file_paths)
+        self.assertEqual(
+            load_proc.returncode,
+            0,
+            "Failed to load a overlay before checking status."
+            f"Status code:\t{load_proc.returncode}\n"
+            f"stdout:\t{load_proc.stdout}\n"
+            f"stderr:\t{load_proc.stderr}",
+        )
+
+        proc = self.run_fpgad(["status"])
+        self.assertEqual(
+            proc.returncode,
+            0,
+            f"failed to execute status command.\n"
+            f"Status code:\t{proc.returncode}\n"
+            f"stdout:\t{proc.stdout}\n"
+            f"stderr:\t{proc.stderr}",
+        )
+        self.assertIn(
+            "applied",
+            proc.stdout,
+            "applied not found in stdout.\n"
+            f"stdout:\t{proc.stdout}\n"
+            f"stderr:\t{proc.stderr}",
+        )
+        self.assertIn(
+            "operating",
+            proc.stdout,
+            "operating not found in stdout.\n"
+            f"stdout:\t{proc.stdout}\n"
+            f"stderr:\t{proc.stderr}",
+        )
+        self.assertIn(
+            "k26_starter_kits.dtbo",
+            proc.stdout,
+            "k26_starter_kits.dtbo not found in stdout.\n"
+            f"stdout:\t{proc.stdout}\n"
+            f"stderr:\t{proc.stderr}",
+        )
+        self.assertNotIn(
+            "error",
+            proc.stdout,
+            f"error found in stdout.\nstdout:\t{proc.stdout}\nstderr:\t{proc.stderr}",
+        )
 
     def test_status_failed_overlay(self):
-        # todo: check for existing overlay, and remove if there.
         self.cleanup_applied_overlays()
-        pass
+        load_proc = self.load_overlay(
+            Path("./fpgad/k26-starter-kits/k26_starter_kits.dtbo")
+        )
+        self.assertNotEqual(
+            load_proc.returncode,
+            0,
+            "Overlay load succeeded and therefore test has failed.",
+        )
+
+        proc = self.run_fpgad(["status"])
+        self.assertEqual(
+            proc.returncode,
+            0,
+            f"failed to execute status command.\n"
+            f"Status code:\t{proc.returncode}\n"
+            f"stdout:\t{proc.stdout}\n"
+            f"stderr:\t{proc.stderr}",
+        )
+        self.assertIn(
+            "error",
+            proc.stdout,
+            "expected `error` notfound in stdout.\n"
+            f"stdout:\t{proc.stdout}\n"
+            f"stderr:\t{proc.stderr}",
+        )
 
     # --------------------------------------------------------
     # set tests
