@@ -9,7 +9,7 @@ set -x
 # TODO: move the test_data files around?
 
 echo "INFO: Installing fpgad.snap"
-sudo snap install ./fgpad.snap --dangeorus
+sudo snap install ./fgpad.snap --dangerous
 
 echo "INFO: Installing provider snap(s)"
 # TODO: detection logic per device? - spread?
