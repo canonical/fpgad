@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-
-set -x
-
+set -euxo pipefail
 #echo "INFO: Installing python dependencies"
 #sudo apt update
 #sudo apt install python3-
@@ -9,7 +7,7 @@ set -x
 # TODO: move the test_data files around?
 
 echo "INFO: Installing fpgad.snap"
-sudo snap install ./fgpad.snap --dangerous
+sudo snap install ./fpgad.snap --dangerous
 
 echo "INFO: Installing provider snap(s)"
 # TODO: detection logic per device? - spread?

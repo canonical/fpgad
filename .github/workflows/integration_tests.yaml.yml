@@ -79,7 +79,7 @@ jobs:
   #          fi
   snap-build:
     name: Check Snap Builds
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, noble, ARM64]
     outputs:
       atifact_id: ${{ steps.upload-snap.outputs.artifact-id }}
     steps:
@@ -178,7 +178,7 @@ jobs:
             echo "::error::snap_test.log not found, did the tests fail to start?"
             exit 1
           fi
-          if grep -q "FAILED (failures=" artifacts/snap_test.log; then
+          if grep -q "FAILED (" artifacts/snap_test.log; then
             echo "::error::found failure phrase in snap_test.log"
             exit 1
           fi
