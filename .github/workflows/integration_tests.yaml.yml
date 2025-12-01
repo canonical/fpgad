@@ -94,7 +94,7 @@ jobs:
   # This will test the snap using cli
   snap-integration-tests:
     name: Install and Test the Snap Package on DUT
-    runs-on: [self-hosted, self-hosted-linux-amd64-jammy-private-endpoint-medium]
+    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-medium]
     if: ${{ !github.event.pull_request.draft }}
     needs: ['snap-build']
     steps:
