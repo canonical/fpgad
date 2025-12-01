@@ -61,6 +61,22 @@ class Colors:
 
 
 class TestFPGAdCLI(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        """
+        Runs once before all tests in this class. cls can only be used to call class methods or static methods
+        """
+        cls.cleanup_applied_overlays()
+        cls.reset_flags()
+
+    @classmethod
+    def tearDownClass(cls):
+        """
+        Runs once after all tests in this class
+        """
+        cls.cleanup_applied_overlays()
+        cls.reset_flags()
+
     # ============================================================
     # ======================= USEFUL DATA ========================
     # ============================================================
@@ -79,22 +95,56 @@ class TestFPGAdCLI(unittest.TestCase):
     # ============================================================
     # ===================== HELPER FUNCTIONS =====================
     # ============================================================
+    def assert_proc_succeeds(self, proc, msg=None):
+        """Assert that a process completed successfully, including stdout/stderr on failure."""
+        if msg is None:
+            msg = f"Return code is {proc.returncode} when expecting 0"
+        full_msg = (
+            f"{msg}\n"
+            f"Status code:\t{proc.returncode}\n"
+            f"stdout:\t{proc.stdout}\n"
+            f"stderr:\t{proc.stderr}"
+        )
+        self.assertEqual(proc.returncode, 0, full_msg)
 
-    @classmethod
-    def setUpClass(cls):
-        """
-        Runs once before all tests in this class. cls can only be used to call class methods or static methods
-        """
-        cls.cleanup_applied_overlays()
-        cls.reset_flags()
+    def assert_proc_fails(self, proc, msg=None):
+        """Assert that a process completed successfully, including stdout/stderr on failure."""
+        if msg is None:
+            msg = f"Return code is {proc.returncode} when expecting nonzero"
+        full_msg = (
+            f"{msg}\n"
+            f"Status code:\t{proc.returncode}\n"
+            f"stdout:\t{proc.stdout}\n"
+            f"stderr:\t{proc.stderr}"
+        )
+        self.assertNotEqual(proc.returncode, 0, full_msg)
 
-    @classmethod
-    def tearDownClass(cls):
-        """
-        Runs once after all tests in this class
-        """
-        cls.cleanup_applied_overlays()
-        cls.reset_flags()
+    def assert_in_proc_out(
+        self, substring: str, proc: CompletedProcess, msg: str = None
+    ):
+        """Assert that a substring exists in output, including stdout/stderr on failure."""
+        if msg is None:
+            msg = f"'{substring}' not found in output."
+        full_msg = f"{msg}\nstdout:\t{proc.stdout}\nstderr:\t{proc.stderr}"
+        self.assertIn(substring, proc.stdout, full_msg)
+
+    def assert_not_in_proc_out(
+        self, substring: str, proc: CompletedProcess, msg: str = None
+    ):
+        """Assert that a substring exists in output, including stdout/stderr on failure."""
+        if msg is None:
+            msg = f"Undesired '{substring}' found in output."
+        full_msg = f"{msg}\nstdout:\t{proc.stdout}\nstderr:\t{proc.stderr}"
+        self.assertNotIn(substring, proc.stdout, full_msg)
+
+    def assert_in_proc_err(
+        self, substring: str, proc: CompletedProcess, msg: str = None
+    ):
+        """Assert that a substring exists in output, including stdout/stderr on failure."""
+        if msg is None:
+            msg = f"'{substring}' not found in stderr."
+        full_msg = f"{msg}\nstdout:\t{proc.stdout}\nstderr:\t{proc.stderr}"
+        self.assertIn(substring, proc.stdout, full_msg)
 
     @staticmethod
     def copy_test_data_files(test_file: TestData) -> int:
@@ -240,22 +290,14 @@ class TestFPGAdCLI(unittest.TestCase):
     def test_load_bitstream_local(self):
         path_str = "./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"
         proc = self.load_bitstream(Path(path_str))
-        self.assertEqual(
-            proc.returncode,
-            0,
-            msg=f"Error code {proc.returncode} expecting 0 - failed to load {path_str}:\nstderr:\t{proc.stderr}",
-        )
+        self.assert_proc_succeeds(proc)
         self.assertIn("loaded to fpga0 using firmware lookup path", proc.stdout)
 
     def test_load_bitstream_home_fullpath(self):
         path_str = "$(pwd)/fpgad/k26-starter-kits/k26_starter_kits.bit.bin"
         proc = self.load_bitstream(Path(path_str))
-        self.assertEqual(
-            proc.returncode,
-            0,
-            msg=f"Error code {proc.returncode} expecting 0 - failed to load {path_str}:\nstderr:\t{proc.stderr}",
-        )
-        self.assertIn("loaded to fpga0 using firmware lookup path", proc.stdout)
+        self.assert_proc_succeeds(proc)
+        self.assert_in_proc_out("loaded to fpga0 using firmware lookup path", proc)
 
     def test_load_bitstream_lib_firmware(self):
         test_file_paths = self.TestData(
@@ -278,17 +320,8 @@ class TestFPGAdCLI(unittest.TestCase):
             print(f"Failed to clean up {test_file_paths.target}")
             raise e
 
-        self.assertEqual(
-            proc.returncode,
-            0,
-            msg=f"Error code {proc.returncode} expecting 0 - failed to load {str(test_file_paths.target)}:\nstderr:\t{proc.stderr}",
-        )
-        self.assertIn(
-            "loaded to fpga0 using firmware lookup path",
-            proc.stdout,
-            msg=f"`loaded to fpga0 using firmware lookup path` expected in stdout. Instead found:\nstdout:"
-            f"\t{proc.stdout}\nstderr:\t{proc.stderr}",
-        )
+        self.assert_proc_succeeds(proc)
+        self.assert_in_proc_out("loaded to fpga0 using firmware lookup path", proc)
 
     def test_load_bitstream_lib_firmware_xilinx(self):
         test_file_paths = self.TestData(
@@ -313,37 +346,21 @@ class TestFPGAdCLI(unittest.TestCase):
             print(f"Failed to clean up {test_file_paths.target}")
             raise e
 
-        self.assertEqual(
-            proc.returncode,
-            0,
-            msg=f"Error code {proc.returncode} expecting 0 - failed to load {str(test_file_paths.target)}:\nstderr:\t{proc.stderr}",
-        )
-        self.assertIn(
-            "loaded to fpga0 using firmware lookup path",
-            proc.stdout,
-            msg=f"`loaded to fpga0 using firmware lookup path` expected in stdout. Instead found:\nstdout:"
-            f"\t{proc.stdout}\nstderr:\t{proc.stderr}",
-        )
+        self.assert_proc_succeeds(proc)
+        self.assert_in_proc_out("loaded to fpga0 using firmware lookup path", proc)
 
     def test_load_bitstream_path_not_exist(self):
         proc = self.load_bitstream(Path("/this/path/is/fake.bit.bin"))
-        self.assertNotEqual(proc.returncode, 0)
-        self.assertIn("FpgadError::IOWrite:", proc.stderr)
-        self.assertIn(
-            "failed",
-            proc.stdout,
-            msg=f"Expected `failed` in stderr, but found\nstdout:\t{proc.stdout}.",
-        )
+        self.assert_proc_fails(proc)
+        self.assert_in_proc_err("FpgadError::IOWrite:", proc)
+        self.assert_in_proc_out("failed", proc)
 
     def test_load_bitstream_containing_dir(self):
         proc = self.load_bitstream(Path("$(pwd)/fpgad/k26-starter-kits/"))
+        self.assert_proc_fails(proc)
         self.assertNotEqual(proc.returncode, 0)
-        self.assertIn("FpgadError::IOWrite:", proc.stderr)
-        self.assertIn(
-            "failed",
-            proc.stdout,
-            msg=f"Expected `failed` in stderr, but found\nstdout:\t{proc.stdout}.",
-        )
+        self.assert_in_proc_err("FpgadError::IOWrite:", proc)
+        self.assert_in_proc_out("failed", proc)
 
     # --------------------------------------------------------
     # load overlay tests
@@ -360,46 +377,21 @@ class TestFPGAdCLI(unittest.TestCase):
 
     def test_status_executes(self):
         proc = self.run_fpgad(["status"])
-        self.assertEqual(
-            proc.returncode,
-            0,
-            f"failed to execute status command.\n"
-            f"Status code:\t{proc.returncode}\n"
-            f"stdout:\t{proc.stdout}\n"
-            f"stderr:\t{proc.stderr}",
-        )
+        self.assert_proc_succeeds(proc)
 
     def test_status_with_bitstream(self):
         self.cleanup_applied_overlays()
 
-        loaded = self.load_bitstream(
+        load_proc = self.load_bitstream(
             Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin")
         )
-        self.assertEqual(
-            loaded.returncode,
-            0,
-            "Failed to load a bitstream before checking status."
-            f"Status code:\t{loaded.returncode}\n"
-            f"stdout:\t{loaded.stdout}\n"
-            f"stderr:\t{loaded.stderr}",
+        self.assert_proc_succeeds(
+            load_proc, "Failed to load a bitstream before checking status."
         )
 
-        proc = self.run_fpgad(["status"])
-        self.assertEqual(
-            proc.returncode,
-            0,
-            f"failed to execute status command.\n"
-            f"Status code:\t{proc.returncode}\n"
-            f"stdout:\t{proc.stdout}\n"
-            f"stderr:\t{proc.stderr}",
-        )
-        self.assertIn(
-            "operating",
-            proc.stdout,
-            "operating not found in stdout.\n"
-            f"stdout:\t{proc.stdout}\n"
-            f"stderr:\t{proc.stderr}",
-        )
+        status_proc = self.run_fpgad(["status"])
+        self.assert_proc_succeeds(status_proc)
+        self.assert_in_proc_out("operating", status_proc)
 
     def test_status_with_overlay(self):
         self.cleanup_applied_overlays()
@@ -419,50 +411,14 @@ class TestFPGAdCLI(unittest.TestCase):
             Path("./fpgad/k26-starter-kits/k26_starter_kits.dtbo")
         )
         self.cleanup_test_data_files(test_file_paths)
-        self.assertEqual(
-            load_proc.returncode,
-            0,
-            "Failed to load a overlay before checking status."
-            f"Status code:\t{load_proc.returncode}\n"
-            f"stdout:\t{load_proc.stdout}\n"
-            f"stderr:\t{load_proc.stderr}",
-        )
+        self.assert_proc_succeeds(load_proc)
 
-        proc = self.run_fpgad(["status"])
-        self.assertEqual(
-            proc.returncode,
-            0,
-            f"failed to execute status command.\n"
-            f"Status code:\t{proc.returncode}\n"
-            f"stdout:\t{proc.stdout}\n"
-            f"stderr:\t{proc.stderr}",
-        )
-        self.assertIn(
-            "applied",
-            proc.stdout,
-            "applied not found in stdout.\n"
-            f"stdout:\t{proc.stdout}\n"
-            f"stderr:\t{proc.stderr}",
-        )
-        self.assertIn(
-            "operating",
-            proc.stdout,
-            "operating not found in stdout.\n"
-            f"stdout:\t{proc.stdout}\n"
-            f"stderr:\t{proc.stderr}",
-        )
-        self.assertIn(
-            "k26_starter_kits.dtbo",
-            proc.stdout,
-            "k26_starter_kits.dtbo not found in stdout.\n"
-            f"stdout:\t{proc.stdout}\n"
-            f"stderr:\t{proc.stderr}",
-        )
-        self.assertNotIn(
-            "error",
-            proc.stdout,
-            f"error found in stdout.\nstdout:\t{proc.stdout}\nstderr:\t{proc.stderr}",
-        )
+        status_proc = self.run_fpgad(["status"])
+        self.assert_proc_succeeds(status_proc)
+        self.assert_in_proc_out("applied", status_proc)
+        self.assert_in_proc_out("operating", status_proc)
+        self.assert_in_proc_out("k26_starter_kits.dtbo", status_proc)
+        self.assert_not_in_proc_out("error", status_proc)
 
     def test_status_failed_overlay(self):
         self.cleanup_applied_overlays()
@@ -476,21 +432,8 @@ class TestFPGAdCLI(unittest.TestCase):
         )
 
         proc = self.run_fpgad(["status"])
-        self.assertEqual(
-            proc.returncode,
-            0,
-            f"failed to execute status command.\n"
-            f"Status code:\t{proc.returncode}\n"
-            f"stdout:\t{proc.stdout}\n"
-            f"stderr:\t{proc.stderr}",
-        )
-        self.assertIn(
-            "error",
-            proc.stdout,
-            "expected `error` notfound in stdout.\n"
-            f"stdout:\t{proc.stdout}\n"
-            f"stderr:\t{proc.stderr}",
-        )
+        self.assert_proc_succeeds(proc)
+        self.assert_in_proc_out("error", proc)
 
     # --------------------------------------------------------
     # set tests
