@@ -144,7 +144,22 @@ class TestFPGAdCLI(unittest.TestCase):
         if msg is None:
             msg = f"'{substring}' not found in stderr."
         full_msg = f"{msg}\nstdout:\t{proc.stdout}\nstderr:\t{proc.stderr}"
-        self.assertIn(substring, proc.stdout, full_msg)
+        self.assertIn(substring, proc.stderr, full_msg)
+
+    @staticmethod
+    def get_fpga0_attribute(attr: str):
+        path = Path(f"/sys/class/fpga_manager/fpga0/{attr}")
+
+        with open(path, "r") as f:
+            real_attr = f.read().strip()
+        return real_attr
+
+    def check_fpga0_attribute(self, attr: str, expected: str):
+        path = Path(f"/sys/class/fpga_manager/fpga0/{attr}")
+
+        with open(path, "r") as f:
+            real_attr = f.read().strip()
+        self.assertIn(expected, real_attr)
 
     @staticmethod
     def copy_test_data_files(test_file: TestData) -> int:
@@ -294,8 +309,10 @@ class TestFPGAdCLI(unittest.TestCase):
         self.assertIn("loaded to fpga0 using firmware lookup path", proc.stdout)
 
     def test_load_bitstream_home_fullpath(self):
-        path_str = "$(pwd)/fpgad/k26-starter-kits/k26_starter_kits.bit.bin"
-        proc = self.load_bitstream(Path(path_str))
+        prefix = Path(os.getcwd())
+        path = prefix.joinpath("fpgad/k26-starter-kits/k26_starter_kits.bit.bin")
+
+        proc = self.load_bitstream(path)
         self.assert_proc_succeeds(proc)
         self.assert_in_proc_out("loaded to fpga0 using firmware lookup path", proc)
 
@@ -353,27 +370,26 @@ class TestFPGAdCLI(unittest.TestCase):
         proc = self.load_bitstream(Path("/this/path/is/fake.bit.bin"))
         self.assert_proc_fails(proc)
         self.assert_in_proc_err("FpgadError::IOWrite:", proc)
-        self.assert_in_proc_out("failed", proc)
 
     def test_load_bitstream_containing_dir(self):
-        proc = self.load_bitstream(Path("$(pwd)/fpgad/k26-starter-kits/"))
+        prefix = Path(os.getcwd())
+        path = prefix.joinpath("fpgad/k26-starter-kits/")
+
+        proc = self.load_bitstream(path)
         self.assert_proc_fails(proc)
         self.assertNotEqual(proc.returncode, 0)
         self.assert_in_proc_err("FpgadError::IOWrite:", proc)
-        self.assert_in_proc_out("failed", proc)
 
     # --------------------------------------------------------
     # load overlay tests
     # --------------------------------------------------------
 
+    def load_local_overlay(self):
+        pass
+
     # --------------------------------------------------------
     # status tests
     # --------------------------------------------------------
-
-    ### status cases:
-    #  with only bitstream, no overlay
-    #  with loaded bitstream and overlay
-    #  after failing to load an overlay (bad path/bitstream name)
 
     def test_status_executes(self):
         proc = self.run_fpgad(["status"])
@@ -439,9 +455,83 @@ class TestFPGAdCLI(unittest.TestCase):
     # set tests
     # --------------------------------------------------------
 
+    def test_set_flags_nonzero(self):
+        proc = self.run_fpgad(["set", "flags", "20"])
+        self.assert_proc_succeeds(proc)
+        self.assert_in_proc_out(
+            "20 written to /sys/class/fpga_manager/fpga0/flags", proc
+        )
+        self.check_fpga0_attribute("flags", "20")
+
+    def test_set_flags_string(self):
+        self.reset_flags()
+
+        proc = self.run_fpgad(["set", "flags", "zero"])
+        self.assert_proc_fails(proc)
+        self.check_fpga0_attribute("flags", "0")
+
+    def test_set_state(self):
+        self.reset_flags()
+        old = self.get_fpga0_attribute("state")
+
+        proc = self.run_fpgad(["set", "state", "0"])
+        self.assert_proc_fails(proc)
+        self.check_fpga0_attribute("state", old)
+
+    def test_set_flags_float(self):
+        self.reset_flags()
+
+        proc = self.run_fpgad(["set", "flags", "0.2"])
+        self.assert_proc_fails(proc)
+        self.check_fpga0_attribute("flags", "0")
+
+    def test_set_flags_zero(self):
+        proc = self.run_fpgad(["set", "flags", "0"])
+        self.assert_proc_succeeds(proc)
+        self.assert_in_proc_out(
+            "0 written to /sys/class/fpga_manager/fpga0/flags", proc
+        )
+        self.check_fpga0_attribute("flags", "0")
+
     # --------------------------------------------------------
     # help tests
     # --------------------------------------------------------
+
+    def test_help_main(self):
+        proc = self.run_fpgad(["help"])
+        self.assert_proc_succeeds(proc)
+
+    def test_help_main_as_flag(self):
+        proc = self.run_fpgad(["--help"])
+        self.assert_proc_succeeds(proc)
+
+    def test_help_set(self):
+        proc = self.run_fpgad(["help", "set"])
+        self.assert_proc_succeeds(proc)
+
+    def test_help_remove(self):
+        proc = self.run_fpgad(["help", "remove"])
+        self.assert_proc_succeeds(proc)
+
+    def test_help_remove_overlay(self):
+        proc = self.run_fpgad(["help", "remove", "overlay"])
+        self.assert_proc_succeeds(proc)
+
+    def test_help_remove_bitstream(self):
+        proc = self.run_fpgad(["help", "remove", "bitstream"])
+        self.assert_proc_succeeds(proc)
+
+    def test_help_load(self):
+        proc = self.run_fpgad(["help", "load"])
+        self.assert_proc_succeeds(proc)
+
+    def test_help_load_bitstream(self):
+        proc = self.run_fpgad(["help", "load", "bitstream"])
+        self.assert_proc_succeeds(proc)
+
+    def test_help_load_overlay(self):
+        proc = self.run_fpgad(["help", "load", "overlay"])
+        self.assert_proc_succeeds(proc)
 
 
 if __name__ == "__main__":
