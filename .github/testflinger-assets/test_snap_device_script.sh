@@ -19,7 +19,7 @@ done
 echo "    --- Disabling auto-refresh for 24 hours"
 sudo snap refresh --hold=24h
 echo "    --- Installing fpgad.snap"
-while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+  while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
     echo "    --- snapd internal tasks still running... waiting..."
     sleep 10
 done
@@ -72,5 +72,5 @@ echo "INFO: Running snap test script"
 # NOTE: tarball contains "k24-starter-kits/..." and "k26-starter-kits/..." at tarball root from daemon/tests/test_data
 mkdir -p fpgad/artifacts
 tar -xzvf test_data.gz -C fpgad
-sudo python3 -m unittest ./snap_tests.py -v 2>&1 | tee fpgad/artifacts/snap_test.log
+sudo python3 -u -m unittest ./snap_tests.py -v 2>&1 | tee fpgad/artifacts/snap_test.log
 echo "INFO: Done running snap test script"
