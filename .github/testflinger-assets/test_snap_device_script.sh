@@ -20,18 +20,23 @@ done
 echo "- Disabling auto-refresh for 24 hours"
 sudo snap refresh --hold=24h
 
+sudo snap debug state /var/lib/snapd/state.json
+
 echo "- Installing fpgad.snap"
 sudo snap install ./fpgad.snap --dangerous
+sudo snap debug state /var/lib/snapd/state.json
 
 echo "- Installing provider snap(s)"
 # TODO: detection logic per device? - spread?
 echo "- Installing k26-default-bitstreams snap"
 sudo snap install k26-default-bitstreams --edge # TODO: change track?
 echo "INFO: Done preparing device"
+sudo snap debug state /var/lib/snapd/state.json
 
 echo "INFO: Making necessary connections"
 echo "- connecting to fpgad interface"
 sudo snap connect fpgad:fpga
+sudo snap debug state /var/lib/snapd/state.json
 echo "- connecting to hardware-observe interface"
 sudo snap connect fpgad:hardware-observe
 echo "- connecting to kernel-firmware-control interface"
