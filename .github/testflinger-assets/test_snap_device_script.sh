@@ -19,23 +19,51 @@ done
 echo "    --- Disabling auto-refresh for 24 hours"
 sudo snap refresh --hold=24h
 echo "    --- Installing fpgad.snap"
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+    echo "    --- snapd internal tasks still running... waiting..."
+    sleep 10
+done
 sudo snap install ./fpgad.snap --dangerous
 echo "    --- Installing provider snap(s)"
 # TODO: detection logic per device? - spread?
 echo "    --- Installing k26-default-bitstreams snap"
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+    echo "    --- snapd internal tasks still running... waiting..."
+    sleep 10
+done
 sudo snap install k26-default-bitstreams --edge # TODO: change track?
 echo "INFO: Done preparing device"
 
 echo "INFO: Making necessary connections"
 echo "    --- connecting to fpgad interface"
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+    echo "    --- snapd internal tasks still running... waiting..."
+    sleep 10
+done
 sudo snap connect fpgad:fpga
 echo "    --- connecting to hardware-observe interface"
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+    echo "    --- snapd internal tasks still running... waiting..."
+    sleep 10
+done
 sudo snap connect fpgad:hardware-observe
 echo "    --- connecting to kernel-firmware-control interface"
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+    echo "    --- snapd internal tasks still running... waiting..."
+    sleep 10
+done
 sudo snap connect fpgad:kernel-firmware-control
 echo "    --- connecting to device-tree-overlays interface"
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+    echo "    --- snapd internal tasks still running... waiting..."
+    sleep 10
+done
 sudo snap connect fpgad:device-tree-overlays
 echo "    --- connecting dbus interfaces"
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+    echo "    --- snapd internal tasks still running... waiting..."
+    sleep 10
+done
 sudo snap connect fpgad:cli-dbus fpgad:daemon-dbus
 # sudo snap connect fpgad:kernel-module-control # in future
 echo "INFO: Done making necessary connections"
