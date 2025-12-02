@@ -61,21 +61,20 @@ class Colors:
 
 
 class TestFPGAdCLI(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
         """
-        Runs once before all tests in this class. cls can only be used to call class methods or static methods
+        Runs before each tests in this class.
         """
-        cls.cleanup_applied_overlays()
-        cls.reset_flags()
+        self.cleanup_applied_overlays()
+        self.reset_flags()
 
     @classmethod
     def tearDownClass(cls):
         """
-        Runs once after all tests in this class
+        Runs once after all tests in this class are finished
         """
         cls.cleanup_applied_overlays()
-        cls.reset_flags()
+        cls.set_flags(0)
 
     # ============================================================
     # ======================= USEFUL DATA ========================
@@ -173,7 +172,7 @@ class TestFPGAdCLI(unittest.TestCase):
         src = Path(test_file.source)
 
         if not src.exists():
-            print(f"\n{Colors.YELLOW}[WARN]{Colors.RESET} Source file missing: {src}")
+            print(f"{Colors.YELLOW}[WARN]{Colors.RESET} Source file missing: {src}")
             return -1
 
         target = test_file.target
@@ -182,7 +181,7 @@ class TestFPGAdCLI(unittest.TestCase):
         # Ensure directory exists
         target_path.parent.mkdir(parents=True, exist_ok=True)
 
-        print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} Copying {src} → {target_path}")
+        print(f"{Colors.CYAN}[INFO]{Colors.RESET} Copying {src} → {target_path}")
         shutil.copy2(src, target_path)
         return 0
 
@@ -197,7 +196,7 @@ class TestFPGAdCLI(unittest.TestCase):
         """
         target = test_file.target
         path = Path(target)
-        print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} deleting {test_file.target}")
+        print(f"{Colors.CYAN}[INFO]{Colors.RESET} deleting {test_file.target}")
         if not path.exists():
             print(
                 f"{Colors.YELLOW}[WARN]{Colors.RESET} Missing file during cleanup: {path}"
@@ -234,7 +233,7 @@ class TestFPGAdCLI(unittest.TestCase):
     @staticmethod
     def cleanup_applied_overlays():
         directory = "/sys/kernel/config/device-tree/overlays/"
-        print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} Cleaning up applied overlays")
+        print(f"{Colors.CYAN}[INFO]{Colors.RESET} Cleaning up applied overlays")
 
         for item in os.listdir(directory):
             item_path = os.path.join(directory, item)
@@ -255,19 +254,13 @@ class TestFPGAdCLI(unittest.TestCase):
                     )
 
     @staticmethod
-    def reset_flags():
-        """
-        Reset flags (to zero) using system calls, instead of fpgad.
-        :return: the completed process object, containing return code and captured output
-        """
+    def set_flags(flags: int = 0) -> None:
         flags_path = r"/sys/class/fpga_manager/fpga0/flags"
-        default_flags = "0"
-        print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} Resetting fpga0's flags")
         try:
             with open(flags_path, "w") as f:
-                f.write(default_flags)
+                f.write(str(flags))
             print(
-                f"{Colors.CYAN}[INFO]{Colors.RESET} Successfully wrote {default_flags} to {flags_path}"
+                f"{Colors.CYAN}[INFO]{Colors.RESET} Successfully wrote {flags} to {flags_path}"
             )
         except PermissionError:
             print(
@@ -278,6 +271,14 @@ class TestFPGAdCLI(unittest.TestCase):
         except Exception as e:
             print(f"Error writing to {flags_path}: {e}")
 
+    def reset_flags(self):
+        """
+        Reset flags (to zero) using system calls, instead of fpgad.
+        :return: the completed process object, containing return code and captured output
+        """
+        print(f"{Colors.CYAN}[INFO]{Colors.RESET} Resetting fpga0's flags to 0")
+        self.set_flags(0)
+
     def run_fpgad(self, args: List[str]) -> subprocess.CompletedProcess[str]:
         """
         Run the fpgad cli with provided args as a subprocess
@@ -286,7 +287,7 @@ class TestFPGAdCLI(unittest.TestCase):
         :return: the completed process object, containing return code and captured output
         """
         cmd = ["fpgad"] + args
-        print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} Running: {' '.join(cmd)}")
+        print(f"{Colors.CYAN}[INFO]{Colors.RESET} Running: {' '.join(cmd)}")
 
         proc = subprocess.run(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
@@ -384,8 +385,136 @@ class TestFPGAdCLI(unittest.TestCase):
     # load overlay tests
     # --------------------------------------------------------
 
-    def load_local_overlay(self):
-        pass
+    ### overlay cases:
+    #  load from relative path
+    #  load from /lib/firmware
+    #  load from full path not in /lib/firmware
+    #  fail to load from bad path
+    #  fail to load due to bad flags
+
+    def test_load_overlay_local(self):
+        # Necessary due to bad dtbo content from upstream
+        test_file_paths = self.TestData(
+            source=Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"),
+            target=Path("./fpgad/k26-starter-kits/k26-starter-kits.bit.bin"),
+        )
+
+        try:
+            self.copy_test_data_files(test_file_paths) != 0
+        except Exception as e:
+            print(
+                f"Failed to copy {test_file_paths.source} to {test_file_paths.target}"
+            )
+            raise e
+        overlay_path = Path("./fpgad/k26-starter-kits/k26_starter_kits.dtbo")
+        proc = self.load_overlay(overlay_path)
+        try:
+            self.cleanup_test_data_files(test_file_paths)
+        except Exception as e:
+            print(f"Failed to clean up {test_file_paths.target}")
+            raise e
+
+        self.assert_proc_succeeds(proc)
+        self.assert_in_proc_out("loaded via", proc)
+
+    def test_load_overlay_lib_firmware(self):
+        # Necessary due to bad dtbo content from upstream
+        test_file_paths = [
+            self.TestData(
+                source=Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"),
+                target=Path("/lib/firmware/k26-starter-kits.bit.bin"),
+            ),
+            self.TestData(
+                source=Path("./fpgad/k26-starter-kits/k26_starter_kits.dtbo"),
+                target=Path("/lib/firmware/k26-starter-kits.dtbo"),
+            ),
+        ]
+        for file in test_file_paths:
+            try:
+                self.copy_test_data_files(file) != 0
+            except Exception as e:
+                print(f"Failed to copy {file.source} to {file.target}")
+                raise e
+
+        overlay_path = Path("/lib/firmware/k26-starter-kits.dtbo")
+        proc = self.load_overlay(overlay_path)
+        for file in test_file_paths:
+            try:
+                self.cleanup_test_data_files(file)
+            except Exception as e:
+                print(f"Failed to clean up {file.target}")
+                raise e
+
+        self.assert_proc_succeeds(proc)
+        self.assert_in_proc_out("loaded via", proc)
+
+    def test_load_overlay_full_path(self):
+        # Necessary due to bad dtbo content from upstream
+        test_file_paths = self.TestData(
+            source=Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"),
+            target=Path("./fpgad/k26-starter-kits/k26-starter-kits.bit.bin"),
+        )
+
+        try:
+            self.copy_test_data_files(test_file_paths) != 0
+        except Exception as e:
+            print(
+                f"Failed to copy {test_file_paths.source} to {test_file_paths.target}"
+            )
+            raise e
+        prefix = Path(os.getcwd())
+        overlay_path = prefix.joinpath("fpgad/k26-starter-kits/k26_starter_kits.dtbo")
+        proc = self.load_overlay(overlay_path)
+        try:
+            self.cleanup_test_data_files(test_file_paths)
+        except Exception as e:
+            print(f"Failed to clean up {test_file_paths.target}")
+            raise e
+
+        self.assert_proc_succeeds(proc)
+        self.assert_in_proc_out("loaded via", proc)
+
+    def test_load_overlay_bad_path(self):
+        overlay_path = Path("/path/does/not/exist")
+        proc = self.load_overlay(overlay_path)
+        self.assert_proc_fails(proc)
+        self.assert_not_in_proc_out("loaded via", proc)
+        self.assert_in_proc_err("FpgadError::OverlayStatus:", proc)
+
+    def test_load_overlay_missing_bitstream(self):
+        # TODO: if the dtbo gets fixed, then this test needs to be re-written.
+        overlay_path = Path("./fpgad/k26-starter-kits/k26_starter_kits.dtbo")
+        proc = self.load_overlay(overlay_path)
+        self.assert_proc_fails(proc)
+        self.assert_not_in_proc_out("loaded via", proc)
+        self.assert_in_proc_err("FpgadError::OverlayStatus:", proc)
+
+    def test_load_overlay_bad_flags(self):
+        self.set_flags(20)
+        # Necessary due to bad dtbo content from upstream
+        test_file_paths = self.TestData(
+            source=Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"),
+            target=Path("./fpgad/k26-starter-kits/k26-starter-kits.bit.bin"),
+        )
+
+        try:
+            self.copy_test_data_files(test_file_paths) != 0
+        except Exception as e:
+            print(
+                f"Failed to copy {test_file_paths.source} to {test_file_paths.target}"
+            )
+            raise e
+        overlay_path = Path("./fpgad/k26-starter-kits/k26_starter_kits.dtbo")
+        proc = self.load_overlay(overlay_path)
+        try:
+            self.cleanup_test_data_files(test_file_paths)
+        except Exception as e:
+            print(f"Failed to clean up {test_file_paths.target}")
+            raise e
+
+        self.assert_proc_fails(proc)
+        self.assert_not_in_proc_out("loaded via", proc)
+        self.assert_in_proc_err("FpgadError::OverlayStatus:", proc)
 
     # --------------------------------------------------------
     # status tests
@@ -396,8 +525,6 @@ class TestFPGAdCLI(unittest.TestCase):
         self.assert_proc_succeeds(proc)
 
     def test_status_with_bitstream(self):
-        self.cleanup_applied_overlays()
-
         load_proc = self.load_bitstream(
             Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin")
         )
@@ -410,8 +537,6 @@ class TestFPGAdCLI(unittest.TestCase):
         self.assert_in_proc_out("operating", status_proc)
 
     def test_status_with_overlay(self):
-        self.cleanup_applied_overlays()
-
         test_file_paths = self.TestData(
             source=Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"),
             target=Path("./fpgad/k26-starter-kits/k26-starter-kits.bit.bin"),
@@ -437,7 +562,6 @@ class TestFPGAdCLI(unittest.TestCase):
         self.assert_not_in_proc_out("error", status_proc)
 
     def test_status_failed_overlay(self):
-        self.cleanup_applied_overlays()
         load_proc = self.load_overlay(
             Path("./fpgad/k26-starter-kits/k26_starter_kits.dtbo")
         )
@@ -464,14 +588,11 @@ class TestFPGAdCLI(unittest.TestCase):
         self.check_fpga0_attribute("flags", "20")
 
     def test_set_flags_string(self):
-        self.reset_flags()
-
         proc = self.run_fpgad(["set", "flags", "zero"])
         self.assert_proc_fails(proc)
         self.check_fpga0_attribute("flags", "0")
 
     def test_set_state(self):
-        self.reset_flags()
         old = self.get_fpga0_attribute("state")
 
         proc = self.run_fpgad(["set", "state", "0"])
@@ -479,8 +600,6 @@ class TestFPGAdCLI(unittest.TestCase):
         self.check_fpga0_attribute("state", old)
 
     def test_set_flags_float(self):
-        self.reset_flags()
-
         proc = self.run_fpgad(["set", "flags", "0.2"])
         self.assert_proc_fails(proc)
         self.check_fpga0_attribute("flags", "0")
