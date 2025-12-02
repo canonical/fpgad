@@ -97,6 +97,7 @@ jobs:
     runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-medium]
     if: ${{ !github.event.pull_request.draft }}
     needs: ['snap-build']
+    timeout-minutes: 3600
     steps:
       - name: checkout
         uses: actions/checkout@v5
@@ -152,7 +153,7 @@ jobs:
       - name: Fetch and Display Artifacts
         shell: bash
         run: |
-          echo "::group::retrieve llvm-cov artifacts"
+          echo "::group::retrieving snap test artifacts"
             testflinger artifacts ${{steps.submit.outputs.id }}
             tar -xvzf artifacts.tgz
           echo "::endgroup::"
