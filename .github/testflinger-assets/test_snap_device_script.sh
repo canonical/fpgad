@@ -17,6 +17,8 @@ while sudo snap changes | grep -E "auto-refresh.*(Doing|Undoing|Pending|Hold)" >
     echo "Snap auto-refresh in progress or queued... waiting 5 more seconds..."
     sleep 5
 done
+echo "- Disabling auto-refresh for 24 hours"
+sudo snap refresh --hold=24h
 
 echo "- Installing fpgad.snap"
 sudo snap install ./fpgad.snap --dangerous
