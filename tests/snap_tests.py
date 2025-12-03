@@ -6,7 +6,7 @@ with human-readable output.
 
 import os
 import subprocess
-
+import time
 import unittest
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -67,6 +67,7 @@ class TestFPGAdCLI(unittest.TestCase):
         """
         self.cleanup_applied_overlays()
         self.reset_flags()
+        time.sleep(0.1)
 
     @classmethod
     def tearDownClass(cls):
