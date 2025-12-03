@@ -10,6 +10,7 @@ provision_data:
         baud_rate: 115200
       username: ubuntu
       password: ubuntu
+      hostname: 'kria'
     run_stage:
       - sys_commands:
           - zapper sdwire set ZAPPER
