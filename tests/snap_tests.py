@@ -257,7 +257,7 @@ class TestFPGAdCLI(unittest.TestCase):
         flags_path = r"/sys/class/fpga_manager/fpga0/flags"
         try:
             with open(flags_path, "w") as f:
-                f.write(str(flags))
+                f.write(f"{flags:X}")
             print(
                 f"{Colors.CYAN}[INFO]{Colors.RESET} Successfully wrote {flags} to {flags_path}"
             )
@@ -489,7 +489,7 @@ class TestFPGAdCLI(unittest.TestCase):
         self.assert_in_proc_err("FpgadError::OverlayStatus:", proc)
 
     def test_load_overlay_bad_flags(self):
-        self.set_flags(127)
+        self.set_flags(223)
         # Necessary due to bad dtbo content from upstream
         test_file_paths = self.TestData(
             source=Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"),
