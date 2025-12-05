@@ -28,7 +28,8 @@ provision_data:
           method: builtin-account
           timeout: 1800
       - ssh_commands:
-          - echo "ubuntu" | sudo -S bash -c 'echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/99-ubuntu-nopasswd'
+          cmd:
+            - echo "ubuntu" | sudo -S bash -c 'echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/99-ubuntu-nopasswd'
 test_data:
   attachments: # these are replaced in the workflow - local testing only
     - agent: fpgad.gz
