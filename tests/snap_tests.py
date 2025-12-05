@@ -65,9 +65,11 @@ class TestFPGAdCLI(unittest.TestCase):
         """
         Runs before each tests in this class.
         """
+        time.sleep(0.5)
         self.cleanup_applied_overlays()
+        time.sleep(0.5)
         self.reset_flags()
-        time.sleep(0.1)
+        time.sleep(0.5)
 
     @classmethod
     def tearDownClass(cls):
