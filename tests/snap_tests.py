@@ -489,7 +489,7 @@ class TestFPGAdCLI(unittest.TestCase):
         self.assert_in_proc_err("FpgadError::OverlayStatus:", proc)
 
     def test_load_overlay_bad_flags(self):
-        self.set_flags(223)
+        self.set_flags(255)
         # Necessary due to bad dtbo content from upstream
         test_file_paths = self.TestData(
             source=Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"),
