@@ -16,4 +16,7 @@ tar -xzvf fpgad.gz
 echo "INFO: Running test script"
 cd fpgad
 mkdir -p artifacts
+sudo journalctl -f -n0 > artifacts/journal.log 2>&1 &
+JOURNAL_PID=$!
 ./tests/coverage_test.sh 2>&1 | tee artifacts/coverage_test.log
+sudo kill ${JOURNAL_PID}  || true
