@@ -72,5 +72,8 @@ echo "INFO: Running snap test script"
 # NOTE: tarball contains "k24-starter-kits/..." and "k26-starter-kits/..." at tarball root from daemon/tests/test_data
 mkdir -p fpgad/artifacts
 tar -xzvf test_data.gz -C fpgad
+journalctl -f 2>&1 fpgad/artifacts/journal.log &
+JOURNAL_PID=$!
 sudo python3 -u -m unittest ./snap_tests.py -v 2>&1 | tee fpgad/artifacts/snap_test.log
+sudo kill ${JOURNAL_PID}  || true
 echo "INFO: Done running snap test script"
