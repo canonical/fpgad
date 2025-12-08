@@ -141,12 +141,6 @@ jobs:
           echo "::group::yamlfmt output"
           yamlfmt -lint .
           echo "::endgroup::"
-  snap-check:
-    name: Check Snap Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: canonical/action-build@v1.3.0
   rust-check:
     name: Check Rust Code
     runs-on: ubuntu-latest

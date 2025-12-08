@@ -1,12 +1,38 @@
 job_queue: xilinx-kv260-c36973
 provision_data:
-  url: https://tel-image-cache.canonical.com/oem-share/limerick/kria-24.04/classic-24.04-x07/iot-limerick-kria-classic-server-2404-classic-24.04-x07-20250423.img.xz
+  urls: ['https://tel-image-cache.canonical.com/oem-share/limerick/kria-24.04/classic-24.04-x07/iot-limerick-kria-classic-server-2404-classic-24.04-x07-20250423.img.xz']
+  provision_plan:
+    config:
+      project_name: limerick
+      network: eth0
+      serial_console:
+        port: /dev/ttyUSB1
+        baud_rate: 115200
+      username: ubuntu
+      password: ubuntu
+      hostname: 'kria'
+    run_stage:
+      - sys_commands:
+          - zapper sdwire set ZAPPER
+          - sleep 10
+      - sys_commands:
+          timeout: 2400
+          cmd:
+            - find . -type f -name "*.img.xz" -print0 | xargs -0 xzcat | sudo dd of=/dev/sda bs=32M
+            - sync
+      - sys_commands:
+          - zapper sdwire set DUT
+          - sleep 10
+      - reboot_script
+      - login
+      - console_commands_nb:
+          - cmd: echo "ubuntu" | sudo -S bash -c 'echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/99-ubuntu-nopasswd'
 test_data:
   attachments: # these are replaced in the workflow - local testing only
     - agent: fpgad.gz
       local: ./fpgad.gz
-    - agent: device-script.sh
-      local: ./device-script.sh
+    - agent: device_script.sh
+      local: ./device_script.sh
   test_cmds: |
     # get hw-cert-team helper tools
     echo "INFO: setting up scriptlets"
@@ -20,8 +46,8 @@ test_data:
     _run 'echo $(ls -al)'
 
     echo "INFO: Running script on DUT"
-    _run 'chmod +x /home/ubuntu/device-script.sh'
-    _run '/home/ubuntu/device-script.sh'
+    _run 'chmod +x /home/ubuntu/device_script.sh'
+    _run '/home/ubuntu/device_script.sh'
 
     echo "INFO: Retrieving artifacts"
     mkdir -p artifacts
