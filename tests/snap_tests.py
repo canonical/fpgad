@@ -13,42 +13,7 @@ from typing import List
 
 import shutil
 
-
-### bitstream cases:
-#  load from relative path
-#  load from /lib/firmware (copy it in, the delete after to maintain clean fw_path testing conditions)
-#  load from /lib/firmware/xilinx
-#  load from full path not in /lib/firmware/
-#  fail to load from bad path
-#  todo: fail to load due to bad flags
-
-### overlay cases:
-#  load from relative path
-#  load from /lib/firmware
-#  load from full path not in /lib/firmware
-#  fail to load from bad path
-#  fail to load due to bad flags
-
-### status cases:
-#  with only bitstream, no overlay
-#  with loaded bitstream and overlay
-#  after failing to load a bitstream (wrong bitstream)
-#  after failing to load an overlay (bad path/bitstream name)
-
-### set cases:
-# set flags to string?
-# set flags to float/negative?
-# set RO value like state?
-# set flags to 0
-
-
-### help cases:
-# check help at root
-# check for load
-# check for load bitstream/overlay
-# check for remove
-# check for set
-# check for status
+BAD_FLAGS = 223
 
 
 class Colors:
@@ -377,7 +342,16 @@ class TestFPGAdCLI(unittest.TestCase):
 
         proc = self.load_bitstream(path)
         self.assert_proc_fails(proc)
-        self.assertNotEqual(proc.returncode, 0)
+        self.assert_in_proc_err("FpgadError::IOWrite:", proc)
+
+    def test_load_bitstream_bad_flags(self):
+        prefix = Path(os.getcwd())
+        path = prefix.joinpath("fpgad/k26-starter-kits/k26_starter_kits.bit.bin")
+
+        self.set_flags(BAD_FLAGS)
+
+        proc = self.load_bitstream(path)
+        self.assert_proc_fails(proc)
         self.assert_in_proc_err("FpgadError::IOWrite:", proc)
 
     # --------------------------------------------------------
@@ -489,7 +463,7 @@ class TestFPGAdCLI(unittest.TestCase):
         self.assert_in_proc_err("FpgadError::OverlayStatus:", proc)
 
     def test_load_overlay_bad_flags(self):
-        self.set_flags(223)
+        self.set_flags(BAD_FLAGS)
         # Necessary due to bad dtbo content from upstream
         test_file_paths = self.TestData(
             source=Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"),
