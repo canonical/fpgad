@@ -91,3 +91,94 @@ jobs:
         with:
           name: snap-fpgad-${{ github.event.pull_request != null && github.event.pull_request.head.sha || 'workflow-dispatch' }}
           path: ${{ steps.snapcraft.outputs.snap }}
+  snap-integration-tests:
+    name: Install and Test the Snap Package on DUT
+    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-medium]
+    if: ${{ !github.event.pull_request.draft }}
+    needs: ['snap-build']
+    timeout-minutes: 3600
+    steps:
+      - name: checkout
+        uses: actions/checkout@v5
+      - name: Install dependencies
+        shell: bash
+        run: |
+          echo "::group::install dependencies"
+            sudo snap install yq
+          echo "::endgroup::"
+      - name: Download built snap
+        id: download-snap
+        uses: actions/download-artifact@v5
+        with:
+          artifact-ids: ${{ needs.build.outputs.atifact_id }}
+          path: ./
+      - name: Prepare Testflinger Job
+        id: prepare-tf-job
+        run: |
+          echo "::group::Preparing fpgad.snap"
+            SRC=$(find "${{ steps.download-snap.outputs.download-path }}" -maxdepth 1 -name "*.snap" | head -n 1)
+            DEST="$(pwd)/fpgad.snap"
+            # Check that the source file exists
+            if [[ -z "$SRC" || ! -f "$SRC" ]]; then
+            echo "::error::Snap file not found at: $SRC"
+              exit 1
+            fi
+            # Move file
+            mv "$SRC" "$DEST"
+            echo "Snap moved successfully"
+          echo "::endgroup::"
+
+          echo "::group::Create test_data tarball"
+            tar -czvf test_data.gz -C daemon/tests/test_data/ .
+          echo "::endgroup::"
+
+          echo "::group::creating job.yaml"
+            yq '.test_data.attachments = [
+            { "agent": "device_script.sh", "local": "'"$(pwd)"'/.github/testflinger-assets/test_snap_device_script.sh" },
+            { "agent": "fpgad.snap",         "local": "'"$(pwd)"'/fpgad.snap" },
+            { "agent": "test_data.gz",       "local": "'"$(pwd)"'/test_data.gz" },
+            { "agent": "snap_tests.py",      "local": "'"$(pwd)"'/tests/snap_tests.py" }
+            ]' .github/testflinger-assets/testflinger_job.yaml | tee job.yaml
+          echo "::endgroup::"
+
+          echo "test_path=job.yaml" >> $GITHUB_OUTPUT
+      - name: Submit TF job
+        id: submit
+        uses: canonical/testflinger/.github/actions/submit@main
+        continue-on-error: true
+        with:
+          poll: true
+          job-path: ${{ steps.prepare-tf-job.outputs.test_path }}
+      - name: Fetch and Display Artifacts
+        shell: bash
+        run: |
+          echo "::group::retrieving snap test artifacts"
+            testflinger artifacts ${{steps.submit.outputs.id }}
+            tar -xvzf artifacts.tgz
+          echo "::endgroup::"
+
+          for f in artifacts/* ; do
+            echo "::group::$f"
+            cat "$f"
+            echo "::endgroup::"
+          done
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: snap-testing-artifacts
+          path: artifacts/*
+      - name: Report test status
+        shell: bash
+        run: |-
+          if [ "${{ steps.submit.outcome }}" != "success" ]; then
+            echo "::error::test job didn't complete successfully"
+            exit 1
+          fi
+          if [[ ! -f artifacts/snap_test.log ]]; then
+            echo "::error::snap_test.log not found, did the tests fail to start?"
+            exit 1
+          fi
+          if grep -q "FAILED (" artifacts/snap_test.log; then
+            echo "::error::found failure phrase in snap_test.log"
+            exit 1
+          fi
