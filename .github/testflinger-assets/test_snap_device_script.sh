@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euxo pipefail
-#echo "INFO: Installing python dependencies"
-#sudo apt update
-#sudo apt install python3-
 
-# TODO: move the test_data files around?
 echo "INFO: Preparing device"
 echo "    --- Updating with apt"
 sudo env DEBIAN_FRONTEND=noninteractive apt update && sudo env DEBIAN_FRONTEND=noninteractive apt install build-essential -y
