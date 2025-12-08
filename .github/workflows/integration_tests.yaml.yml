@@ -2,14 +2,6 @@ name: Run integration tests on a DUT via testflinger
 on:
   workflow_dispatch:
   pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
-      - labeled
 jobs:
   testflinger-integration-tests:
     runs-on: [self-hosted, self-hosted-linux-amd64-jammy-private-endpoint-medium]
