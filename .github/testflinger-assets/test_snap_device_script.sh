@@ -6,6 +6,8 @@ set -euxo pipefail
 
 # TODO: move the test_data files around?
 echo "INFO: Preparing device"
+echo "    --- Updating with apt"
+sudo env DEBIAN_FRONTEND=noninteractive apt update && sudo env DEBIAN_FRONTEND=noninteractive apt install build-essential -y
 echo "    --- Removing fpgad that was installed from snap store"
 sudo snap remove fpgad --purge
 echo "    --- Removing dfx-mgr"
@@ -72,7 +74,7 @@ echo "INFO: Running snap test script"
 # NOTE: tarball contains "k24-starter-kits/..." and "k26-starter-kits/..." at tarball root from daemon/tests/test_data
 mkdir -p fpgad/artifacts
 tar -xzvf test_data.gz -C fpgad
-journalctl -f 2>&1 fpgad/artifacts/journal.log &
+sudo journalctl -f -n0 > journal.log 2>&1 &
 JOURNAL_PID=$!
 sudo python3 -u -m unittest ./snap_tests.py -v 2>&1 | tee fpgad/artifacts/snap_test.log
 sudo kill ${JOURNAL_PID}  || true
