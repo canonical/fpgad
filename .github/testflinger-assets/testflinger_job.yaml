@@ -24,11 +24,7 @@ provision_data:
           - zapper sdwire set DUT
           - sleep 10
       - reboot_script
-      - initial_login:
-          method: builtin-account
-          timeout: 1800
-      - console_commands_nb:
-          - cmd: echo "ubuntu" | sudo -S bash -c 'echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/99-ubuntu-nopasswd'
+      - login
 test_data:
   attachments: # these are replaced in the workflow - local testing only
     - agent: fpgad.gz
