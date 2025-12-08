@@ -77,3 +77,17 @@ jobs:
             echo "::error::found failure phrase in coverage_test.log"
             exit 1
           fi
+  snap-build:
+    name: Check Snap Builds
+    runs-on: [self-hosted, linux, noble, ARM64]
+    outputs:
+      atifact_id: ${{ steps.upload-snap.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: canonical/action-build@v1.3.0
+        id: snapcraft
+      - uses: actions/upload-artifact@v4
+        id: upload-snap
+        with:
+          name: snap-fpgad-${{ github.event.pull_request != null && github.event.pull_request.head.sha || 'workflow-dispatch' }}
+          path: ${{ steps.snapcraft.outputs.snap }}
