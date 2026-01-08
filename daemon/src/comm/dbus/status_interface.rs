@@ -51,11 +51,11 @@ impl StatusInterface {
 
     async fn get_overlay_status(
         &self,
-        platform_compat_str: &str,
+        platform_string: &str,
         overlay_handle: &str,
     ) -> Result<String, fdo::Error> {
         info!(
-            "get_overlay_status called with platform_compat_str: {platform_compat_str} and overlay_handle:\
+            "get_overlay_status called with platform_string: {platform_string} and overlay_handle:\
              {overlay_handle}"
         );
         if overlay_handle.is_empty() {
@@ -64,7 +64,7 @@ impl StatusInterface {
             )
             .into());
         }
-        Ok(platform_for_known_platform(platform_compat_str)?
+        Ok(platform_for_known_platform(platform_string)?
             .overlay_handler(overlay_handle)?
             .status()?)
     }

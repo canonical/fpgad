@@ -30,7 +30,7 @@ pub async fn call_get_fpga_state(device_handle: &str) -> Result<String, zbus::Er
     proxy.get_fpga_state("", device_handle).await
 }
 
-/// Sends the dbus command to get the platform_compat_string for a given device
+/// Sends the dbus command to get the platform_string for a given device
 pub async fn call_get_platform_type(device_handle: &str) -> Result<String, zbus::Error> {
     let connection = Connection::system().await?;
     let proxy = status_proxy::StatusProxy::new(&connection).await?;
@@ -48,7 +48,7 @@ async fn call_get_overlay_status(
 }
 
 /// parses the string from `get_platform_types` interface into a HashMap of
-/// device: platform_compat_string
+/// device:platform_string
 pub async fn call_get_platform_types() -> Result<HashMap<String, String>, zbus::Error> {
     let connection = Connection::system().await?;
     let proxy = status_proxy::StatusProxy::new(&connection).await?;

@@ -21,7 +21,7 @@ pub trait Status {
     async fn get_fpga_flags(&self, platform_string: &str, device_handle: &str) -> Result<String>;
     async fn get_overlay_status(
         &self,
-        platform_compat_str: &str,
+        platform_string: &str,
         overlay_handle: &str,
     ) -> Result<String>;
     async fn get_overlays(&self) -> Result<String>;
