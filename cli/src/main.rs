@@ -24,7 +24,7 @@ use crate::load::load_handler;
 use crate::remove::remove_handler;
 use crate::set::set_handler;
 use crate::status::status_handler;
-use clap::{Parser, Subcommand, arg, command};
+use clap::{Parser, Subcommand};
 use log::{debug, error};
 use std::error::Error;
 
