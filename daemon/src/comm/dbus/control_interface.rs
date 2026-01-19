@@ -148,7 +148,9 @@ impl ControlInterface {
             ))));
         }
         fs_write_bytes(property_path, false, data)?;
-        Ok(format!("{data:?} written to {property_path_str}"))
+        Ok(format!(
+            "Byte string successfully written to {property_path_str}"
+        ))
     }
 }
 
