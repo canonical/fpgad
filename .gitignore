@@ -16,3 +16,6 @@ __pycache__/
 
 # local data
 sandbox/
+
+# mutants anaylysis tool outputs
+mutants.out*
