@@ -45,7 +45,7 @@ To get the state of an FPGA device:
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaState ss "" "fpga0"
 ```
 
-To get the currently set flags for an FPGA device in hex with `0x` prefix:
+To get the currently set flags for an FPGA device in hex (but missing the `0x` prefix):
 
 ```shell
 busctl call --system com.canonical.fpgad /com/canonical/fpgad/status com.canonical.fpgad.status GetFpgaFlags ss "" "fpga0"
@@ -106,7 +106,7 @@ sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.c
 
 #### write a bitstream
 
-Using automated platform detectoin and default `fw_search_path` generation:
+Using automated platform detection and default `fw_search_path` generation:
 
 ```shell
 sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control com.canonical.fpgad.control WriteBitstreamDirect ssss "" "fpga0" "/lib/firmware/k26-starter-kits.bit.bin" ""
