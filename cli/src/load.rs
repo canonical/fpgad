@@ -18,11 +18,14 @@ use crate::status::{
 use std::path;
 use zbus::Connection;
 
-fn sanitize_path_str(in_str: &str) -> String {
-    path::absolute(in_str)
-        .expect("Failed to resolve path")
-        .to_string_lossy()
-        .to_string()
+fn sanitize_path_str(in_str: &str) -> Result<String, zbus::Error> {
+    match path::absolute(in_str) {
+        Ok(absolute_path) => Ok(absolute_path.to_string_lossy().to_string()),
+        Err(e) => Err(zbus::Error::Failure(format!(
+            "Failed to resolve path '{}': {}",
+            in_str, e
+        ))),
+    }
 }
 /// Sends the dbus command to load a bitstream
 async fn call_load_bitstream(
@@ -93,7 +96,7 @@ async fn apply_overlay(
     };
     call_apply_overlay(
         &platform,
-        sanitize_path_str(file_path).as_str(),
+        &sanitize_path_str(file_path)?,
         &overlay_handle_to_use,
         "",
     )
@@ -109,7 +112,7 @@ async fn load_bitstream(
         None => get_first_device_handle().await?,
         Some(dev) => dev.clone(),
     };
-    call_load_bitstream("", &dev, sanitize_path_str(file_path).as_str(), "").await
+    call_load_bitstream("", &dev, &sanitize_path_str(file_path)?, "").await
 }
 
 /// Argument parser for the load command
