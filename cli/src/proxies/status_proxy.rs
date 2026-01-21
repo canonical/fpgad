@@ -27,5 +27,4 @@ pub trait Status {
     async fn get_overlays(&self) -> Result<String>;
     async fn get_platform_type(&self, device_handle: &str) -> Result<String>;
     async fn get_platform_types(&self) -> Result<String>;
-    async fn get_platform_name(&self, _device_handle: &str) -> Result<String>;
 }
