@@ -10,6 +10,23 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+//! Configuration constants for the fpgad daemon.
+//!
+//! This module contains compile-time constants that define the file system paths used by
+//! the daemon to interact with the Linux kernel's FPGA subsystem, device tree overlays,
+//! and firmware loading mechanisms.
+//!
+//! These paths are typically stable across Linux distributions but may vary in some
+//! embedded or specialized configurations. The constants are defined at compile time
+//! and cannot be changed at runtime because FPGAd aims to remain stateless.
+//!
+//! # Kernel Subsystems
+//!
+//! The daemon interacts with three main kernel subsystems:
+//! - **FPGA Manager** - The Linux FPGA subsystem for bitstream loading
+//! - **Device Tree Overlays** - Dynamic device tree modification via configfs
+//! - **Firmware Loading** - Kernel firmware loader search path configuration
+
 /// The driver-decided location of fpga_manager objects. Typically `/sys/class/fpga_manager/`.
 pub static FPGA_MANAGERS_DIR: &str = "/sys/class/fpga_manager/";
 
