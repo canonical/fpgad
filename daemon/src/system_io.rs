@@ -57,7 +57,6 @@ pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Resul
             Ok(())
         }
         Err(e) => Err(FpgadError::IOWrite {
-            data: value.as_ref().to_string(),
             file: file_path.into(),
             e,
         }),
@@ -80,7 +79,6 @@ pub fn fs_write_bytes(file_path: &Path, create: bool, data: &[u8]) -> Result<(),
             Ok(())
         }
         Err(e) => Err(FpgadError::IOWrite {
-            data: format!("{:?}", data),
             file: file_path.into(),
             e,
         }),
