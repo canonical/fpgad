@@ -38,6 +38,7 @@ plugs:
     name: com.canonical.fpgad
   provider-content:
     interface: content
+    content: provider-content
     target: $SNAP_DATA/provider-content
   device-tree-overlays:
     interface: system-files
