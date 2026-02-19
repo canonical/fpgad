@@ -5,6 +5,9 @@ jobs:
   git-commit-check:
     name: Check Git Commit Formatting
     runs-on: ubuntu-latest
+    if: |
+      github.actor != 'renovate[bot]' &&
+      github.actor != 'dependabot[bot]'
     steps:
       - uses: actions/checkout@v5
         with:
