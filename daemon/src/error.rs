@@ -26,12 +26,10 @@ pub enum FpgadError {
     Argument(String),
     #[error("FpgadError::IORead: An IO error occurred when reading from {file:?}: {e}")]
     IORead { file: PathBuf, e: std::io::Error },
-    #[error("FpgadError::IOWrite: An IO error occurred when writing {data:?} to {file:?}: {e}")]
-    IOWrite {
-        data: String,
-        file: PathBuf,
-        e: std::io::Error,
-    },
+    /// Failed to write data to a file system path.
+    #[error("FpgadError::IOWrite: An IO error occurred when writing to {file:?}: {e}")]
+    IOWrite { file: PathBuf, e: std::io::Error },
+    /// Failed to create a file or directory - wrapper around std::io::Error
     #[error("FpgadError::IOCreate: An IO error occurred when creating {file:?}: {e}")]
     IOCreate { file: PathBuf, e: std::io::Error },
     #[error("FpgadError::IODelete: An IO error occurred when deleting {file:?}: {e}")]

@@ -34,7 +34,7 @@ pub trait Control {
 
     async fn apply_overlay(
         &self,
-        platform_compat_str: &str,
+        platform_string: &str,
         overlay_handle: &str,
         overlay_source_path: &str,
         firmware_lookup_path: &str,

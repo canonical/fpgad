@@ -71,17 +71,17 @@ impl ControlInterface {
 
     async fn apply_overlay(
         &self,
-        platform_compat_str: &str,
+        platform_string: &str,
         overlay_handle: &str,
         overlay_source_path: &str,
         firmware_lookup_path: &str,
     ) -> Result<String, fdo::Error> {
         info!(
-            "apply_overlay called with platform_compat_str: {platform_compat_str}, overlay_handle: \
+            "apply_overlay called with platform_string: {platform_string}, overlay_handle: \
             {overlay_handle} and overlay_path: {overlay_source_path}",
         );
         let _guard = get_write_lock_guard().await;
-        let platform = platform_for_known_platform(platform_compat_str)?;
+        let platform = platform_for_known_platform(platform_string)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         let (prefix, suffix) = make_firmware_pair(
@@ -100,14 +100,14 @@ impl ControlInterface {
 
     async fn remove_overlay(
         &self,
-        platform_compat_str: &str,
+        platform_string: &str,
         overlay_handle: &str,
     ) -> Result<String, fdo::Error> {
         info!(
-            "remove_overlay called with platform_compat_str: {platform_compat_str} and overlay_handle:\
+            "remove_overlay called with platform_string: {platform_string} and overlay_handle:\
              {overlay_handle}"
         );
-        let platform = platform_for_known_platform(platform_compat_str)?;
+        let platform = platform_for_known_platform(platform_string)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
         let overlay_fs_path = overlay_handler.overlay_fs_path()?;
         overlay_handler.remove_overlay()?;
@@ -148,7 +148,9 @@ impl ControlInterface {
             ))));
         }
         fs_write_bytes(property_path, false, data)?;
-        Ok(format!("{data:?} written to {property_path_str}"))
+        Ok(format!(
+            "Byte string successfully written to {property_path_str}"
+        ))
     }
 }
 
