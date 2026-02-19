@@ -144,7 +144,7 @@ jobs:
           echo "test_path=job.yaml" >> $GITHUB_OUTPUT
       - name: Submit TF job
         id: submit
-        uses: canonical/testflinger/.github/actions/submit@main
+        uses: canonical/testflinger/.github/actions/submit@rev263
         continue-on-error: true
         with:
           poll: true
