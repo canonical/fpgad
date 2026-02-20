@@ -33,6 +33,7 @@ jobs:
       - name: Build
         run: |
           rustup component add clippy
+          cargo clippy
           cargo build --workspace -v
       - name: Move coverage results for TICS
         shell: bash
