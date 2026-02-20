@@ -9,7 +9,7 @@ jobs:
       github.actor != 'renovate[bot]' &&
       github.actor != 'dependabot[bot]'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v6
@@ -85,7 +85,7 @@ jobs:
     name: Check Python Code Formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Install Dependencies
@@ -131,7 +131,7 @@ jobs:
     name: Check YAML Formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version: '>=1.21.0'
@@ -150,7 +150,7 @@ jobs:
     env:
       RUSTFLAGS: -Dwarnings
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Run clippy
         run: |
           echo "::group::cargo clippy output"
