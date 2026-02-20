@@ -1,0 +1,53 @@
+name: TiCS Scan
+on:
+  pull_request:
+  schedule:
+    - cron: '17 1 * * 0' # Runs at 01:17 (UTC) on Sunday
+jobs:
+  integration-tests:
+    secrets: inherit
+    uses: ./.github/workflows/integration_tests.yml
+  TICS:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    needs:
+      - integration-tests
+    runs-on: [self-hosted, amd64, tiobe]
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DEBIAN_FRONTEND: noninteractive
+      COVERAGE_DIR: ${{ github.workspace }}/${{ vars.TICS_COVERAGE_DIR || 'coverage' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: llvm-cov-artifacts
+          path: artifacts
+      - uses: actions-rust-lang/setup-rust-toolchain@v1.15
+      - name: Build
+        run: |
+          rustup component add clippy
+          cargo clippy
+          cargo build --workspace -v
+      - name: Move coverage results for TICS
+        shell: bash
+        run: |
+          find ./artifacts
+          echo "COVERAGE_DIR=${COVERAGE_DIR}"
+          mkdir -p "$COVERAGE_DIR"
+          mv -v ./artifacts/*.lcov "$COVERAGE_DIR/"
+      - name: Run TICS analysis
+        uses: tiobe/tics-github-action@v3.5.0
+        with:
+          mode: qserver
+          project: fpgad
+          viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
+          branchdir: ${{ github.workspace }}
+          ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
+          installTics: true
