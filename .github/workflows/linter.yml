@@ -144,6 +144,93 @@ jobs:
           echo "::group::yamlfmt output"
           yamlfmt -lint .
           echo "::endgroup::"
+  version-bump-check:
+    name: Check Version Bump for Rust Changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Check if version was bumped
+        run: |
+          echo "::group::check for modified Rust source files"
+          # Check if any .rs files in <package>/src/ directories have been modified
+          changed_rust_files=$(git diff --name-only --diff-filter=ACMRTUXB origin/${{ github.base_ref }} | grep -E "^(daemon|cli|fpgad_macros)/src/.*\.rs$" || true)
+
+          if [ -z "$changed_rust_files" ]; then
+            echo "✅ No Rust source files modified - version bump not required."
+            exit 0
+          fi
+
+          echo "Modified Rust source files detected:"
+          echo "$changed_rust_files"
+          echo "::endgroup::"
+
+          echo "::group::extract version numbers"
+          # Get the old version from base branch
+          git show origin/${{ github.base_ref }}:Cargo.toml > /tmp/base_cargo.toml
+          old_version=$(grep -A 10 '^\[workspace.package\]' /tmp/base_cargo.toml | grep '^version' | head -1 | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
+
+          # Get the new version from current branch
+          new_version=$(grep -A 10 '^\[workspace.package\]' Cargo.toml | grep '^version' | head -1 | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
+
+          if [ -z "$old_version" ]; then
+            echo "::error::Could not extract old version from base branch Cargo.toml"
+            exit 1
+          fi
+
+          if [ -z "$new_version" ]; then
+            echo "::error::Could not extract new version from current Cargo.toml"
+            exit 1
+          fi
+
+          echo "Old version: $old_version"
+          echo "New version: $new_version"
+          echo "::endgroup::"
+
+          echo "::group::compare versions using semver"
+          # Parse semver components (major.minor.patch[-prerelease][+build])
+          parse_version() {
+            local version=$1
+            # Extract major.minor.patch (ignore pre-release and build metadata for now)
+            local base_version=$(echo "$version" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+            echo "$base_version"
+          }
+
+          old_base=$(parse_version "$old_version")
+          new_base=$(parse_version "$new_version")
+
+          # Split into components
+          IFS='.' read -r old_major old_minor old_patch <<< "$old_base"
+          IFS='.' read -r new_major new_minor new_patch <<< "$new_base"
+
+          # Compare versions
+          version_increased=false
+
+          if [ "$new_major" -gt "$old_major" ]; then
+            version_increased=true
+          elif [ "$new_major" -eq "$old_major" ] && [ "$new_minor" -gt "$old_minor" ]; then
+            version_increased=true
+          elif [ "$new_major" -eq "$old_major" ] && [ "$new_minor" -eq "$old_minor" ] && [ "$new_patch" -gt "$old_patch" ]; then
+            version_increased=true
+          fi
+
+          if [ "$version_increased" = false ]; then
+            echo "::error::Version was not increased!%0A\
+          Old version: $old_version%0A\
+          New version: $new_version%0A\
+          %0A\
+          Rust source files were modified but the version was not bumped in Cargo.toml.%0A\
+          Please update the version in the [workspace.package] section of the root Cargo.toml.%0A\
+          Version must follow semver and be greater than $old_version.%0A\
+          %0A\
+          Modified Rust files:%0A\
+          $(echo "$changed_rust_files" | sed 's/^/- /' | tr '\n' '|' | sed 's/|/%0A/g')"
+            exit 1
+          else
+            echo "✅ Version was properly increased: $old_version → $new_version"
+            echo "::endgroup::"
+          fi
   rust-check:
     name: Check Rust Code
     runs-on: ubuntu-latest
