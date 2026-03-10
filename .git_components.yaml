@@ -40,3 +40,4 @@ tests:
 snapcraft:
   owners:
     - artiepoole
+    - talhaHavadar

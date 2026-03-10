@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+CONF_DIR="$SNAP_COMMON/etc/dfx-mgrd"
+CONF_FILE="$CONF_DIR/daemon.conf"
+DEFAULT_CONF="$SNAP/etc/dfx-mgrd/daemon.conf"
+
+mkdir -p "$CONF_DIR"
+
+if [ ! -f "$CONF_FILE" ]; then
+    echo "Initializing default daemon.conf"
+    cp "$DEFAULT_CONF" "$CONF_FILE"
+fi
