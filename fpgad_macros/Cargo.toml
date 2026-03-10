@@ -1,7 +1,15 @@
 [package]
 name = "fpgad_macros"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Procedural macros for the FPGAd project"
+readme = "README.md"
+keywords = ["fpga", "macros", "proc-macro"]
+categories = ["development-tools::procedural-macro-helpers"]
 
 [lib]
 proc-macro = true

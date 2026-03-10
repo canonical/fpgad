@@ -1,3 +1,12 @@
 [workspace]
 resolver = "3"
 members = ["daemon", "cli", "fpgad_macros"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0"
+homepage = "https://github.com/canonical/fpgad"
+repository = "https://github.com/canonical/fpgad"
+authors = ["Talha Can Havadar <talha.can.havadar@canonical.com>", "Artie Poole <stuart.poole@canonical.com>"]
+
