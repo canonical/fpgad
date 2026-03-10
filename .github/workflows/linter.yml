@@ -144,6 +144,29 @@ jobs:
           echo "::group::yamlfmt output"
           yamlfmt -lint .
           echo "::endgroup::"
+  version-bump-check:
+    name: Check Version Bump for Rust Changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Ensure version is bumped if there are any rust changes
+        id: check-rust-changes
+        run: |
+          set -e
+          # Check if any .rs files in <package>/src/ directories have been modified
+          changed_rust_files=$(git diff --name-only --diff-filter=ACMRTUXB origin/${{ github.base_ref }} | grep -E "^(daemon|cli|fpgad_macros)/src/.*\.rs$" || true)
+
+          if [ -z "$changed_rust_files" ]; then
+            echo "✅ No Rust source files modified - version bump not required."
+            exit 0
+          else
+            echo "::group::Modified Rust source files"
+            echo "${changed_rust_files}"
+            echo "::endgroup::"
+            python scripts/ci/check_version_bump.py
+          fi
   rust-check:
     name: Check Rust Code
     runs-on: ubuntu-latest
