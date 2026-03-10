@@ -127,11 +127,16 @@ impl From<FpgadError> for fdo::Error {
     }
 }
 
-/// Helper function to map IO errors to fdo::Error with a custom message.
+///  Converter for tokio::io::Error into zbus::fdo::Error types, with added "custom_msg" in order
+///  to provide additional context.
+///  This allows for "?" on e.g., tokio::io::Command calls
 ///
-/// This is useful when you want to provide more context about what operation failed
-/// without creating a full FpgadError variant.
+/// # Arguments
+///
+/// * `custom_msg`: String to prepend the error - use to add context e.g. "failed when calling nproc"
+/// * `err`: the tokio::io::error from the failing function
+///
+/// returns: zbus::fdo::Error type suitable for dbus transmission
 pub(crate) fn map_error_io_to_fdo(custom_msg: &str, err: impl std::fmt::Display) -> fdo::Error {
     fdo::Error::Failed(format!("{custom_msg}:\n{err}"))
 }
-
