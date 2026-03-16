@@ -71,10 +71,11 @@
 //! println!("Flags: 0x{:X}", flags);
 //! ```
 
-use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::Fpga;
+use crate::platforms::universal_components::universal_helpers;
 use crate::system_io::{fs_read, fs_write};
+use crate::{config, system_io};
 use log::{error, info, trace, warn};
 use std::path::Path;
 
@@ -141,11 +142,11 @@ impl UniversalFPGA {
         match self.state() {
             Ok(state) => match state.to_string().as_str() {
                 "operating" => {
-                    info!("{}'s state is 'operating'", self.device_handle);
+                    info!("The state of '{}' is 'operating'", self.device_handle);
                     Ok(())
                 }
                 _ => Err(FpgadError::FPGAState(format!(
-                    "After loading bitstream, {}'s state should be should be 'operating' but it is '{}'",
+                    "After loading bitstream, the state of '{}' should be should be 'operating' but it is '{}'",
                     self.device_handle, state
                 ))),
             },
@@ -178,7 +179,7 @@ impl Fpga for UniversalFPGA {
         let state_path = Path::new(config::FPGA_MANAGERS_DIR)
             .join(self.device_handle.clone())
             .join("state");
-        trace!("reading {state_path:?}");
+        trace!("reading '{state_path:?}'");
         fs_read(&state_path).map(|s| s.trim_end_matches('\n').to_string())
     }
 
@@ -217,11 +218,11 @@ impl Fpga for UniversalFPGA {
     /// * `Err(FpgadError::IOWrite)` - Failed to write flags file
     /// * `Err(FpgadError::IORead)` - Failed to read back flags or state
     /// * `Err(FpgadError::Flag)` - Read-back value doesn't match written value
-    fn set_flags(&self, flags: u32) -> Result<(), FpgadError> {
+    fn set_flags(&self, flags: u32) -> Result<String, FpgadError> {
         let flag_path = Path::new(config::FPGA_MANAGERS_DIR)
             .join(self.device_handle.clone())
             .join("flags");
-        trace!("Writing 0x'{flags:X}' to '{flag_path:?}");
+        trace!("Writing '0x{flags:X}' to '{flag_path:?}'");
         if let Err(e) = fs_write(&flag_path, false, format!("0x{flags:X}")) {
             error!("Failed to read state.");
             return Err(e);
@@ -246,13 +247,16 @@ impl Fpga for UniversalFPGA {
         };
 
         match self.flags() {
-            Ok(returned_flags) if returned_flags == flags => Ok(()),
+            Ok(returned_flags) if returned_flags == flags => Ok(format!(
+                "Flags set to '0x{:X}' for '{}'",
+                flags, self.device_handle
+            )),
             Ok(returned_flags) => Err(FpgadError::Flag(format!(
-                "Setting {}'s flags to '{}' failed. Resulting flag was '{}'",
+                "Setting  flags of '{}' to '{}' failed. Resulting flag was '{}'",
                 self.device_handle, flags, returned_flags
             ))),
             Err(e) => Err(FpgadError::Flag(format!(
-                "Failed to read {}'s  flags after setting to '{}': {}",
+                "Failed to read device '{}' flags after setting to '{}': {}",
                 self.device_handle, flags, e
             ))),
         }
@@ -267,10 +271,12 @@ impl Fpga for UniversalFPGA {
     ///
     /// # Arguments
     ///
-    /// * `bitstream_path_rel` - Path to bitstream file relative to firmware search path
+    /// * `bitstream_path` - Absolute path to the bitstream file
+    /// * `firmware_lookup_path` - Path to resolve firmware or empty path
+    ///   (automatically uses the parent dir of `bitstream_path`)
     ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Bitstream loaded and FPGA is operating
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message with source and firmware lookup path
     /// * `Err(FpgadError::IOWrite)` - Failed to write firmware file
     /// * `Err(FpgadError::FPGAState)` - FPGA not in "operating" state after loading
     ///
@@ -287,11 +293,27 @@ impl Fpga for UniversalFPGA {
     /// fpga.load_firmware(Path::new("design.bit.bin"))?;
     /// println!("Bitstream loaded successfully");
     /// ```
-    fn load_firmware(&self, bitstream_path_rel: &Path) -> Result<(), FpgadError> {
+    fn load_firmware(
+        &self,
+        bitstream_path: &Path,
+        firmware_lookup_path: &Path,
+    ) -> Result<String, FpgadError> {
+        let (prefix, suffix) = system_io::make_firmware_pair(bitstream_path, firmware_lookup_path)?;
+        universal_helpers::write_firmware_source_dir(&prefix.to_string_lossy())?;
         let control_path = Path::new(config::FPGA_MANAGERS_DIR)
             .join(self.device_handle())
             .join("firmware");
-        fs_write(&control_path, false, bitstream_path_rel.to_string_lossy())?;
-        self.assert_state()
+        fs_write(&control_path, false, suffix.to_string_lossy())?;
+        self.assert_state()?;
+        Ok(format!(
+            "'{:#?}' loaded to '{}' using firmware lookup path '{:#?}'",
+            bitstream_path, self.device_handle, prefix
+        ))
+    }
+
+    fn remove_firmware(&self, _handle: Option<&str>) -> Result<String, FpgadError> {
+        Err(FpgadError::Internal(
+            "UniversalPlatform does not support removing bitstreams".to_string(),
+        ))
     }
 }

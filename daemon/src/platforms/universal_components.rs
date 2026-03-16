@@ -13,4 +13,5 @@
 #![doc = include_str!("universal_components/README.md")]
 
 pub mod universal_fpga;
+mod universal_helpers;
 pub mod universal_overlay_handler;

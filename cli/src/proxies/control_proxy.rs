@@ -165,4 +165,27 @@ pub trait Control {
     /// * `Err(zbus::Error)` - DBus error or FpgadError.
     ///   See [Error Handling](../../index.html#error-handling)
     async fn write_property_bytes(&self, property_path_str: &str, data: &[u8]) -> Result<String>;
+
+    /// Remove a previously loaded bitstream, identifiable by its `bitstream_handle` or `slot`.
+    ///
+    /// # Arguments
+    ///
+    /// * `platform_string`: Platform compatibility string.
+    /// * `overlay_handle`: Handle of the overlay to remove.
+    ///
+    /// # Returns: `Result<String, Error>`
+    /// *  `Ok(String)` – Confirmation message including overlay filesystem path.
+    /// * `Err(fdo::Error)` if overlay or platform cannot be accessed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// assert!(remove_bitstream("xlnx,zynqmp-pcap-fpga", "").is_ok());
+    /// ```
+    async fn remove_bitstream(
+        &self,
+        platform_string: &str,
+        device_handle: &str,
+        bitstream_handle: &str,
+    ) -> Result<String>;
 }

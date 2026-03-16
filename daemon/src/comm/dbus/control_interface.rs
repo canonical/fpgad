@@ -16,9 +16,7 @@
 //! If FPGAd raises the error, then the fdo::Error strings are prepended with the relevant FPGAd error type e.g. `FpgadError::Argument: <error text>`. See [crate::comm::dbus] for a summary of this interface's methods.
 //!
 
-use crate::comm::dbus::{
-    make_firmware_pair, validate_device_handle, validate_property_path, write_firmware_source_dir,
-};
+use crate::comm::dbus::{validate_device_handle, validate_property_path};
 use crate::error::map_error_io_to_fdo;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 use crate::system_io::{fs_write, fs_write_bytes};
@@ -114,8 +112,7 @@ impl ControlInterface {
         info!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
         let platform = platform_from_compat_or_device(platform_string, device_handle)?;
-        platform.fpga(device_handle)?.set_flags(flags)?;
-        Ok(format!("Flags set to 0x{flags:X} for {device_handle}"))
+        Ok(platform.fpga(device_handle)?.set_flags(flags)?)
     }
 
     /// Trigger a bitstream-only load of a bitstream to a given FPGA device (i.e. no device-tree changes or driver installation).
@@ -178,16 +175,11 @@ impl ControlInterface {
         info!("load_firmware called with name: {device_handle} and path_str: {bitstream_path_str}");
         validate_device_handle(device_handle)?;
         let path = Path::new(bitstream_path_str);
+        let lookup = Path::new(firmware_lookup_path);
         let _guard = get_write_lock_guard().await;
         trace!("Got write lock.");
         let platform = platform_from_compat_or_device(platform_string, device_handle)?;
-        let (prefix, suffix) = make_firmware_pair(path, Path::new(firmware_lookup_path))?;
-        write_firmware_source_dir(&prefix.to_string_lossy())?;
-        platform.fpga(device_handle)?.load_firmware(&suffix)?;
-        Ok(format!(
-            "{bitstream_path_str} loaded to {device_handle} using firmware lookup path: '\
-         {prefix:?}'"
-        ))
+        Ok(platform.fpga(device_handle)?.load_firmware(path, lookup)?)
     }
 
     /// Apply a device-tree overlay to trigger a bitstream load and driver probe events.
@@ -263,17 +255,11 @@ impl ControlInterface {
         trace!("Got write lock.");
         let platform = platform_for_known_platform(platform_string)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
-        let overlay_fs_path = overlay_handler.overlay_fs_path()?;
-        let (prefix, suffix) = make_firmware_pair(
+
+        Ok(overlay_handler.apply_overlay(
             Path::new(overlay_source_path),
             Path::new(firmware_lookup_path),
-        )?;
-        write_firmware_source_dir(&prefix.to_string_lossy())?;
-        overlay_handler.apply_overlay(&suffix)?;
-        Ok(format!(
-            "{overlay_source_path} loaded via {overlay_fs_path:?} using firmware lookup path: '\
-         {prefix:?}'"
-        ))
+        )?)
     }
 
     /// Remove a previously applied overlay, identifiable by its `overlay_handle`.
@@ -303,11 +289,47 @@ impl ControlInterface {
         );
         let platform = platform_for_known_platform(platform_string)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
-        let overlay_fs_path = overlay_handler.overlay_fs_path()?;
-        overlay_handler.remove_overlay()?;
-        Ok(format!(
-            "{overlay_handle} removed by deleting {overlay_fs_path:?}"
-        ))
+        let handle = match overlay_handle {
+            "" => None,
+            _ => Some(overlay_handle),
+        };
+        Ok(overlay_handler.remove_overlay(handle)?)
+    }
+
+    /// Remove a previously loaded bitstream, identifiable by its `bitstream_handle` or `slot`.
+    ///
+    /// # Arguments
+    ///
+    /// * `platform_string`: Platform compatibility string.
+    /// * `device_handle`: FPGA device handle (e.g., `fpga0`).
+    /// * `bitstream_handle`: Handle/slot of the bitstream to remove.
+    ///
+    /// # Returns: `Result<String, Error>`
+    /// *  `Ok(String)` – Confirmation message including device and bitstream handle.
+    /// * `Err(fdo::Error)` if device or platform cannot be accessed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// assert!(remove_bitstream("xlnx,zynqmp-pcap-fpga", "fpga0", "").is_ok());
+    /// ```
+    async fn remove_bitstream(
+        &self,
+        platform_string: &str,
+        device_handle: &str,
+        bitstream_handle: &str,
+    ) -> Result<String, fdo::Error> {
+        info!(
+            "remove_bitstream called with platform_string: {platform_string}, device_handle:\
+             {device_handle} and bitstream_handle: {bitstream_handle}"
+        );
+        let platform = platform_from_compat_or_device(platform_string, device_handle)?;
+        let fpga = platform.fpga(device_handle)?;
+        let handle = match bitstream_handle {
+            "" => None,
+            _ => Some(bitstream_handle),
+        };
+        Ok(fpga.remove_firmware(handle)?)
     }
 
     /// Write a string value to an arbitrary FPGA device property.
