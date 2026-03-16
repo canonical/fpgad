@@ -320,7 +320,7 @@ enum Commands {
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     let cli = Cli::parse();
-    debug!("parsed cli command with {cli:?}");
+    debug!("parsed cli command with {cli:#?}");
     let result = match cli.command {
         Commands::Load { command } => load_handler(&cli.handle, &command).await,
         Commands::Remove { command } => remove_handler(&cli.handle, &command).await,

@@ -165,6 +165,6 @@ async fn should_timeout(
     )
     .await;
     if let Ok(res) = timeout_result {
-        panic!("Timeout not reached when expecting a timeout to occur: {res:?}");
+        panic!("Timeout not reached when expecting a timeout to occur: {res:#?}");
     }
 }
