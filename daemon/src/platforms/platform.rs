@@ -124,23 +124,41 @@ pub trait Fpga {
     ///
     /// * `flags` - The flags value to set
     ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Flags set successfully
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message including flags value and device handle
     /// * `Err(FpgadError::IOWrite)` - Failed to write flags file
-    fn set_flags(&self, flags: u32) -> Result<(), FpgadError>;
+    fn set_flags(&self, flags: u32) -> Result<String, FpgadError>;
 
     /// Load a bitstream firmware file to the FPGA device.
     ///
     /// # Arguments
     ///
-    /// * `bitstream_path_rel` - Path to the bitstream file relative to whatever path the lookup starts in. For universal, this is the firmware search path
+    /// * `bitstream_path` - Absolute path to the bitstream file
+    /// * `firmware_lookup_path` - Path to resolve firmware or empty path
+    ///   (automatically uses the parent dir of `bitstream_path`)
     ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Bitstream loaded successfully
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message with source and target
     /// * `Err(FpgadError::IOWrite)` - Failed to write firmware file
     /// * `Err(FpgadError::FPGAState)` - FPGA not in correct state for loading
     #[allow(dead_code)]
-    fn load_firmware(&self, bitstream_path_rel: &Path) -> Result<(), FpgadError>;
+    fn load_firmware(
+        &self,
+        bitstream_path: &Path,
+        firmware_lookup_path: &Path,
+    ) -> Result<String, FpgadError>;
+
+    /// Remove a previously loaded firmware/bitstream.
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - Optional handle/slot identifier for the firmware to remove
+    ///
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message including device and firmware details
+    /// * `Err(FpgadError::Internal)` - Operation not supported by this platform
+    /// * `Err(FpgadError)` - Failed to remove firmware
+    fn remove_firmware(&self, handle: Option<&str>) -> Result<String, FpgadError>;
 }
 
 /// Trait for managing device tree overlays.
@@ -150,19 +168,25 @@ pub trait OverlayHandler {
     /// # Arguments
     ///
     /// * `source_path` - Path to the `.dtbo` overlay binary file
+    /// * `lookup_path` - Path to resolve overlay firmware or empty path
+    ///   (automatically uses the parent dir of `source_path`)
     ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Overlay applied successfully
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message with overlay path and firmware prefix
     /// * `Err(FpgadError::IOWrite)` - Failed to write overlay
     /// * `Err(FpgadError::OverlayStatus)` - Overlay application failed
-    fn apply_overlay(&self, source_path: &Path) -> Result<(), FpgadError>;
+    fn apply_overlay(&self, source_path: &Path, lookup_path: &Path) -> Result<String, FpgadError>;
 
     /// Remove a device tree overlay.
     ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Overlay removed successfully
+    /// # Arguments
+    ///
+    /// * `handle` - Optional handle/slot identifier for the overlay to remove
+    ///
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message including overlay filesystem path
     /// * `Err(FpgadError::IODelete)` - Failed to remove overlay directory
-    fn remove_overlay(&self) -> Result<(), FpgadError>;
+    fn remove_overlay(&self, handle: Option<&str>) -> Result<String, FpgadError>;
 
     /// Get the required FPGA flags, however they may be provided.
     ///
