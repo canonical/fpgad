@@ -56,6 +56,7 @@ use zbus::fdo;
 /// All errors implement `Display` and will be formatted with the `FpgadError::<variant>:`
 /// prefix, making them easily identifiable in logs and error messages sent over DBus.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum FpgadError {
     /// Failed to read FPGA programming flags from sysfs.
     #[error("FpgadError::Flag: Failed to read flags: {0}")]
