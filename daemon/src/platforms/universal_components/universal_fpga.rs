@@ -294,4 +294,10 @@ impl Fpga for UniversalFPGA {
         fs_write(&control_path, false, bitstream_path_rel.to_string_lossy())?;
         self.assert_state()
     }
+
+    fn remove_firmware(&self, _handle: Option<&str>) -> Result<String, FpgadError> {
+        Err(FpgadError::Internal(
+            "UniversalPlatform does not support removing bitstreams".to_string(),
+        ))
+    }
 }

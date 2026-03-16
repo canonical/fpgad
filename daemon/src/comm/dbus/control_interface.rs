@@ -302,11 +302,46 @@ impl ControlInterface {
         );
         let platform = platform_for_known_platform(platform_string)?;
         let overlay_handler = platform.overlay_handler(overlay_handle)?;
-        let overlay_fs_path = overlay_handler.overlay_fs_path()?;
-        overlay_handler.remove_overlay()?;
-        Ok(format!(
-            "{overlay_handle} removed by deleting {overlay_fs_path:?}"
-        ))
+        let handle = match overlay_handle {
+            "" => None,
+            _ => Some(overlay_handle),
+        };
+        Ok(overlay_handler.remove_overlay(handle)?)
+    }
+
+    /// Remove a previously loaded bitstream, identifiable by its `bitstream_handle` or `slot`.
+    ///
+    /// # Arguments
+    ///
+    /// * `platform_string`: Platform compatibility string.
+    /// * `overlay_handle`: Handle of the overlay to remove.
+    ///
+    /// # Returns: `Result<String, Error>`
+    /// *  `Ok(String)` – Confirmation message including overlay filesystem path.
+    /// * `Err(fdo::Error)` if overlay or platform cannot be accessed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// assert!(remove_bitstream("xlnx,zynqmp-pcap-fpga", "").is_ok());
+    /// ```
+    async fn remove_bitstream(
+        &self,
+        platform_string: &str,
+        device_handle: &str,
+        bitstream_handle: &str,
+    ) -> Result<String, fdo::Error> {
+        info!(
+            "remove_bitstream called with platform_string: {platform_string}, device_handle:\
+             {device_handle} and bitstream_handle: {bitstream_handle}"
+        );
+        let platform = platform_from_compat_or_device(platform_string, device_handle)?;
+        let fpga = platform.fpga(device_handle)?;
+        let handle = match bitstream_handle {
+            "" => None,
+            _ => Some(bitstream_handle),
+        };
+        Ok(fpga.remove_firmware(handle)?)
     }
 
     /// Write a string value to an arbitrary FPGA device property.

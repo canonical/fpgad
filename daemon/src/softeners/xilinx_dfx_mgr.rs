@@ -81,8 +81,11 @@ pub fn load(accel_name: &str) -> Result<String, FpgadSoftenerError> {
 
 /// Unload package previously programmed
 #[allow(dead_code)]
-pub fn remove(slot: u32) -> Result<String, FpgadSoftenerError> {
-    run_dfx_mgr(&["-remove", &slot.to_string()])
+pub fn remove(slot_handle: Option<&str>) -> Result<String, FpgadSoftenerError> {
+    match slot_handle {
+        Some(slot_handle) => Ok(run_dfx_mgr(&["-remove", slot_handle])?),
+        None => Ok(run_dfx_mgr(&["-remove"])?),
+    }
 }
 
 /// List accelerator UIOs

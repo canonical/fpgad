@@ -141,6 +141,8 @@ pub trait Fpga {
     /// * `Err(FpgadError::FPGAState)` - FPGA not in correct state for loading
     #[allow(dead_code)]
     fn load_firmware(&self, bitstream_path_rel: &Path) -> Result<(), FpgadError>;
+
+    fn remove_firmware(&self, handle: Option<&str>) -> Result<String, FpgadError>;
 }
 
 /// Trait for managing device tree overlays.
@@ -162,7 +164,7 @@ pub trait OverlayHandler {
     /// # Returns: `Result<(), FpgadError>`
     /// * `Ok(())` - Overlay removed successfully
     /// * `Err(FpgadError::IODelete)` - Failed to remove overlay directory
-    fn remove_overlay(&self) -> Result<(), FpgadError>;
+    fn remove_overlay(&self, handle: Option<&str>) -> Result<String, FpgadError>;
 
     /// Get the required FPGA flags, however they may be provided.
     ///

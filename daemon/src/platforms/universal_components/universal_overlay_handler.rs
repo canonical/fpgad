@@ -243,9 +243,10 @@ impl OverlayHandler for UniversalOverlayHandler {
     /// # Returns: `Result<(), FpgadError>`
     /// * `Ok(())` - Overlay directory removed successfully
     /// * `Err(FpgadError::IODelete)` - Failed to remove directory (not empty, doesn't exist, etc.)
-    fn remove_overlay(&self) -> Result<(), FpgadError> {
+    fn remove_overlay(&self, _: Option<&str>) -> Result<String, FpgadError> {
         let overlay_fs_path = self.overlay_fs_path()?;
-        fs_remove_dir(overlay_fs_path)
+        fs_remove_dir(overlay_fs_path)?;
+        Ok("{overlay_handle} removed by deleting {overlay_fs_path:?}".to_string())
     }
 
     /// Get the required FPGA programming flags from the overlay.
