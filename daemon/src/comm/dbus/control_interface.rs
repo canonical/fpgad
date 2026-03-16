@@ -110,6 +110,7 @@ impl ControlInterface {
         device_handle: &str,
         flags: u32,
     ) -> Result<String, fdo::Error> {
+        // TODO(Artie): consider whether this should be a platform specific function or not.
         info!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
         let platform = platform_from_compat_or_device(platform_string, device_handle)?;
@@ -174,6 +175,9 @@ impl ControlInterface {
         bitstream_path_str: &str,
         firmware_lookup_path: &str,
     ) -> Result<String, fdo::Error> {
+        // TODO(Artie): refactor this code to be platform specific. The dfx-mgr implementation does
+        //  the firmware source dir write under the hood. This could instead be in a different #
+        //  interface for dfx-mgr, but then the platform detection becomes useless.
         info!("load_firmware called with name: {device_handle} and path_str: {bitstream_path_str}");
         validate_device_handle(device_handle)?;
         let path = Path::new(bitstream_path_str);
@@ -183,6 +187,7 @@ impl ControlInterface {
         let (prefix, suffix) = make_firmware_pair(path, Path::new(firmware_lookup_path))?;
         write_firmware_source_dir(&prefix.to_string_lossy())?;
         platform.fpga(device_handle)?.load_firmware(&suffix)?;
+        // TODO(Artie): This string formatting should happen inside the apply_overlay function.
         Ok(format!(
             "{bitstream_path_str} loaded to {device_handle} using firmware lookup path: '\
          {prefix:?}'"
@@ -254,6 +259,8 @@ impl ControlInterface {
         overlay_source_path: &str,
         firmware_lookup_path: &str,
     ) -> Result<String, fdo::Error> {
+        // TODO(Artie): refactor this code to be platform specific. The dfx-mgr implementation does
+        //  the firmware source dir write under the hood.
         info!(
             "apply_overlay called with platform_string: {platform_string}, overlay_handle: \
             {overlay_handle} and overlay_path: {overlay_source_path}",
@@ -269,6 +276,7 @@ impl ControlInterface {
         )?;
         write_firmware_source_dir(&prefix.to_string_lossy())?;
         overlay_handler.apply_overlay(&suffix)?;
+        // TODO(Artie): This string formatting should happen inside the apply_overlay function.
         Ok(format!(
             "{overlay_source_path} loaded via {overlay_fs_path:?} using firmware lookup path: '\
          {prefix:?}'"
@@ -376,6 +384,7 @@ impl ControlInterface {
         property_path_str: &str,
         data: &str,
     ) -> Result<String, fdo::Error> {
+        // TODO(Artie): consider whether this should be a platform specific function or not.
         info!("write_property called with property_path_str: {property_path_str} and data: {data}");
         let property_path = Path::new(property_path_str);
         if !property_path.starts_with(Path::new(FPGA_MANAGERS_DIR)) {
@@ -420,6 +429,7 @@ impl ControlInterface {
         property_path_str: &str,
         data: &[u8],
     ) -> Result<String, fdo::Error> {
+        // TODO(Artie): consider whether this should be a platform specific function or not.
         info!(
             "write_property called with property_path_str: {property_path_str} and data: {data:?}"
         );
