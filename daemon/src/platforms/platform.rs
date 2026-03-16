@@ -290,6 +290,7 @@ fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, Fpg
         let compat_set: HashSet<&str> = compat_string.split(',').collect();
         let compat_found = platform_string.split(',').all(|x| compat_set.contains(x));
         if compat_found {
+            trace!("found `{compat_found}` for platform with compat string `{platform_string}`");
             return Ok(platform_constructor());
         }
     }
@@ -327,10 +328,16 @@ fn discover_platform(device_handle: &str) -> Result<Box<dyn Platform>, FpgadErro
     let compat_string = read_compatible_string(device_handle)?;
     trace!("Found compatibility string: '{compat_string}'");
 
-    Ok(match_platform_string(&compat_string).unwrap_or({
-        warn!("{compat_string} not supported. Defaulting to Universal platform.");
-        Box::new(UniversalPlatform::new())
-    }))
+    match match_platform_string(&compat_string) {
+        Ok(platform) => {
+            trace!("Matched platform for compatibility string: '{compat_string}'");
+            Ok(platform)
+        }
+        Err(_) => {
+            warn!("{compat_string} not supported. Defaulting to Universal platform.");
+            Ok(Box::new(UniversalPlatform::new()))
+        }
+    }
 }
 
 /// Read the device tree compatible string for an FPGA device.
