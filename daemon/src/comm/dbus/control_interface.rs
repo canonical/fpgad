@@ -25,10 +25,8 @@ use log::{info, trace};
 use std::env;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::process::Command;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
-use tokio::time::sleep;
 use zbus::{fdo, interface};
 
 /// A mutex lock which implicitly inhibits asynchronous control of the firmware search path.
@@ -409,19 +407,8 @@ impl ControlInterface {
                 "Cannot find dfx-mgr because $SNAP not specified in environment".into(),
             )
         })?;
-        let dfx_mgrd_path = format!("{}/usr/bin/dfx-mgrd", snap_env);
+
         let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", snap_env);
-
-        let mut daemon = Command::new(&dfx_mgrd_path)
-            .arg("--config")
-            .arg("/etc/dfx-mgrd/daemon.conf")
-            .spawn()
-            .map_err(|e| map_error_io_to_fdo("Could not start dfx-mgrd.", e))?;
-
-        info!("dfx-mgrd started (pid = {:?})", daemon.id());
-
-        //  todo: find a better way to wait for service to start.
-        sleep(Duration::from_secs(2)).await;
 
         let output = Command::new(&dfx_mgr_client_path)
             .args(cmd_string.split_whitespace())
@@ -435,21 +422,15 @@ impl ControlInterface {
         if output.status.success() {
             info!("Command ran successfully!");
         } else {
-            info!("Command failed with code: {:?}", output.status.code());
+            info!("Command failed with code: {:#?}", output.status.code());
         }
 
-        daemon
-            .kill()
-            .await
-            .map_err(|e| map_error_io_to_fdo("Could not send kill to dfx-mgrd?", e))?;
-        daemon
-            .wait()
-            .await
-            .map_err(|e| map_error_io_to_fdo("Failed to wait for dfx-mgrd to stop?", e))?;
-
-        info!("dfx-mgrd stopped cleanly");
         Ok(format!(
-            "dfx-mgr called with args {cmd_string}. dfx-mgr-client output: {output:?}"
+            "dfx-mgr called with args {}.\nExit status: {}\nStdout:\n{}\nStderr:\n{}",
+            cmd_string,
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
         ))
     }
 }

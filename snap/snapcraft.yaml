@@ -70,8 +70,21 @@ apps:
       - fpga
       - kernel-firmware-control
       - hardware-observe
+      - dfx-mgr-socket
     activates-on:
       - daemon-dbus
+    environment:
+      RUST_LOG: trace
+  softeners:
+    command: bin/softener_wrapper
+    daemon: simple
+    restart-condition: on-failure
+    plugs:
+      - fpga
+      - kernel-firmware-control
+      - hardware-observe
+      - dfx-mgr-socket
+      - network-bind
 parts:
   version:
     plugin: nil
@@ -111,6 +124,13 @@ parts:
         ]
       }
       EOF
+  softener_wrapper:
+    plugin: dump
+    source: snap/assets
+    organize:
+      softener_wrapper: bin/softener_wrapper
+    stage:
+      - bin/softener_wrapper
 # TODO: the daemon.conf should be copied into $SNAP_COMMON on install hook if - and only if - it doesn't already exist
 layout:
   # For configuration files

@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""
+Daemon wrapper for managing external daemons required by fpgad.
+
+This script detects, starts, and monitors external daemon processes,
+keeping them alive as long as the wrapper is running.
+"""
+
+import os
+import sys
+import time
+import stat
+import subprocess
+import signal
+from pathlib import Path
+from typing import Optional, List, Dict
+from dataclasses import dataclass
+
+
+@dataclass
+class DaemonConfig:
+    """Configuration for a softener daemon."""
+
+    name: str
+    binary_path: str
+    socket_path: str
+    start_timeout: int = 10
+    log_file: Optional[str] = None
+
+    def __post_init__(self):
+        """Set default log file if not provided."""
+        if self.log_file is None:
+            snap_common = os.environ.get("SNAP_COMMON", "/tmp")
+            log_dir = Path(snap_common) / "log"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            self.log_file = str(log_dir / f"{self.name}.log")
+
+
+class DaemonManager:
+    """Manages lifecycle of softener daemons."""
+
+    def __init__(self, daemons: List[DaemonConfig]):
+        """Initialize with list of daemons to manage."""
+        self.daemons: List[DaemonConfig] = daemons
+        self.processes: Dict[str, subprocess.Popen] = {}
+        self.running = True
+
+        # Set up signal handlers
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        signal.signal(signal.SIGINT, self._signal_handler)
+
+    def _signal_handler(self, signum, frame):
+        """Handle termination signals."""
+        print(f"\nReceived signal {signum}, shutting down...")
+        self.running = False
+
+    def filter_available_daemons(self) -> List[DaemonConfig]:
+        """Filter configured daemons to only those with available binaries."""
+        available = []
+
+        for daemon in self.daemons:
+            if os.path.isfile(daemon.binary_path):
+                print(f"Detected {daemon.name} at {daemon.binary_path}")
+                available.append(daemon)
+            else:
+                print(f"{daemon.name} not found at {daemon.binary_path}, skipping")
+
+        return available
+
+    def _cleanup_stale_socket(self, socket_path: str):
+        """Remove stale socket file if it exists."""
+        if os.path.exists(socket_path):
+            try:
+                # Check if it's a socket
+                mode = os.stat(socket_path).st_mode
+                if stat.S_ISSOCK(mode):
+                    print(f"Removing stale socket at {socket_path}")
+                    os.unlink(socket_path)
+            except Exception as e:
+                print(f"Warning: Could not remove stale socket: {e}")
+
+    def start_daemon(self, daemon: DaemonConfig) -> bool:
+        """Start a daemon and wait for its socket to appear."""
+        print(f"Starting {daemon.name}...")
+
+        # Clean up any stale socket
+        self._cleanup_stale_socket(daemon.socket_path)
+
+        try:
+            # Open log file
+            log_file = open(daemon.log_file, "w")
+
+            # Start the daemon process
+            process = subprocess.Popen(
+                [daemon.binary_path],
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,  # Detach from parent session
+            )
+
+            self.processes[daemon.name] = process
+            print(f"{daemon.name} started with PID {process.pid}")
+            print(f"Logs will be written to: {daemon.log_file}")
+
+            # Wait for socket to appear
+            print(f"Waiting for socket at {daemon.socket_path}...")
+            for elapsed in range(daemon.start_timeout):
+                # Check if socket exists
+                if os.path.exists(daemon.socket_path):
+                    mode = os.stat(daemon.socket_path).st_mode
+                    if stat.S_ISSOCK(mode):
+                        print(f"{daemon.name} socket detected - startup successful")
+                        return True
+
+                # Check if process is still running
+                if process.poll() is not None:
+                    print(f"Error: {daemon.name} process terminated unexpectedly")
+                    print(f"Check logs at: {daemon.log_file}")
+                    self._print_log_tail(daemon.log_file)
+                    return False
+
+                time.sleep(1)
+
+            # Timeout reached
+            if not os.path.exists(daemon.socket_path):
+                print(
+                    f"Warning: Socket didn't appear after {daemon.start_timeout}s, "
+                    f"but {daemon.name} is running"
+                )
+
+            return True
+
+        except Exception as e:
+            print(f"Error starting {daemon.name}: {e}")
+            return False
+
+    def _print_log_tail(self, log_file: str, lines: int = 10):
+        """Print the last N lines of a log file."""
+        try:
+            with open(log_file, "r") as f:
+                tail_lines = f.readlines()[-lines:]
+                if tail_lines:
+                    print(f"Last {lines} lines from log:")
+                    print("".join(tail_lines))
+        except Exception as e:
+            print(f"Could not read log file: {e}")
+
+    def check_and_start_daemons(self) -> bool:
+        """Start all detected daemons."""
+        available = self.filter_available_daemons()
+
+        if not available:
+            print("No daemons to start")
+            return True
+
+        success = True
+        for daemon in available:
+            if not self.start_daemon(daemon):
+                success = False
+
+        return success
+
+    def monitor_daemons(self):
+        """Monitor daemon processes and keep them alive."""
+        if not self.processes:
+            print("No daemons to monitor")
+            return
+
+        print(f"Monitoring {len(self.processes)} daemon(s)...")
+
+        while self.running:
+            for name, process in list(self.processes.items()):
+                retcode = process.poll()
+                if retcode is not None:
+                    print(
+                        f"Error: {name} process died unexpectedly with exit code {retcode}"
+                    )
+                    # Find the daemon config
+                    daemon = next((d for d in self.daemons if d.name == name), None)
+                    if daemon:
+                        self._print_log_tail(daemon.log_file)
+                    self.running = False
+                    return
+
+            time.sleep(5)
+
+    def cleanup(self):
+        """Clean up all managed processes."""
+        print("Cleaning up daemon processes...")
+        for name, process in self.processes.items():
+            if process.poll() is None:  # Still running
+                print(f"Terminating {name} (PID {process.pid})...")
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    print(f"Force killing {name}...")
+                    process.kill()
+
+
+# ============================================================================
+# Daemon Configuration - Populated at import time
+# ============================================================================
+
+SNAP_PATH = os.environ.get("SNAP", "")
+
+# Define all daemons to manage
+MANAGED_DAEMONS = [
+    DaemonConfig(
+        name="dfx-mgrd",
+        binary_path=f"{SNAP_PATH}/usr/bin/dfx-mgrd",
+        socket_path="/run/dfx-mgrd.socket",
+        start_timeout=10,
+    ),
+    # Add more daemon configurations here as needed
+    # DaemonConfig(
+    #     name='another-daemon',
+    #     binary_path=f'{SNAP_PATH}/usr/bin/another-daemon',
+    #     socket_path='/run/another-daemon.socket',
+    #     start_timeout=15
+    # ),
+]
+
+
+def main():
+    """Main entry point."""
+    # Initialize manager with all configured daemons
+    manager = DaemonManager(MANAGED_DAEMONS)
+
+    try:
+        # Start all daemons
+        if not manager.check_and_start_daemons():
+            print("Failed to start one or more daemons")
+            sys.exit(1)
+
+        # Monitor daemons until termination
+        manager.monitor_daemons()
+
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        sys.exit(1)
+    finally:
+        manager.cleanup()
+
+    print("Daemon wrapper exiting")
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
