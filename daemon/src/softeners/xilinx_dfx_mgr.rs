@@ -179,21 +179,29 @@ pub fn load_bitstream(bitstream_path: &Path) -> Result<String, FpgadSoftenerErro
 ///
 /// # Arguments
 ///
-/// * `_bitstream_path` - Path to the bitstream file (unused, TODO)
-/// * `_dtbo_path` - Path to the device tree overlay file (unused, TODO)
+/// * `bitstream_path` - Path to the bitstream file
+/// * `dtbo_path` - Path to the device tree overlay file
 ///
 /// # Returns: `Result<String, FpgadSoftenerError>`
-/// * This function is not yet implemented and will panic with `todo!()`
-///
-/// # Note
-///
-/// This function is a placeholder for future implementation.
+/// * `Ok(String)` - Output from dfx-mgr-client
+/// * `Err(FpgadSoftenerError::DfxMgr)` - Path contains invalid UTF-8 or dfx-mgr-client failed
 #[allow(dead_code)]
-pub fn load_overlay(
-    _bitstream_path: &Path,
-    _dtbo_path: &Path,
-) -> Result<String, FpgadSoftenerError> {
-    todo!()
+pub fn load_overlay(bitstream_path: &Path, dtbo_path: &Path) -> Result<String, FpgadSoftenerError> {
+    let bitstream_str = bitstream_path.to_str().ok_or_else(|| {
+        FpgadSoftenerError::DfxMgr(format!(
+            "Bitstream path contains invalid UTF-8: {}",
+            bitstream_path.display()
+        ))
+    })?;
+
+    let dtbo_str = dtbo_path.to_str().ok_or_else(|| {
+        FpgadSoftenerError::DfxMgr(format!(
+            "DTBO path contains invalid UTF-8: {}",
+            dtbo_path.display()
+        ))
+    })?;
+
+    run_dfx_mgr(&["-o", dtbo_str, "-b", bitstream_str])
 }
 
 /// Helper to run the dfx-mgr-client binary with arguments
