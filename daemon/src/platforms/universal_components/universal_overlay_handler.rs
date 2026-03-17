@@ -52,11 +52,11 @@
 //! handler.remove_overlay()?;
 //! ```
 
-use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::OverlayHandler;
 use crate::platforms::universal_components::universal_helpers;
 use crate::system_io::{fs_create_dir, fs_read, fs_remove_dir, fs_write};
+use crate::{config, system_io};
 use log::{info, trace};
 use std::path::{Path, PathBuf};
 
@@ -210,7 +210,7 @@ impl OverlayHandler for UniversalOverlayHandler {
     ///   to remove it first.
     fn apply_overlay(&self, source_path: &Path, lookup_path: &Path) -> Result<String, FpgadError> {
         let (prefix, suffix) =
-            universal_helpers::make_firmware_pair(Path::new(source_path), Path::new(lookup_path))?;
+            system_io::make_firmware_pair(Path::new(source_path), Path::new(lookup_path))?;
         universal_helpers::write_firmware_source_dir(&prefix.to_string_lossy())?;
         let overlay_fs_path = self.overlay_fs_path()?;
         if overlay_fs_path.exists() {

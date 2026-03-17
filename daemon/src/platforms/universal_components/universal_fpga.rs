@@ -71,11 +71,11 @@
 //! println!("Flags: 0x{:X}", flags);
 //! ```
 
-use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::Fpga;
 use crate::platforms::universal_components::universal_helpers;
 use crate::system_io::{fs_read, fs_write};
+use crate::{config, system_io};
 use log::{error, info, trace, warn};
 use std::path::Path;
 
@@ -298,8 +298,7 @@ impl Fpga for UniversalFPGA {
         bitstream_path: &Path,
         firmware_lookup_path: &Path,
     ) -> Result<String, FpgadError> {
-        let (prefix, suffix) =
-            universal_helpers::make_firmware_pair(bitstream_path, firmware_lookup_path)?;
+        let (prefix, suffix) = system_io::make_firmware_pair(bitstream_path, firmware_lookup_path)?;
         universal_helpers::write_firmware_source_dir(&prefix.to_string_lossy())?;
         let control_path = Path::new(config::FPGA_MANAGERS_DIR)
             .join(self.device_handle())
