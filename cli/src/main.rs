@@ -182,7 +182,8 @@ use std::error::Error;
 ///
 /// # Examples
 ///
-/// ```bash
+/// ```shell
+///
 /// # Load a bitstream
 /// fpgad load bitstream /lib/firmware/design.bit.bin
 ///
@@ -191,6 +192,7 @@ use std::error::Error;
 ///
 /// # Load an overlay with a specific handle
 /// fpgad load overlay /lib/firmware/overlay.dtbo --handle=my_overlay
+///
 /// ```
 #[derive(Parser, Debug)]
 #[command(name = "fpga")]
