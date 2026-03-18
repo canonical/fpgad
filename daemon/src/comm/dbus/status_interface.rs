@@ -118,6 +118,7 @@ impl StatusInterface {
         platform_string: &str,
         overlay_handle: &str,
     ) -> Result<String, fdo::Error> {
+        // TODO(artie): is this platform specific?
         info!(
             "get_overlay_status called with platform_string: {platform_string} and overlay_handle:\
              {overlay_handle}"
@@ -162,6 +163,8 @@ impl StatusInterface {
     /// ```
     ///
     async fn get_overlays(&self) -> Result<String, fdo::Error> {
+        // TODO(artie): this should be a platform specific call - dfx-mgr will require parsing the
+        //  -listPackage output.
         info!("get_overlays called");
         let overlay_handles = fs_read_dir(config::OVERLAY_CONTROL_DIR.as_ref())?;
         Ok(overlay_handles.join("\n"))
