@@ -45,10 +45,12 @@
 //! let state = fpga.state()?;
 //! ```
 
+use crate::config;
 use crate::error::FpgadError;
-use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
+use crate::platforms::platform::{Fpga, OverlayHandler, Platform, list_fpga_managers};
 use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
 use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
+use crate::system_io::fs_read_dir;
 use fpgad_macros::platform;
 use log::trace;
 use std::sync::OnceLock;
@@ -175,5 +177,37 @@ impl Platform for UniversalPlatform {
             )));
         }
         Ok(handler)
+    }
+
+    fn status_message(&self) -> Result<String, FpgadError> {
+        let mut ret_string = String::from(
+            "---- DEVICES ----\n\
+    | dev | platform | state |\n",
+        );
+
+        for device in list_fpga_managers()? {
+            let state = self.fpga(&device)?.state()?;
+            ret_string += format!(
+                "| {} | {} | {} |\n",
+                device,
+                self.platform_compat_string(),
+                state
+            )
+            .as_str();
+        }
+        ret_string += "\n---- OVERLAYS ----\n\
+                   | overlay | status |\n";
+
+        // If overlayfs not enabled, or interface not connected this will be an error.
+        for overlay in fs_read_dir(config::OVERLAY_CONTROL_DIR.as_ref())? {
+            let status = self.overlay_handler(&overlay)?.status()?;
+            ret_string.push_str(format!("| {overlay} | {status} |\n").as_ref());
+        }
+
+        Ok(ret_string)
+    }
+
+    fn platform_compat_string(&self) -> String {
+        "universal".into()
     }
 }

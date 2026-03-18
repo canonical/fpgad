@@ -16,4 +16,5 @@ mod get_overlay_status;
 mod get_overlays;
 mod get_platform_type;
 mod get_platform_types;
+mod get_status_message;
 mod read_property;

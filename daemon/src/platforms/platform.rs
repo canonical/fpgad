@@ -265,6 +265,10 @@ pub trait Platform: Any {
     /// * `Ok(&dyn OverlayHandler)` - Overlay handler instance
     /// * `Err(FpgadError::Argument)` - Invalid overlay handle or configfs not available
     fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError>;
+
+    fn status_message(&self) -> Result<String, FpgadError>;
+
+    fn platform_compat_string(&self) -> String;
 }
 
 /// Match a platform compatibility string to a registered platform.

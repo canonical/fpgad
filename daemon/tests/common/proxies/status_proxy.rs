@@ -17,6 +17,7 @@ use zbus::{Result, proxy};
     default_path = "/com/canonical/fpgad/status"
 )]
 pub trait Status {
+    async fn get_status_message(&self, platform_string: &str) -> Result<String>;
     async fn get_fpga_state(&self, platform_string: &str, device_handle: &str) -> Result<String>;
     async fn get_fpga_flags(&self, platform_string: &str, device_handle: &str) -> Result<String>;
     async fn get_overlay_status(
