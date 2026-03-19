@@ -32,6 +32,12 @@ pub struct StatusInterface {}
 /// [crate::comm::dbus::status_interface] for a summary of this interface in general.
 #[interface(name = "com.canonical.fpgad.status")]
 impl StatusInterface {
+    async fn get_status_message(&self, platform_string: &str) -> Result<String, fdo::Error> {
+        info!("get_fpga_state called with platform_string: {platform_string}");
+        let platform = platform_from_compat_or_device(platform_string, "")?;
+        Ok(platform.status_message()?)
+    }
+
     /// The device handle (e.g., `fpga0`) of the FPGA.
     ///
     /// # Arguments

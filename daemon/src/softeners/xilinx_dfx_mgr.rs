@@ -62,6 +62,14 @@ impl Platform for XilinxDfxMgrPlatform {
             .overlay_handler
             .get_or_init(|| XilinxDfxMgrOverlayHandler::new(overlay_handle)))
     }
+
+    fn status_message(&self) -> Result<String, FpgadError> {
+        Ok(list_package()?)
+    }
+
+    fn platform_compat_string(&self) -> String {
+        "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0".into()
+    }
 }
 
 /// List locally downloaded accelerator packages

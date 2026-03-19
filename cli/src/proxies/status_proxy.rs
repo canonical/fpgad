@@ -62,6 +62,8 @@ use zbus::{Result, proxy};
     default_path = "/com/canonical/fpgad/status"
 )]
 pub trait Status {
+    async fn get_status_message(&self, platform_string: &str) -> Result<String>;
+
     /// Get the current state of an FPGA device.
     ///
     /// Returns the device state such as "operating", "unknown", "write init", "write",
