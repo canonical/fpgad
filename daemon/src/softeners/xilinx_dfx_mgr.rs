@@ -10,6 +10,51 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+//! Xilinx DFX Manager platform implementation.
+//!
+//! This module provides the Xilinx DFX Manager (dfx-mgr) platform, which is a vendor-specific
+//! "softener" implementation for managing Xilinx FPGA devices. It wraps the Xilinx dfx-mgr-client
+//! command-line tool to provide enhanced functionality for Xilinx devices including:
+//! - Dynamic function exchange (DFX) / partial reconfiguration
+//! - Accelerator package management
+//! - Multi-slot FPGA management
+//! - UIO (User I/O) interface management
+//! - Inter-region buffer management
+//!
+//! # Platform Support
+//!
+//! This platform registers itself for Xilinx device compatibility strings:
+//! - `xlnx,zynqmp-pcap-fpga` - Zynq UltraScale+ MPSoC
+//! - `versal-fpga` - Versal ACAP devices
+//! - `zynq-devcfg-1.0` - Zynq-7000 devices
+//!
+//! # DFX Manager Integration
+//!
+//! The platform communicates with the dfx-mgrd daemon (started via snap daemon wrapper)
+//! through the dfx-mgr-client CLI tool. The dfx-mgr-client binary must be available at
+//! `$SNAP/usr/bin/dfx-mgr-client`.
+//!
+//! # Architecture
+//!
+//! The platform uses lazy initialization via `OnceLock` to create component instances:
+//! - [`XilinxDfxMgrFPGA`] - Manages FPGA device operations via dfx-mgr
+//! - [`XilinxDfxMgrOverlayHandler`] - Manages overlay operations with bitstream coordination
+//!
+//! # Feature Flag
+//!
+//! This module is only compiled when the `xilinx-dfx-mgr` feature is enabled.
+//!
+//! # Examples
+//!
+//! ```rust,no_run
+//! # use daemon::platforms::platform::platform_for_known_platform;
+//! # fn example() -> Result<(), daemon::error::FpgadError> {
+//! let platform = platform_for_known_platform("xlnx,zynqmp-pcap-fpga")?;
+//! let fpga = platform.fpga("fpga0")?;
+//! # Ok(())
+//! # }
+//! ```
+
 use std::env;
 use std::path::Path;
 use std::sync::OnceLock;
@@ -22,6 +67,25 @@ use crate::softeners::xilinx_dfx_mgr_overlay_handler::XilinxDfxMgrOverlayHandler
 use fpgad_macros::platform;
 use log::trace;
 
+/// Xilinx DFX Manager platform implementation for managing Xilinx FPGA devices.
+///
+/// This struct provides the platform implementation for Xilinx devices using the
+/// dfx-mgr backend. It uses lazy initialization to create FPGA and overlay handler
+/// instances on first access.
+///
+/// The `#[platform]` macro automatically registers this platform with the Xilinx-specific
+/// compatibility strings, making it available for matching against Xilinx device tree
+/// compatible properties.
+///
+/// # Fields
+///
+/// * `fpga` - Lazily initialized Xilinx FPGA device instance
+/// * `overlay_handler` - Lazily initialized Xilinx overlay handler instance
+///
+/// # Thread Safety
+///
+/// This struct is thread-safe thanks to `OnceLock`, which ensures that initialization
+/// happens exactly once even with concurrent access.
 #[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0")]
 pub struct XilinxDfxMgrPlatform {
     fpga: OnceLock<XilinxDfxMgrFPGA>,
@@ -29,6 +93,22 @@ pub struct XilinxDfxMgrPlatform {
 }
 
 impl XilinxDfxMgrPlatform {
+    /// Create a new Xilinx DFX Manager platform instance.
+    ///
+    /// Creates an empty platform with uninitialized FPGA and overlay handler instances.
+    /// The actual components will be lazily initialized on first access through the
+    /// [`Platform`] trait methods.
+    ///
+    /// # Returns: `Self`
+    /// * New XilinxDfxMgrPlatform instance ready for use
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use daemon::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
+    ///
+    /// let platform = XilinxDfxMgrPlatform::new();
+    /// ```
     pub fn new() -> Self {
         trace!("creating new XilinxDfxMgrPlatform");
         XilinxDfxMgrPlatform {
