@@ -10,6 +10,38 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+//! Xilinx DFX Manager overlay handler implementation.
+//!
+//! This module provides the [`XilinxDfxMgrOverlayHandler`] struct, which implements the
+//! [`OverlayHandler`] trait for managing device tree overlays on Xilinx FPGA devices
+//! using the dfx-mgr backend.
+//!
+//! # Key Features
+//!
+//! - **Slot-based Management**: Uses dfx-mgr's slot system for overlay tracking and removal
+//!
+//! # Overlay Loading Process
+//!
+//! 1. Parse the .dtbo file to extract the `firmware-name` property
+//! 2. Locate the bitstream file in the same directory as the .dtbo
+//! 3. Call `dfx-mgr-client -o <dtbo_path> -b <bitstream_path>` to load both
+//!
+//! This ensures the bitstream and overlay are applied together, which is required
+//! as a temporary workaround while `-load` is not supported due to snap confinement limitations
+//!
+//! # Examples
+//!
+//! ```rust,no_run
+//! # use daemon::platforms::platform::platform_for_known_platform;
+//! # use std::path::Path;
+//! # fn example() -> Result<(), daemon::error::FpgadError> {
+//! let platform = platform_for_known_platform("xlnx,zynqmp-pcap-fpga")?;
+//! let handler = platform.overlay_handler("my_overlay")?;
+//! handler.apply_overlay(Path::new("/lib/firmware/design.dtbo"), Path::new(""))?;
+//! # Ok(())
+//! # }
+//! ```
+
 use crate::error::FpgadError;
 use crate::platforms::platform::OverlayHandler;
 use crate::softeners::error::FpgadSoftenerError;
@@ -19,9 +51,35 @@ use log::{debug, trace};
 use std::option::Option;
 use std::path::Path;
 
+/// Xilinx DFX Manager overlay handler implementation.
+///
+/// This struct provides overlay management for Xilinx FPGA devices using the
+/// dfx-mgr backend. Unlike the universal overlay handler, it doesn't directly
+/// manage configfs overlay directories since dfx-mgr handles that internally.
+///
+/// # Implementation Notes
+///
+/// The overlay handle parameter is currently unused since dfx-mgr manages
+/// overlay lifecycle internally through its slot system.
 pub struct XilinxDfxMgrOverlayHandler {}
 
 impl XilinxDfxMgrOverlayHandler {
+    /// Create a new XilinxDfxMgrOverlayHandler instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `_overlay_handle` - Overlay handle (currently unused, slot management WIP)
+    ///
+    /// # Returns: `Self`
+    /// * New XilinxDfxMgrOverlayHandler instance
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use daemon::softeners::xilinx_dfx_mgr_overlay_handler::XilinxDfxMgrOverlayHandler;
+    ///
+    /// let handler = XilinxDfxMgrOverlayHandler::new("");
+    /// ```
     pub(crate) fn new(_: &str) -> Self {
         XilinxDfxMgrOverlayHandler {}
     }
