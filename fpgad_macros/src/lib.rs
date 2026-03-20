@@ -1,7 +1,42 @@
+#![doc = include_str!("../README.md")]
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Expr, ItemStruct, Lit, Meta, parse_macro_input, punctuated::Punctuated};
 
+/// Procedural macro to generate platform registration code.
+///
+/// This macro adds a `register_platform()` method to a struct that registers it
+/// with the global platform registry. The macro requires a `compat_string` parameter
+/// that specifies the device tree compatibility string(s) the platform supports.
+///
+/// # Arguments
+///
+/// * `compat_string` - Comma-separated device tree compatibility strings
+///
+/// # Generated Code
+///
+/// The macro generates:
+/// ```rust,ignore
+/// impl YourStruct {
+///     #[doc(hidden)]
+///     pub fn register_platform() {
+///         crate::platforms::platform::register_platform(
+///             "compat_string",
+///             || Box::new(Self::new())
+///         );
+///     }
+/// }
+/// ```
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// #[platform(compat_string = "universal")]
+/// pub struct UniversalPlatform {
+///     // ...
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn platform(args: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the struct
