@@ -266,8 +266,39 @@ pub trait Platform: Any {
     /// * `Err(FpgadError::Argument)` - Invalid overlay handle or configfs not available
     fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError>;
 
+    /// Get a formatted status message for this platform.
+    ///
+    /// Returns a human-readable status message containing information about devices,
+    /// overlays, and platform-specific state. The format and content are platform-specific.
+    ///
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Formatted status message
+    /// * `Err(FpgadError)` - Failed to gather status information
+    ///
+    /// # Examples
+    ///
+    /// For the Universal platform, this returns a table of devices and overlays.
+    /// For Xilinx DFX Manager, this returns the output of `dfx-mgr-client -listPackage`.
     fn status_message(&self) -> Result<String, FpgadError>;
 
+    /// Get the platform compatibility string.
+    ///
+    /// Returns the compatibility string that this platform implementation is registered
+    /// with. This string matches against device tree compatible properties to determine
+    /// which platform to use for a device.
+    ///
+    /// # Returns: `String`
+    /// * The platform compatibility string (e.g., "universal", "xlnx,zynqmp-pcap-fpga")
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use daemon::platforms::platform::Platform;
+    /// # fn example(platform: &dyn Platform) {
+    /// let compat = platform.platform_compat_string();
+    /// println!("Platform: {}", compat);
+    /// # }
+    /// ```
     fn platform_compat_string(&self) -> String;
 }
 

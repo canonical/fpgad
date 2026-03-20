@@ -10,6 +10,33 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+//! Helper functions for Xilinx DFX Manager operations.
+//!
+//! This module provides utility functions for working with Xilinx device tree overlay
+//! files and extracting information needed for dfx-mgr operations.
+//!
+//! # Key Functions
+//!
+//! - [`extract_firmware_name`] - Parses .dtbo files to extract the firmware-name property
+//!
+//! # Device Tree Parsing
+//!
+//! The module uses the `fdt` crate to parse flattened device tree binary (.dtbo) files
+//! and extract properties. This is essential for coordinating bitstream and overlay loading
+//! in the Xilinx dfx-mgr workflow.
+//!
+//! # Examples
+//!
+//! ```rust,no_run
+//! # use std::path::Path;
+//! # use daemon::softeners::xilinx_dfx_mgr_helpers::extract_firmware_name;
+//! # fn example() -> Result<(), daemon::error::FpgadError> {
+//! let firmware = extract_firmware_name(Path::new("/lib/firmware/design.dtbo"))?;
+//! println!("Bitstream file: {}", firmware);
+//! # Ok(())
+//! # }
+//! ```
+
 use crate::error::FpgadError;
 use crate::softeners::error::FpgadSoftenerError;
 use log::trace;
