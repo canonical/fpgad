@@ -1,62 +1,70 @@
-# FPGAd Platforms
+# Platform Abstractions for FPGA Hardware Management
 
-- **Universal** - Only uses the linux kernel implementations for bitstream loading. Relies on linux drivers.
+This module provides a platform registry system that allows fpgad to support multiple
+FPGA platforms through a common interface. Each platform implementation handles the
+specific details of interacting with different FPGA hardware and toolchains.
 
-# Trait
+## Architecture
 
-```mermaid
-classDiagram
-    class Platform {
-        platform_type() <- get
-        fgpa() <- init/get
-        overlay_handler() <- init/get
-    }
-    class FPGA {
-        device_handle() <- get
-        get_state()
-        get_flags()
-        set_flags()
-        load_firmware()
-    }
-    class OverlayHandler {
-        new(overlay_handle)
-        get_required_flags() <- FPGA requires?
-        get_status()
-        set_source_path(source_path)
-        get_overlay_fs_path()
-        apply_overlay()
-        remove_overlay()
-    }
-    Platform <-- FPGA
-    Platform <-- OverlayHandler
+The platform system uses a registration pattern where platform implementations register
+themselves with a global registry using device tree compatibility strings. When fpgad
+discovers FPGA devices during initialization, it queries the registry to find the
+appropriate platform implementation based on the device's compatibility string.
+
+Once a platform is selected, it is instantiated and used to manage the FPGA device.
+Platforms handle operations like loading firmware, removing overlays, and querying device status.
+
+## Workflow
+
+1. Platform implementations register themselves with the platform registry during initialization
+2. fpgad discovers FPGA devices by scanning the system
+3. For each device, fpgad looks up the matching platform by compatibility string
+4. The platform is instantiated and used to manage the device
+5. Vendor-specific "softener" platforms can provide enhanced functionality beyond the standard interface
+
+## Built-in Platforms
+
+- **Universal Platform** ([`universal`]): A generic platform that provides basic FPGA management
+  functionality for devices that don't require platform-specific handling.
+
+## Optional Softener Platforms (using Features)
+
+These platforms are vendor-specific implementations called "softeners" that provide enhanced
+functionality beyond the universal platform. They are enabled via Cargo feature flags.
+
+- **Xilinx DFX Manager** ([`softeners::xilinx_dfx_mgr`](crate::softeners::xilinx_dfx_mgr)) -
+  **Feature** `xilinx-dfx-mgr`
+
+  Custom support for AMD-AECG (formerly Xilinx) FPGA devices that integrates with the Xilinx
+  dfx-mgr daemon. Implements dfx-mgr as a backend to support advanced features like partial
+  reconfiguration.
+
+
+  **Supported devices:**
+  - `xlnx,zynqmp-pcap-fpga` - Zynq UltraScale+ MPSoC
+  - `versal-fpga` - Versal ACAP devices
+  - `zynq-devcfg-1.0` - Zynq-7000 devices
+
+  **Requirements:** The dfx-mgrd daemon must be running (automatically started in snap
+  environment).
+
+
+## Platform Registration
+
+Platform implementations use the `#[platform]` macro from `fpgad_macros` to automatically
+generate registration code:
+
+```rust,ignore
+use fpgad_macros::platform;
+
+#[platform(compat_string = "xlnx,zynqmp-pcap-fpga")]
+pub struct XilinxPlatform {
+    // ...
+}
 ```
 
-# Universal
+## See Also
 
-```mermaid
-classDiagram
-    class UniversalPlatform {
-        device_handle: "Universal"
-        fpga: Option&lt;UniversalFpga&gt;
-        overlay_handler: Option&lt;UniversalOverlayHandler&gt;
-        + new()
-    }
-    class UniversalFPGA {
-        + device_handle: String e.g. "fpga0"
-        + new(device_handle) <- takes e.g. "fpga0"
-        + assert_state()
-    }
-    class UniversalOverlayHandler {
-        + overlay_source_path: Option&lt;PathBuf&gt;
-        + overlay_fs_path: Option&lt;PathBuf&gt;
-        + prepare_for_load()
-        + get_vfs_status()
-        + get_vfs_path()
-        + vfs_check_applied()
-    }
-    UniversalPlatform <-- UniversalFPGA
-    UniversalPlatform <-- UniversalOverlayHandler
-
-
-```
+- [`softeners`](crate::softeners) - Vendor-specific platform extensions (feature-gated)
+- [`platform`] - Core platform registry and trait definitions
 

@@ -2,27 +2,53 @@
 
 ## Overview
 
-Softeners are platform-specific extensions to FPGAd that provide integration with vendor-specific FPGA management tools and frameworks. While FPGAd's core platform system handles standard Linux FPGA subsystem operations, softeners enable fpgad to work with proprietary or vendor-specific tools that sit alongside or above the kernel FPGA subsystem.
+Softeners are platform-specific extensions to FPGAd that provide integration with vendor-specific FPGA management tools
+and frameworks. While FPGAd's core platform system handles standard Linux FPGA subsystem operations, softeners enable
+fpgad to work with proprietary or vendor-specific tools that sit alongside or above the kernel FPGA subsystem.
 
-> **Note on Naming**: FPGA devices are often referred to as "fabric" (as in "programmable logic fabric"), so naturally FPGAd provides "softeners" for the fabric 🧺.
+> **Note on Naming**: FPGA devices are often referred to as "fabric" (as in "programmable logic fabric"), so naturally
+> FPGAd provides "softeners" for the fabric 🧺.
 
 ### When to Use a Softener vs. a Platform
 
-- **Use a Platform** when implementing direct interactions with the Linux FPGA subsystem (`/sys/class/fpga_manager`) and device tree overlays. Platforms handle the standard kernel interface.
-  
-- **Use a Softener** when integrating with vendor-specific userspace tools, SDKs, or frameworks that provide additional functionality beyond what the kernel exposes. Softeners typically wrap external binaries or libraries.
+- **Use the Universal Platform** when implementing direct interactions with the Linux FPGA subsystem (
+  `/sys/class/fpga_manager`) and device tree overlays using standard kernel interfaces. The Universal platform handles
+  the standard kernel interface through generic sysfs operations.
+
+- **Create a Softener Platform** when you need to integrate with vendor-specific userspace tools, SDKs, or frameworks
+  that provide additional functionality beyond what the kernel exposes. Softeners typically wrap external binaries or
+  libraries and implement custom `Fpga` and `OverlayHandler` types that use vendor-specific tools instead of generic
+  sysfs operations.
 
 ## Architecture
 
 Softeners extend platforms by providing vendor-specific functionality. A softener platform:
+
 1. Implements the `Platform` trait (like any other platform)
 2. Uses the `#[platform(compat_string = "...")]` macro to register itself
-3. Provides additional vendor-specific functions beyond the standard `Platform` trait
-4. Is conditionally compiled using Cargo feature flags
+3. Provides custom `Fpga` and `OverlayHandler` implementations that wrap vendor tools
+4. May provide additional vendor-specific functions beyond the standard `Platform` trait
+5. Is conditionally compiled using Cargo feature flags
+
+### Why Custom FPGA and OverlayHandler Implementations?
+
+While you *could* reuse the Universal platform's components (`UniversalFPGA` and `UniversalOverlayHandler`), softeners
+exist specifically to provide vendor-specific functionality. Custom implementations allow you to:
+
+- **Wrap vendor tools**: Instead of using generic sysfs operations, call vendor-specific binaries or libraries
+- **Provide enhanced features**: Expose functionality not available through the standard Linux FPGA subsystem
+- **Optimize performance**: Use vendor-optimized loading mechanisms or caching strategies
+- **Handle vendor quirks**: Work around device-specific behaviors or limitations
+- **Integrate with vendor ecosystems**: Connect with other vendor tools, licensing systems, or management frameworks
+
+If you find yourself not needing any custom behavior, you probably don't need a softener platform at all - the Universal
+platform should suffice.
 
 ### Example: Xilinx DFX Manager
 
-The `xilinx_dfx_mgr` softener integrates with AMD/Xilinx's `dfx-mgr` tool, which provides vendor specific optimizations on top of the standard FPGA subsystem and, e.g., enables "partial reconfiguration" of the device, which isn't supported by the Universal platform. See [dfx-mgr on GitHub](https://github.com/Xilinx/dfx-mgr) for more information on dfx-mgr.
+The `xilinx_dfx_mgr` softener integrates with AMD/Xilinx's `dfx-mgr` tool, which provides vendor specific optimizations
+on top of the standard FPGA subsystem and, e.g., enables "partial reconfiguration" of the device, which isn't supported
+by the Universal platform. See [dfx-mgr on GitHub](https://github.com/Xilinx/dfx-mgr) for more information on dfx-mgr.
 
 ## Adding a New Softener Platform
 
@@ -41,30 +67,40 @@ your-new-softener = ["softeners"]  # Add this line
 
 **Important**: Each softener should depend on the `softeners` base feature.
 
-### Step 2: Create the Softener Module
+### Step 2: Create the Softener Module Structure
 
-Create a new file at `daemon/src/softeners/your_softener_name.rs`:
+Create your softener module files. You'll need at least:
+
+- `your_softener_name.rs` - Main platform struct
+- `your_softener_name_fpga.rs` - Custom FPGA implementation
+- `your_softener_name_overlay_handler.rs` - Custom overlay handler implementation
+
+**Important**: While you *could* reuse the Universal platform's components, softeners exist to provide vendor-specific
+functionality, so you should implement your own FPGA and OverlayHandler types that wrap or integrate with your vendor's
+tools.
+
+#### Main Platform File: `daemon/src/softeners/your_softener_name.rs`
 
 ```rust
 use std::sync::OnceLock;
 
 use crate::platforms::platform::Platform;
-use crate::platforms::universal_components::universal_fpga::UniversalFPGA;
-use crate::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
 use crate::softeners::error::FpgadSoftenerError;
+use crate::softeners::your_softener_name_fpga::YourSoftenerFPGA;
+use crate::softeners::your_softener_name_overlay_handler::YourSoftenerOverlayHandler;
 use fpgad_macros::platform;
 
 /// Your softener platform implementation.
 ///
 /// This platform integrates with [vendor tool name] to provide [brief description].
-/// 
+///
 /// # Compatibility
-/// 
+///
 /// Compatible with devices matching: `your,compat-string`
 #[platform(compat_string = "your,compat-string")]
 pub struct YourSoftenerPlatform {
-    fpga: OnceLock<UniversalFPGA>,
-    overlay_handler: OnceLock<UniversalOverlayHandler>,
+    fpga: OnceLock<YourSoftenerFPGA>,
+    overlay_handler: OnceLock<YourSoftenerOverlayHandler>,
 }
 
 impl Default for YourSoftenerPlatform {
@@ -87,18 +123,14 @@ impl Platform for YourSoftenerPlatform {
         &self,
         device_handle: &str,
     ) -> Result<&dyn crate::platforms::platform::Fpga, crate::error::FpgadError> {
-        Ok(self.fpga.get_or_init(|| YourPlatformFPGA::new(device_handle)))
-        // See step (7) about implementing custom Fpga
+        Ok(self.fpga.get_or_init(|| YourSoftenerFPGA::new(device_handle)))
     }
 
     fn overlay_handler(
         &self,
         overlay_handle: &str,
     ) -> Result<&dyn crate::platforms::platform::OverlayHandler, crate::error::FpgadError> {
-        Ok(self
-            .overlay_handler
-            .get_or_init(|| YourPlatformOverlayHandler::new(overlay_handle)))
-        // See step (7) about implementing custom OverlayHandler
+        Ok(self.overlay_handler.get_or_init(|| YourSoftenerOverlayHandler::new(overlay_handle)))
     }
 }
 
@@ -107,26 +139,233 @@ impl Platform for YourSoftenerPlatform {
 
 /// Example vendor-specific function
 pub fn do_vendor_thing(param: &str) -> Result<String, FpgadSoftenerError> {
-    // Implementation here
+    // vendor specific functionality, example later  
     todo!()
 }
 ```
 
-### Step 3: Register the Module
+#### FPGA Implementation: `daemon/src/softeners/your_softener_name_fpga.rs`
 
-Edit `daemon/src/softeners.rs` to include your new softener:
+```rust
+use crate::platforms::platform::Fpga;
+use crate::error::FpgadError;
+use std::process::Command;
+use log::{debug, trace};
+
+/// Your vendor-specific FPGA device implementation.
+///
+/// This struct wraps interactions with [vendor tool] for FPGA operations.
+pub struct YourSoftenerFPGA {
+    device_handle: String,
+}
+
+impl YourSoftenerFPGA {
+    /// Create a new FPGA device instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `device_handle` - The device handle (e.g., "fpga0")
+    ///
+    /// # Returns: `Self`
+    ///
+    /// New FPGA instance
+    pub fn new(device_handle: &str) -> Self {
+        Self {
+            device_handle: device_handle.to_string(),
+        }
+    }
+}
+
+impl Fpga for YourSoftenerFPGA {
+    fn device_handle(&self) -> &str {
+        &self.device_handle
+    }
+
+    fn state(&self) -> Result<String, FpgadError> {
+        trace!("Getting state for device '{}'", self.device_handle);
+        // Custom implementation - call your vendor tool
+        let output = Command::new("vendor-tool").arg("status").output().map_err(|e| FpgadError::Io(e))?;
+
+        if output.status.success() {
+            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        } else {
+            Err(FpgadError::Io(std::io::Error::other(
+                String::from_utf8_lossy(&output.stderr).to_string()
+            )))
+        }
+    }
+
+    fn flags(&self) -> Result<u32, FpgadError> {
+        // You can read from sysfs or use vendor tool
+        // For standard flags, sysfs is fine:
+        crate::system_io::fs_read_u32(&format!(
+            "/sys/class/fpga_manager/{}/flags",
+            self.device_handle
+        ))
+    }
+
+    fn set_flags(&self, flags: u32) -> Result<(), FpgadError> {
+        crate::system_io::fs_write(
+            &format!("/sys/class/fpga_manager/{}/flags", self.device_handle),
+            &flags.to_string()
+        )
+    }
+
+    fn load(&self, bitstream_path: &str) -> Result<(), FpgadError> {
+        debug!("Loading bitstream '{}' via vendor tool", bitstream_path);
+        // Use your vendor's tool for loading
+        let output = Command::new("vendor-tool").arg("load").arg(bitstream_path).output().map_err(|e| FpgadError::Io(e))?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(FpgadError::Io(std::io::Error::other(
+                String::from_utf8_lossy(&output.stderr).to_string()
+            )))
+        }
+    }
+
+    fn name(&self) -> Result<String, FpgadError> {
+        crate::system_io::fs_read(&format!(
+            "/sys/class/fpga_manager/{}/name",
+            self.device_handle
+        ))
+    }
+}
+```
+
+#### Overlay Handler: `daemon/src/softeners/your_softener_name_overlay_handler.rs`
+
+```rust
+use crate::platforms::platform::OverlayHandler;
+use crate::error::FpgadError;
+use std::process::Command;
+use log::{debug, trace};
+
+/// Your vendor-specific overlay handler implementation.
+///
+/// This struct manages device tree overlays using [vendor approach].
+pub struct YourSoftenerOverlayHandler {
+    overlay_handle: String,
+}
+
+impl YourSoftenerOverlayHandler {
+    /// Create a new overlay handler instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `overlay_handle` - The overlay identifier
+    ///
+    /// # Returns: `Self`
+    ///
+    /// New overlay handler instance
+    pub fn new(overlay_handle: &str) -> Self {
+        Self {
+            overlay_handle: overlay_handle.to_string(),
+        }
+    }
+}
+
+impl OverlayHandler for YourSoftenerOverlayHandler {
+    fn overlay_handle(&self) -> &str {
+        &self.overlay_handle
+    }
+
+    fn load(&self, overlay_path: &str) -> Result<(), FpgadError> {
+        debug!("Loading overlay '{}' via vendor tool", overlay_path);
+        // Use your vendor's method for applying overlays
+        let output = Command::new("vendor-tool").arg("apply-overlay").arg(overlay_path).output().map_err(|e| FpgadError::Io(e))?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(FpgadError::Io(std::io::Error::other(
+                String::from_utf8_lossy(&output.stderr).to_string()
+            )))
+        }
+    }
+
+    fn remove(&self) -> Result<(), FpgadError> {
+        debug!("Removing overlay '{}'", self.overlay_handle);
+        // Use your vendor's method for removing overlays
+        let output = Command::new("vendor-tool").arg("remove-overlay").arg(&self.overlay_handle).output().map_err(|e| FpgadError::Io(e))?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(FpgadError::Io(std::io::Error::other(
+                String::from_utf8_lossy(&output.stderr).to_string()
+            )))
+        }
+    }
+
+    fn status(&self) -> Result<String, FpgadError> {
+        trace!("Getting overlay status for '{}'", self.overlay_handle);
+        // Query overlay status via vendor tool
+        let output = Command::new("vendor-tool").arg("overlay-status").arg(&self.overlay_handle).output().map_err(|e| FpgadError::Io(e))?;
+
+        if output.status.success() {
+            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        } else {
+            Err(FpgadError::Io(std::io::Error::other(
+                String::from_utf8_lossy(&output.stderr).to_string()
+            )))
+        }
+    }
+}
+```
+
+### Step 3: Add Your Softener Error Type
+
+Add a custom error variant to the `FpgadSoftenerError` enum for your softener. This is used for vendor-specific errors
+that occur when calling your vendor tools.
+
+Edit `daemon/src/softeners/error.rs` and add your error variant:
+
+```rust
+// In daemon/src/softeners/error.rs
+#[derive(Debug, thiserror::Error)]
+pub enum FpgadSoftenerError {
+    #[error("FpgadSoftenerError::DfxMgr: {0}")]
+    DfxMgr(std::io::Error),
+
+    #[error("FpgadSoftenerError::YourSoftenerName: {0}")]
+    YourSoftenerName(std::io::Error),  // Add your error variant
+}
+```
+
+**Naming Convention**: Use PascalCase matching your softener's name (e.g., `DfxMgr`).
+
+**Error Message Format**: Follow the pattern `FpgadSoftenerError::VariantName: {0}` to maintain consistency.
+
+This error type will be used throughout your softener implementation when vendor tool operations fail.
+
+### Step 4: Register the Modules
+
+Edit `daemon/src/softeners.rs` to include your new softener modules:
 
 ```rust
 pub mod error;
 
 #[cfg(feature = "xilinx-dfx-mgr")]
 pub mod xilinx_dfx_mgr;
+#[cfg(feature = "xilinx-dfx-mgr")]
+mod xilinx_dfx_mgr_fpga;
+#[cfg(feature = "xilinx-dfx-mgr")]
+mod xilinx_dfx_mgr_overlay_handler;
 
 #[cfg(feature = "your-new-softener")]
-pub mod your_softener_name;  // Add this line
+pub mod your_softener_name;  // Main module (public)
+#[cfg(feature = "your-new-softener")]
+mod your_softener_name_fpga;  // FPGA implementation (private)
+#[cfg(feature = "your-new-softener")]
+mod your_softener_name_overlay_handler;  // Overlay handler (private)
 ```
 
-### Step 4: Register the Platform at Startup
+**Note**: Only the main platform module needs to be `pub` - the FPGA and overlay handler modules are internal
+implementation details.
+
+### Step 5: Register the Platform at Startup
 
 Edit `daemon/src/main.rs` to register your platform:
 
@@ -140,22 +379,22 @@ use softeners::your_softener_name::YourSoftenerPlatform;  // Add this
 fn register_platforms() {
     #[cfg(feature = "xilinx-dfx-mgr")]
     XilinxDfxMgrPlatform::register_platform();
-    
+
     #[cfg(feature = "your-new-softener")]
     YourSoftenerPlatform::register_platform();  // Add this
-    
+
     UniversalPlatform::register_platform();
 }
 ```
 
 **Important**: The Universal platform should always be registered last as it serves as the fallback.
 
-### Step 5: Implement Vendor-Specific Functions
+### Step 6: Implement Vendor-Specific Functions
 
-Add functions that wrap your vendor's tools or APIs. These typically:
-- Use `std::process::Command` to call external binaries
-- Return `Result<T, FpgadSoftenerError>` for error handling
-- Are marked with `#[allow(dead_code)]` if not yet exposed via DBus
+Add functions that wrap your vendor's tools or APIs.
+These might use `std::process::Command` to call external binaries.
+These will return `Result<T, FpgadSoftenerError>` where `T` is typically `String`, and must be convertable to `String`
+if not.
 
 Example pattern:
 
@@ -165,181 +404,19 @@ use crate::softeners::error::FpgadSoftenerError;
 
 /// Brief description of what this does
 pub fn vendor_operation(arg: &str) -> Result<String, FpgadSoftenerError> {
-    let output = Command::new("vendor-tool")
-        .arg("--option")
-        .arg(arg)
-        .output()
-        .map_err(FpgadSoftenerError::YourError)?;
-        
+    // This example assumes an external binary `vendor-tool` is used
+    // The requirement of mapping the error is the key point made here
+    let output = Command::new("vendor-tool").arg("--option").arg(arg).output().map_err(FpgadSoftenerError::YourSoftenerName)?;
+
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
-        Err(FpgadSoftenerError::YourError(std::io::Error::other(
+        Err(FpgadSoftenerError::YourSoftenerName(std::io::Error::other(
             String::from_utf8_lossy(&output.stderr).to_string(),
         )))
     }
 }
 ```
-
-### Step 6: Add Error Types (If Needed)
-
-If your softener needs custom error types beyond what's in `error.rs`, add them:
-
-```rust
-// In daemon/src/softeners/error.rs
-#[derive(Debug, thiserror::Error)]
-pub enum FpgadSoftenerError {
-    #[error("FpgadSoftenerError::DfxMgr: {0}")]
-    DfxMgr(std::io::Error),
-    
-    #[error("FpgadSoftenerError::YourError: {0}")]
-    YourError(std::io::Error),  // Add your error variant
-}
-```
-
-### Step 7: Implement Custom FPGA/OverlayHandler (Advanced, Optional)
-
-If your vendor-specific platform requires custom behavior for FPGA or overlay operations, you can implement your own, otherwise just use the Universal platform's `UniversalFPGA` and `UniversalOverlayHandler` implementations.
-
-
-#### Creating Custom FPGA Implementation
-
-Create a struct that implements the `Fpga` trait:
-
-```rust
-use crate::platforms::platform::Fpga;
-use crate::error::FpgadError;
-
-pub struct YourPlatformFPGA {
-    device_handle: String,
-}
-
-impl YourPlatformFPGA {
-    pub fn new(device_handle: &str) -> Self {
-        Self {
-            device_handle: device_handle.to_string(),
-        }
-    }
-}
-
-impl Fpga for YourPlatformFPGA {
-    fn device_handle(&self) -> &str {
-        &self.device_handle
-    }
-    
-    fn state(&self) -> Result<String, FpgadError> {
-        // Custom implementation - maybe call vendor tool
-        // or fall back to reading sysfs directly
-        todo!()
-    }
-   
-    fn flags(&self) -> Result<u32, FpgadError> {
-        // Custom implementation
-        todo!()
-    }
-    
-    fn set_flags(&self, flags: u32) -> Result<(), FpgadError> {
-        // Custom implementation
-        todo!()
-    }
-
-    fn load(&self, bitstream_path: &str) -> Result<(), FpgadError> {
-        // Custom implementation - perhaps using vendor-specific loading
-        todo!()
-    }
-
-    fn name(&self) -> Result<String, FpgadError> {
-        // Custom implementation
-        todo!()
-    }
-}
-```
-
-#### Creating Custom OverlayHandler Implementation
-
-Create a struct that implements the `OverlayHandler` trait:
-
-```rust
-use crate::platforms::platform::OverlayHandler;
-use crate::error::FpgadError;
-
-pub struct YourPlatformOverlayHandler {
-    overlay_handle: String,
-}
-
-impl YourPlatformOverlayHandler {
-    pub fn new(overlay_handle: &str) -> Self {
-        Self {
-            overlay_handle: overlay_handle.to_string(),
-        }
-    }
-}
-
-impl OverlayHandler for YourPlatformOverlayHandler {
-    fn overlay_handle(&self) -> &str {
-        &self.overlay_handle
-    }
-
-    fn load(&self, overlay_path: &str) -> Result<(), FpgadError> {
-        // Custom implementation - maybe use vendor-specific overlay mechanism
-        todo!()
-    }
-
-    fn remove(&self) -> Result<(), FpgadError> {
-        // Custom implementation
-        todo!()
-    }
-
-    fn status(&self) -> Result<String, FpgadError> {
-        // Custom implementation
-        todo!()
-    }
-   
-}
-```
-
-#### Using Your Custom Implementations
-
-Update your platform's `fpga()` and `overlay_handler()` methods to use your custom implementations - note that this was
-already included in the above example code.:
-
-```rust
-impl Platform for YourSoftenerPlatform {
-    fn fpga(
-        &self,
-        device_handle: &str,
-    ) -> Result<&dyn crate::platforms::platform::Fpga, crate::error::FpgadError> {
-        Ok(self.fpga.get_or_init(|| YourPlatformFPGA::new(device_handle)))
-    }
-
-    fn overlay_handler(
-        &self,
-        overlay_handle: &str,
-    ) -> Result<&dyn crate::platforms::platform::OverlayHandler, crate::error::FpgadError> {
-        Ok(self
-            .overlay_handler
-            .get_or_init(|| YourPlatformOverlayHandler::new(overlay_handle)))
-    }
-}
-```
-
-And update your struct fields to use the custom types:
-
-```rust
-pub struct YourSoftenerPlatform {
-    fpga: OnceLock<YourPlatformFPGA>,
-    overlay_handler: OnceLock<YourPlatformOverlayHandler>,
-}
-```
-
-#### When to Implement Custom Components
-
-Consider implementing custom FPGA or OverlayHandler when:
-- The vendor tooling provides optimized loading mechanisms
-- The standard sysfs interface doesn't expose all necessary functionality
-- The sysfs interface is different on your platform (instead of changing [config.rs](../config.rs))
-
-For most cases, the Universal components are sufficient and recommended for simplicity.
 
 ## Key Concepts
 
@@ -351,24 +428,32 @@ The `compat_string` parameter in the `#[platform]` macro can contain multiple co
 #[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0")]
 ```
 
-This means the platform will be selected if the device's `/sys/class/fpga_manager/<device>/of_node/compatible` file contains ANY of these strings.
+This means the platform will be selected if the device's `/sys/class/fpga_manager/<device>/of_node/compatible` file
+contains ANY of these strings.
 
 ### OnceLock for Lazy Initialization
 
 Use `OnceLock` to lazily initialize components only when they're first accessed:
 
 ```rust
-pub struct YourPlatform {
-    fpga: OnceLock<UniversalFPGA>,
-    overlay_handler: OnceLock<UniversalOverlayHandler>,
+pub struct YourSoftenerPlatform {
+    fpga: OnceLock<YourSoftenerFPGA>,
+    overlay_handler: OnceLock<YourSoftenerOverlayHandler>,
 }
 
-impl Platform for YourPlatform {
+impl Platform for YourSoftenerPlatform {
     fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError> {
-        Ok(self.fpga.get_or_init(|| UniversalFPGA::new(device_handle)))
+        Ok(self.fpga.get_or_init(|| YourSoftenerFPGA::new(device_handle)))
+    }
+
+    fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError> {
+        Ok(self.overlay_handler.get_or_init(|| YourSoftenerOverlayHandler::new(overlay_handle)))
     }
 }
 ```
+
+This pattern ensures that the FPGA and OverlayHandler instances are created only once, when first requested, and then
+reused for all subsequent calls.
 
 ## Testing Your Softener
 
@@ -396,12 +481,12 @@ Add your integration tests to `daemon/tests/<your_platform>` to test FPGAd and y
 
 ### Manual testing
 
-Do some manual testing to ensure that everything is working as expected. Don't forget to build with the appropriate feature flag:
+Do some manual testing to ensure that everything is working as expected. Don't forget to build with the appropriate
+feature flag:
 
 ```bash
 cargo build --features your-new-softener
 ```
-
 
 ## Best Practices
 
