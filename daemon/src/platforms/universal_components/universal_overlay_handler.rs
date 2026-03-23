@@ -268,21 +268,6 @@ impl OverlayHandler for UniversalOverlayHandler {
         ))
     }
 
-    /// Get the required FPGA programming flags from the overlay.
-    ///
-    /// # Warning: Not Implemented
-    ///
-    /// This method is intentionally unimplemented for the universal overlay handler.
-    /// In a platform specific implementation (i.e. a softener) this would implement
-    /// logic to parse the overlay/relevant package and determine any required FPGA
-    /// programming flags.
-    ///
-    /// # Returns: `Result<isize, FpgadError>`
-    /// * `Ok(0)` - Always returns 0 (no flags)
-    fn required_flags(&self) -> Result<isize, FpgadError> {
-        Ok(0)
-    }
-
     /// Get the current status of the overlay.
     ///
     /// Reads both the `path` and `status` files from configfs and returns a combined

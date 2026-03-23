@@ -126,7 +126,6 @@ impl StatusInterface {
         platform_string: &str,
         overlay_handle: &str,
     ) -> Result<String, fdo::Error> {
-        // TODO(artie): is this platform specific?
         info!(
             "get_overlay_status called with platform_string: {platform_string} and overlay_handle:\
              {overlay_handle}"
