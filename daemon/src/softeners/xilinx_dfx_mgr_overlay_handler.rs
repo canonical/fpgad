@@ -119,10 +119,6 @@ impl OverlayHandler for XilinxDfxMgrOverlayHandler {
         Ok(xilinx_dfx_mgr::remove(slot_handle)?)
     }
 
-    fn required_flags(&self) -> Result<isize, FpgadError> {
-        todo!()
-    }
-
     fn status(&self) -> Result<String, FpgadError> {
         Ok(xilinx_dfx_mgr::list_package()?)
     }

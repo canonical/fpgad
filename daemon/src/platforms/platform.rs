@@ -40,7 +40,8 @@
 //! Platforms and softeners are included or not excluded using cargo "features".
 //! See [`softeners`](../../softeners/index.html) for more details.
 //!
-//! TODO(Artie): Add examples of how to use the getters for platforms with and without knowing the platform string? - could be called "# Fetching platforms"
+//! TODO(Artie): Add examples of how to use the getters for platforms with and without knowing the
+//!  platform string? - could be called "# Fetching platforms"
 //! # Examples
 //!
 //! in [main.rs]:
@@ -187,14 +188,6 @@ pub trait OverlayHandler {
     /// * `Ok(String)` - Confirmation message including overlay filesystem path
     /// * `Err(FpgadError::IODelete)` - Failed to remove overlay directory
     fn remove_overlay(&self, handle: Option<&str>) -> Result<String, FpgadError>;
-
-    /// Get the required FPGA flags, however they may be provided.
-    ///
-    /// # Returns: `Result<isize, FpgadError>`
-    /// * `Ok(isize)` - Required flags value
-    /// * `Err(FpgadError)` - Failed to parse overlay or extract flags
-    #[allow(dead_code)]
-    fn required_flags(&self) -> Result<isize, FpgadError>;
 
     /// Get the current status of the overlay.
     ///

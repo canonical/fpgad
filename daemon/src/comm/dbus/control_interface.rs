@@ -251,8 +251,6 @@ impl ControlInterface {
         overlay_source_path: &str,
         firmware_lookup_path: &str,
     ) -> Result<String, fdo::Error> {
-        // TODO(Artie): refactor this code to be platform specific. The dfx-mgr implementation does
-        //  the firmware source dir write under the hood.
         info!(
             "apply_overlay called with platform_string: {platform_string}, overlay_handle: \
             {overlay_handle} and overlay_path: {overlay_source_path}",
