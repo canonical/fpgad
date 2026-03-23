@@ -188,14 +188,6 @@ pub trait OverlayHandler {
     /// * `Err(FpgadError::IODelete)` - Failed to remove overlay directory
     fn remove_overlay(&self, handle: Option<&str>) -> Result<String, FpgadError>;
 
-    /// Get the required FPGA flags, however they may be provided.
-    ///
-    /// # Returns: `Result<isize, FpgadError>`
-    /// * `Ok(isize)` - Required flags value
-    /// * `Err(FpgadError)` - Failed to parse overlay or extract flags
-    #[allow(dead_code)]
-    fn required_flags(&self) -> Result<isize, FpgadError>;
-
     /// Get the current status of the overlay.
     ///
     /// # Returns: `Result<String, FpgadError>`
