@@ -126,18 +126,12 @@ impl XilinxDfxMgrPlatform {
 
 impl Platform for XilinxDfxMgrPlatform {
     fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError> {
-        // TODO(artie): perhaps this should warn the user that they are using a dfx-mgr capable
-        // system but are not currently using that backend - warn that this is not suitable for
-        // versal
         Ok(self
             .fpga
             .get_or_init(|| XilinxDfxMgrFPGA::new(device_handle)))
     }
 
     fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError> {
-        // TODO(artie): perhaps this should warn the user that they are using a dfx-mgr capable
-        // system but are not currently using that backend - warn that this is not suitable for
-        // versal
         Ok(self
             .overlay_handler
             .get_or_init(|| XilinxDfxMgrOverlayHandler::new(overlay_handle)))

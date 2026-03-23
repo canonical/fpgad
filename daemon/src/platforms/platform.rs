@@ -40,7 +40,8 @@
 //! Platforms and softeners are included or not excluded using cargo "features".
 //! See [`softeners`](../../softeners/index.html) for more details.
 //!
-//! TODO(Artie): Add examples of how to use the getters for platforms with and without knowing the platform string? - could be called "# Fetching platforms"
+//! TODO(Artie): Add examples of how to use the getters for platforms with and without knowing the
+//!  platform string? - could be called "# Fetching platforms"
 //! # Examples
 //!
 //! in [main.rs]:
