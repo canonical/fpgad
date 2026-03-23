@@ -120,18 +120,12 @@ impl XilinxDfxMgrPlatform {
 
 impl Platform for XilinxDfxMgrPlatform {
     fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError> {
-        // TODO(artie): perhaps this should warn the user that they are using a dfx-mgr capable
-        // system but are not currently using that backend - warn that this is not suitable for
-        // versal
         Ok(self
             .fpga
             .get_or_init(|| XilinxDfxMgrFPGA::new(device_handle)))
     }
 
     fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError> {
-        // TODO(artie): perhaps this should warn the user that they are using a dfx-mgr capable
-        // system but are not currently using that backend - warn that this is not suitable for
-        // versal
         Ok(self
             .overlay_handler
             .get_or_init(|| XilinxDfxMgrOverlayHandler::new(overlay_handle)))
@@ -147,7 +141,6 @@ impl Platform for XilinxDfxMgrPlatform {
 }
 
 /// List locally downloaded accelerator packages
-#[allow(dead_code)]
 pub fn list_package() -> Result<String, FpgadSoftenerError> {
     run_dfx_mgr(&["-listPackage"])
 }
@@ -167,77 +160,15 @@ pub fn remove(slot_handle: Option<&str>) -> Result<String, FpgadSoftenerError> {
     }
 }
 
-/// List accelerator UIOs
-#[allow(dead_code)]
-pub fn list_uio(slot: Option<u32>, uio_name: Option<&str>) -> Result<String, FpgadSoftenerError> {
-    let mut args = vec!["-listUIO"];
-    if let Some(name) = uio_name {
-        args.push(name);
-    }
-    if let Some(slot) = slot {
-        let s_slot = slot.to_string();
-        args.push(&s_slot);
-        run_dfx_mgr(&args)
-    } else {
-        run_dfx_mgr(&args)
-    }
-}
-
-/// List inter-RM buffer info
-#[allow(dead_code)]
-pub fn list_irbuf(slot: Option<u32>) -> Result<String, FpgadSoftenerError> {
-    let mut args = vec!["-listIRbuf"];
-    if let Some(slot) = slot {
-        let s_slot = slot.to_string();
-        args.push(s_slot.as_str());
-        run_dfx_mgr(&args)
-    } else {
-        run_dfx_mgr(&args)
-    }
-}
-
-/// Set RM stream from slot a to b
-#[allow(dead_code)]
-pub fn set_irbuf(a: u32, b: u32) -> Result<String, FpgadSoftenerError> {
-    run_dfx_mgr(&["-setIRbuf", &format!("{a},{b}")])
-}
-
-/// Allocate buffer of size and return its DMA fd and pa
-#[allow(dead_code)]
-pub fn alloc_buffer(size: u64) -> Result<String, FpgadSoftenerError> {
-    run_dfx_mgr(&["-allocBuffer", &size.to_string()])
-}
-
-/// Free buffer with physical address pa in decimal
-#[allow(dead_code)]
-pub fn free_buffer(pa: u64) -> Result<String, FpgadSoftenerError> {
-    run_dfx_mgr(&["-freeBuffer", &pa.to_string()])
-}
-
-/// Send ip device FD's over socket
-#[allow(dead_code)]
-pub fn get_fds(slot: u32) -> Result<String, FpgadSoftenerError> {
-    run_dfx_mgr(&["-getFDs", &slot.to_string()])
-}
-
-/// Get RM info
-#[allow(dead_code)]
-pub fn get_rm_info() -> Result<String, FpgadSoftenerError> {
-    run_dfx_mgr(&["-getRMInfo"])
-}
-
-/// Get Shell FD
-#[allow(dead_code)]
-pub fn get_shell_fd() -> Result<String, FpgadSoftenerError> {
-    run_dfx_mgr(&["-getShellFD"])
-}
-
-/// Get Clock FD
-#[allow(dead_code)]
-pub fn get_clock_fd() -> Result<String, FpgadSoftenerError> {
-    run_dfx_mgr(&["-getClockFD"])
-}
-
+/// Load a bitstream file using dfx-mgr
+///
+/// # Arguments
+///
+/// * `bitstream_path` - Path to the bitstream file to load
+///
+/// # Returns: `Result<String, FpgadSoftenerError>`
+/// * `Ok(String)` - Output from dfx-mgr-client
+/// * `Err(FpgadSoftenerError::DfxMgr)` - Path contains invalid UTF-8 or dfx-mgr-client failed
 pub fn load_bitstream(bitstream_path: &Path) -> Result<String, FpgadSoftenerError> {
     let path_str = bitstream_path.to_str().ok_or_else(|| {
         FpgadSoftenerError::DfxMgr(format!(
@@ -258,7 +189,6 @@ pub fn load_bitstream(bitstream_path: &Path) -> Result<String, FpgadSoftenerErro
 /// # Returns: `Result<String, FpgadSoftenerError>`
 /// * `Ok(String)` - Output from dfx-mgr-client
 /// * `Err(FpgadSoftenerError::DfxMgr)` - Path contains invalid UTF-8 or dfx-mgr-client failed
-#[allow(dead_code)]
 pub fn load_overlay(bitstream_path: &Path, dtbo_path: &Path) -> Result<String, FpgadSoftenerError> {
     let bitstream_str = bitstream_path.to_str().ok_or_else(|| {
         FpgadSoftenerError::DfxMgr(format!(
