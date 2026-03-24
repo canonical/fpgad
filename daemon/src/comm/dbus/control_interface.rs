@@ -139,26 +139,28 @@ impl ControlInterface {
     ///
     /// Specifying both `device_handle` and `firmware_lookup_path`
     /// ```rust
-    /// write_bitstream_direct(
-    ///     "xlnx,zynqmp-pcap-fpga",
-    ///     "fpga0",
-    ///     "/snap/my_snap/data/my_package/my_bitstream.bit.bin",
-    ///     "/snap/my_snap/data/my_package/",
-    /// )
-    /// .await?;
+    /// let result = control_interface
+    ///     .write_bitstream_direct(
+    ///         "xlnx,zynqmp-pcap-fpga",
+    ///         "fpga0",
+    ///         "/snap/my_snap/data/my_package/my_bitstream.bit.bin",
+    ///         "/snap/my_snap/data/my_package/",
+    ///     )
+    ///     .await?;
     /// assert_eq!(result, "/snap/my_snap/data/my_package/my_bitstream.bit.bin loaded to fpga0 using\
     ///                   firmware lookup path: '/snap/my_snap/data/my_package/'");
     /// ```
     ///
     /// Without specifying `device_handle` or `firmware_lookup_path`
     /// ```rust
-    /// write_bitstream_direct(
-    ///     "xlnx,zynqmp-pcap-fpga",
-    ///     "",
-    ///     "/snap/my_snap/data/my_package/my_bitstream.bit.bin",
-    ///     "",
-    /// )
-    /// .await?;
+    /// let result = control_interface
+    ///     .write_bitstream_direct(
+    ///         "xlnx,zynqmp-pcap-fpga",
+    ///         "",
+    ///         "/snap/my_snap/data/my_package/my_bitstream.bit.bin",
+    ///         "",
+    ///     )
+    ///     .await?;
     /// assert_eq!(result, "/snap/my_snap/data/my_package/my_bitstream.bit.bin loaded to fpga0 using\
     ///                   firmware lookup path: '/snap/my_snap/data/my_package/'");
     /// ```
@@ -285,7 +287,7 @@ impl ControlInterface {
     /// # Examples
     ///
     /// ```
-    /// assert!(remove_overlay("xlnx,zynqmp-pcap-fpga", "my_overlay").is_ok());
+    /// assert!(remove_overlay("xlnx,zynqmp-pcap-fpga", "my_overlay").await.is_ok());
     /// ```
     async fn remove_overlay(
         &self,
@@ -369,7 +371,7 @@ impl ControlInterface {
     ///
     /// ```
     /// let result = control_interface
-    ///     .write_property(
+    ///     .write_property_bytes(
     ///         "xlnx,zynqmp-pcap-fpga",
     ///         "/sys/class/fpga_manager/fpga0/key",
     ///         &[0xBA, 0xDB, 0xAD, 0xBA, 0xDB, 0xAD])
