@@ -45,9 +45,7 @@ impl StatusInterface {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// # use crate::comm::dbus::StatusInterface
-    /// # let status_interface = StatusInterface()
+    /// ```rust,no_run
     /// let state = status_interface.get_fpga_state("xlnx,zynqmp-pcap-fpga", "fpga0").await?;
     /// assert_eq!(state, "operating");
     /// ```
@@ -77,9 +75,7 @@ impl StatusInterface {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// # use crate::comm::dbus::StatusInterface
-    /// # let status_interface = StatusInterface()
+    /// ```rust,no_run
     /// let flags = status_interface.get_fpga_flags("xlnx,zynqmp-pcap-fpga", "fpga0").await?;
     /// assert_eq!(flags, "20");
     /// ```
@@ -110,9 +106,7 @@ impl StatusInterface {
     ///
     /// # Examples
     ///
-    /// ```
-    /// # use crate::comm::dbus::StatusInterface
-    /// # let status_interface = StatusInterface()
+    /// ```rust,no_run
     /// let status = status_interface.get_overlay_status(
     ///     "xlnx,zynqmp-pcap-fpga",
     ///     "my_overlay"
@@ -148,24 +142,22 @@ impl StatusInterface {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// # use crate::comm::dbus::StatusInterface
-    /// # let status_interface = StatusInterface()
+    /// ```rust,no_run
     /// let overlays = status_interface.get_overlays().await?;
     /// ```
     ///
     /// # Example Ok(String) values
     /// ## no overlays present:
-    /// ```rust
+    /// ```rust,no_run
     /// assert_eq!(overlays, "");
     /// ```
     ///
     /// ## One overlay present:
-    /// ```text
+    /// ```rust,no_run
     /// assert_eq!(overlays, "my_overlay");
     /// ```
     /// ## Multiple overlays present:
-    /// ```rust
+    /// ```rust,no_run
     /// assert_eq!(overlays, "my_overlay1\nmy_overlay2\n...\nmy_overlayN");
     /// ```
     ///
@@ -187,16 +179,12 @@ impl StatusInterface {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// # use crate::comm::dbus::StatusInterface
-    /// # let status_interface = StatusInterface()
+    /// ```rust,no_run
     /// let platform_string = status_interface.get_platform_type("").await?;
     /// assert_eq!(platform_string, "xlnx,zynqmp-pcap-fpga");
     /// ```
     ///
-    /// ```rust
-    /// # use crate::comm::dbus::StatusInterface
-    /// # let status_interface = StatusInterface()
+    /// ```rust,no_run
     /// let platform_string = status_interface.get_platform_type("fpga0").await?;
     /// assert_eq!(platform_string, "xlnx,zynqmp-pcap-fpga");
     /// ```
@@ -222,17 +210,17 @@ impl StatusInterface {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # use crate::comm::dbus::StatusInterface
     /// # let status_interface = StatusInterface()
     /// let platform_map = status_interface.get_platform_types().await?;
     /// ```
     /// If only one device:
-    /// ```
+    /// ```rust,no_run
     /// assert_eq!(platform_map, "fpga0:xlnx,zynqmp-pcap-fpga\n");
     /// ```
     /// or for multiple devices
-    /// ```rust
+    /// ```rust,no_run
     /// assert_eq!(platform_map, "fpga0:xlnx,zynqmp-pcap-fpga\nfpga1:xlnx,versal-fpga\n");
     /// ````
     ///
@@ -263,7 +251,7 @@ impl StatusInterface {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// let name = status_interface.
     ///     read_property("/sys/class/fpga_manager/fpga0/name")
     ///     .await?;
