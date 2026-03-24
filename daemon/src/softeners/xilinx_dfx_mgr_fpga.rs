@@ -73,11 +73,11 @@ impl Fpga for XilinxDfxMgrFPGA {
     /// * `Err(FpgadError::IOWrite)` - Failed to write flags file
     /// * `Err(FpgadError::IORead)` - Failed to read back flags or state
     /// * `Err(FpgadError::Flag)` - Read-back value doesn't match written value
-    fn set_flags(&self, flags: u32) -> Result<(), FpgadError> {
+    fn set_flags(&self, flags: u32) -> Result<String, FpgadError> {
         let flag_path = Path::new(config::FPGA_MANAGERS_DIR)
             .join(self.device_handle.clone())
             .join("flags");
-        trace!("Writing 0x'{flags:X}' to '{flag_path:?}");
+        trace!("Writing '0x{flags:X}' to '{flag_path:#?}'");
         if let Err(e) = fs_write(&flag_path, false, format!("0x{flags:X}")) {
             error!("Failed to read state.");
             return Err(e);
@@ -102,21 +102,23 @@ impl Fpga for XilinxDfxMgrFPGA {
         // };
 
         match self.flags() {
-            Ok(returned_flags) if returned_flags == flags => Ok(()),
+            Ok(returned_flags) if returned_flags == flags => Ok(format!(
+                "Flags set to '0x{:X}' for '{}'",
+                flags, self.device_handle
+            )),
             Ok(returned_flags) => Err(FpgadError::Flag(format!(
-                "Setting {}'s flags to '{}' failed. Resulting flag was '{}'",
+                "Setting '{}'s flags to '{}' failed. Resulting flag was '{}'",
                 self.device_handle, flags, returned_flags
             ))),
             Err(e) => Err(FpgadError::Flag(format!(
-                "Failed to read {}'s  flags after setting to '{}': {}",
+                "Failed to read '{}'s flags after setting to '{}': {}",
                 self.device_handle, flags, e
             ))),
         }
     }
 
-    fn load_firmware(&self, firmware_path: &Path) -> Result<(), FpgadError> {
-        xilinx_dfx_mgr::load_bitstream(firmware_path)?;
-        Ok(())
+    fn load_firmware(&self, firmware_path: &Path, _: &Path) -> Result<String, FpgadError> {
+        Ok(xilinx_dfx_mgr::load_bitstream(firmware_path)?)
     }
 
     fn remove_firmware(&self, slot_handle: Option<&str>) -> Result<String, FpgadError> {

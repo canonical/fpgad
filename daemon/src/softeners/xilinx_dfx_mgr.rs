@@ -28,6 +28,12 @@ pub struct XilinxDfxMgrPlatform {
     overlay_handler: OnceLock<XilinxDfxMgrOverlayHandler>,
 }
 
+impl Default for XilinxDfxMgrPlatform {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl XilinxDfxMgrPlatform {
     pub fn new() -> Self {
         trace!("creating new XilinxDfxMgrPlatform");
@@ -150,6 +156,15 @@ pub fn get_clock_fd() -> Result<String, FpgadSoftenerError> {
     run_dfx_mgr(&["-getClockFD"])
 }
 
+/// Load a bitstream file using dfx-mgr
+///
+/// # Arguments
+///
+/// * `bitstream_path` - Path to the bitstream file to load
+///
+/// # Returns: `Result<String, FpgadSoftenerError>`
+/// * `Ok(String)` - Output from dfx-mgr-client
+/// * `Err(FpgadSoftenerError::DfxMgr)` - Path contains invalid UTF-8 or dfx-mgr-client failed
 pub fn load_bitstream(bitstream_path: &Path) -> Result<String, FpgadSoftenerError> {
     let path_str = bitstream_path.to_str().ok_or_else(|| {
         FpgadSoftenerError::DfxMgr(format!(
@@ -158,6 +173,27 @@ pub fn load_bitstream(bitstream_path: &Path) -> Result<String, FpgadSoftenerErro
         ))
     })?;
     run_dfx_mgr(&["-b", path_str])
+}
+
+/// Load an overlay with bitstream using dfx-mgr
+///
+/// # Arguments
+///
+/// * `_bitstream_path` - Path to the bitstream file (unused, TODO)
+/// * `_dtbo_path` - Path to the device tree overlay file (unused, TODO)
+///
+/// # Returns: `Result<String, FpgadSoftenerError>`
+/// * This function is not yet implemented and will panic with `todo!()`
+///
+/// # Note
+///
+/// This function is a placeholder for future implementation.
+#[allow(dead_code)]
+pub fn load_overlay(
+    _bitstream_path: &Path,
+    _dtbo_path: &Path,
+) -> Result<String, FpgadSoftenerError> {
+    todo!()
 }
 
 /// Helper to run the dfx-mgr-client binary with arguments

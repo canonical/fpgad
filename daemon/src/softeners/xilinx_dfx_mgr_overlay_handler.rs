@@ -26,7 +26,13 @@ impl XilinxDfxMgrOverlayHandler {
     }
 }
 impl OverlayHandler for XilinxDfxMgrOverlayHandler {
-    fn apply_overlay(&self, _source_path: &Path) -> Result<(), FpgadError> {
+    fn apply_overlay(
+        &self,
+        _source_path: &Path,
+        _lookup_path: &Path,
+    ) -> Result<String, FpgadError> {
+        // todo: search for bitstream in overlay dir
+        //  xilinx_dfx_mgr::load_overlay(bitstream_path, _source_path)
         todo!()
     }
 

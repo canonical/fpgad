@@ -301,6 +301,8 @@ async fn get_fpga_state_message(device_handle: &str) -> Result<String, zbus::Err
 /// println!("{}", status);
 /// ```
 async fn get_full_status_message() -> Result<String, zbus::Error> {
+    // TODO(Artie): switch on platform to print dfx-mgr data if dfx-mgr is being used, else print this?
+    // what if platform is dfx-mgr but component not installed?!
     let mut ret_string = String::from(
         "---- DEVICES ----\n\
     | dev | platform | state |\n",

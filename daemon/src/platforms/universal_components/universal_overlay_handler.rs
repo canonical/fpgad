@@ -55,6 +55,7 @@
 use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::OverlayHandler;
+use crate::platforms::universal_components::universal_helpers;
 use crate::system_io::{fs_create_dir, fs_read, fs_remove_dir, fs_write};
 use log::{info, trace};
 use std::path::{Path, PathBuf};
@@ -84,7 +85,7 @@ use std::path::{Path, PathBuf};
 /// ```
 fn construct_overlay_fs_path(overlay_handle: &str) -> PathBuf {
     let overlay_fs_path = PathBuf::from(config::OVERLAY_CONTROL_DIR).join(overlay_handle);
-    trace!("overlay_fs_path will be {overlay_fs_path:?}");
+    trace!("overlay_fs_path will be '{overlay_fs_path:?}'");
     overlay_fs_path
 }
 
@@ -104,6 +105,7 @@ fn construct_overlay_fs_path(overlay_handle: &str) -> PathBuf {
 pub struct UniversalOverlayHandler {
     /// The path which points to the overlay virtual filesystem's dir which contains
     /// `path`, `status` and `dtbo` virtual files for overlay control. `dtbo` appears unused?
+    overlay_handle: String,
     overlay_fs_path: PathBuf,
 }
 
@@ -119,7 +121,7 @@ impl UniversalOverlayHandler {
     /// * `Err(FpgadError::IORead)` - Failed to read status file
     fn get_vfs_status(&self) -> Result<String, FpgadError> {
         let status_path = self.overlay_fs_path()?.join("status");
-        trace!("Reading from {status_path:?}");
+        trace!("Reading from '{status_path:?}'");
         fs_read(&status_path).map(|s| s.trim_end_matches('\n').to_string())
     }
 
@@ -133,7 +135,7 @@ impl UniversalOverlayHandler {
     /// * `Err(FpgadError::IORead)` - Failed to read path file
     fn get_vfs_path(&self) -> Result<PathBuf, FpgadError> {
         let path_path = self.overlay_fs_path()?.join("path");
-        trace!("Reading from {path_path:?}");
+        trace!("Reading from '{path_path:?}'");
         let path_string = fs_read(&path_path).map(|s| s.trim_end_matches('\n').to_string())?;
         Ok(PathBuf::from(path_string))
     }
@@ -188,10 +190,12 @@ impl OverlayHandler for UniversalOverlayHandler {
     ///
     /// # Arguments
     ///
-    /// * `source_path_rel` - Path to the overlay file (can be absolute or relative to firmware path)
+    /// * `source_path` - Path to the overlay file (can be absolute or relative to firmware path)
+    /// * `lookup_path` - Path to resolve overlay firmware or empty path
+    ///   (automatically uses the parent dir of `source_path`)
     ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Overlay applied and verified successfully
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message with overlay path and firmware prefix
     /// * `Err(FpgadError::Argument)` - Overlay with this handle already exists
     /// * `Err(FpgadError::IOCreate)` - Failed to create overlay directory
     /// * `Err(FpgadError::Internal)` - configfs didn't create `path` file (not mounted?)
@@ -204,35 +208,43 @@ impl OverlayHandler for UniversalOverlayHandler {
     /// - This method is not valid if the dtbo doesn't contain firmware to load
     /// - The overlay directory must not already exist. [`OverlayHandler::remove_overlay`] can be called
     ///   to remove it first.
-    fn apply_overlay(&self, source_path_rel: &Path) -> Result<(), FpgadError> {
+    fn apply_overlay(&self, source_path: &Path, lookup_path: &Path) -> Result<String, FpgadError> {
+        let (prefix, suffix) =
+            universal_helpers::make_firmware_pair(Path::new(source_path), Path::new(lookup_path))?;
+        universal_helpers::write_firmware_source_dir(&prefix.to_string_lossy())?;
         let overlay_fs_path = self.overlay_fs_path()?;
         if overlay_fs_path.exists() {
             return Err(FpgadError::Argument(format!(
-                "Overlay with this handle already exists at {overlay_fs_path:?}. \
+                "Overlay with this handle already exists at '{overlay_fs_path:?}'. \
                  Remove the overlay and try again."
             )));
         }
 
         fs_create_dir(overlay_fs_path)?;
-        trace!("Created dir {overlay_fs_path:?}");
+        trace!("Created dir '{overlay_fs_path:?}'");
 
         let overlay_path_file = overlay_fs_path.join("path");
         if !overlay_path_file.exists() {
             // TODO: consider different error type?
             return Err(FpgadError::Internal(format!(
-                "Overlay at {overlay_fs_path:?} did not initialise a new overlay: \
+                "Overlay at '{overlay_fs_path:?}' did not initialise a new overlay: \
                 the `path` virtual file did not get created by the kernel. \
                 Is the parent dir mounted as a configfs directory?"
             )));
         }
 
-        match fs_write(&overlay_path_file, false, source_path_rel.to_string_lossy()) {
+        match fs_write(&overlay_path_file, false, suffix.to_string_lossy()) {
             Ok(_) => {
-                trace!("'{source_path_rel:?}' successfully written to {overlay_path_file:?}");
+                trace!("'{suffix:?}' successfully written to '{overlay_path_file:?}'");
             }
             Err(e) => return Err(e),
         }
-        self.vfs_check_applied(source_path_rel)
+        self.vfs_check_applied(suffix.as_path())?;
+
+        Ok(format!(
+            "'{:#?}' loaded to '{}' via '{:#?}' using firmware lookup path '{:?}'",
+            source_path, self.overlay_handle, overlay_fs_path, prefix
+        ))
     }
 
     /// Remove a device tree overlay from configfs.
@@ -240,13 +252,20 @@ impl OverlayHandler for UniversalOverlayHandler {
     /// Removes the overlay directory from configfs, which deactivates the overlay and
     /// restores the original device tree state.
     ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Overlay directory removed successfully
+    /// # Arguments
+    ///
+    /// * `handle` - Optional handle/slot identifier (unused in universal implementation)
+    ///
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message including overlay handle and filesystem path
     /// * `Err(FpgadError::IODelete)` - Failed to remove directory (not empty, doesn't exist, etc.)
     fn remove_overlay(&self, _: Option<&str>) -> Result<String, FpgadError> {
         let overlay_fs_path = self.overlay_fs_path()?;
         fs_remove_dir(overlay_fs_path)?;
-        Ok("{overlay_handle} removed by deleting {overlay_fs_path:?}".to_string())
+        Ok(format!(
+            "'{}' removed by deleting '{:#?}'",
+            self.overlay_handle, overlay_fs_path
+        ))
     }
 
     /// Get the required FPGA programming flags from the overlay.
@@ -313,6 +332,7 @@ impl UniversalOverlayHandler {
     /// ```
     pub(crate) fn new(overlay_handle: &str) -> Self {
         UniversalOverlayHandler {
+            overlay_handle: overlay_handle.to_string(),
             overlay_fs_path: construct_overlay_fs_path(overlay_handle),
         }
     }

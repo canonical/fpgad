@@ -197,7 +197,7 @@ impl StatusInterface {
     /// * `Ok(String)` – Each line formatted as `<device_handle>:<platform_string>\n`.
     ///    Devices without a valid string appear as
     ///   `<device_handle>:\n`.
-    /// * `Err(fdo::Error)` if device validation or reading the compatible string fails.
+    /// * `Err(fdo::Error)` if reading FPGA managers directory or compatible strings fails.
     ///
     /// # Examples
     ///
