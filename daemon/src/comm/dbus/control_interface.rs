@@ -95,10 +95,10 @@ impl ControlInterface {
     /// assert_eq!(result, "Flags set to 0x20 for fpga0");
     /// ```
     ///
-    /// Don't specify device (defaults to `"fpga0"`)
+    /// Don't specify compat string (fetches compat string based on `device_handle`)
     /// ```rust
     /// let result = control_interface
-    ///     .set_fpga_flags("xlnx,zynqmp-pcap-fpga", "", 0b100000)
+    ///     .set_fpga_flags("", "fpga0", 0b100000)
     ///     .await?;
     /// assert_eq!(result, "Flags set to 0x20 for fpga0");
     /// ```
