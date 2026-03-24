@@ -10,19 +10,22 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-//! This is FPGAd's commandline interface (CLI) . Due to strict confinement of the snap, this can only be used from a terminal or from a script which is not part of another snap. It is a useful helper for one-off control of the FPGA device or testing, and serves as an example implementation for the DBus interface.
+//! This is FPGAd's commandline interface (CLI) . Due to strict confinement of the snap, this can
+//! only be used from a terminal or from a script which is not part of another snap.
+//! It is a useful helper for one-off control of the FPGA device or testing, and serves as an
+//! example implementation for the DBus interface.
 //!
 //! ```text
-//!Usage: [snap run] fpgad [OPTIONS] <COMMAND>
+//! Usage: [snap run] fpgad [OPTIONS] <COMMAND>
 //!
-//! OPTIONs:
+//! OPTIONS:
 //!   -h, --help            Print help
 //!       --handle <DEVICE_HANDLE>  fpga device `HANDLE` to be used for the operations.
 //!                        Default value for this option is calculated in runtime
 //!                        and the application picks the first available fpga device
 //!                        in the system (under `/sys/class/fpga_manager/`)
 //!
-//! COMMANDs:
+//! COMMANDS:
 //! ├── load                Load a bitstream or overlay
 //! │   ├── overlay <FILE> [--handle <OVERLAY_HANDLE>]
 //! │   │       Load overlay (.dtbo) into the system using the default OVERLAY_HANDLE
