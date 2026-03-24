@@ -138,7 +138,7 @@ impl StatusInterface {
     ///
     /// # Returns: `Result<String, fdo::Error>`
     /// * `Ok(String)` – List of existing overlay handles, separated by newline (`\n`).
-    /// * `Err(fdo::Error)` If the overlay handle is empty or not found.
+    /// * `Err(fdo::Error)` - `FpgadError::IOReadDir` if dir cannot be read
     ///
     /// # Examples
     ///
@@ -180,11 +180,6 @@ impl StatusInterface {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let platform_string = status_interface.get_platform_type("").await?;
-    /// assert_eq!(platform_string, "xlnx,zynqmp-pcap-fpga");
-    /// ```
-    ///
-    /// ```rust,no_run
     /// let platform_string = status_interface.get_platform_type("fpga0").await?;
     /// assert_eq!(platform_string, "xlnx,zynqmp-pcap-fpga");
     /// ```
@@ -197,10 +192,6 @@ impl StatusInterface {
     }
 
     /// Get a list of all FPGA devices and their platform types.
-    ///
-    /// # Arguments
-    ///
-    /// * `device_handle`: FPGA device handle.
     ///
     /// # Returns: `Result<String, Error>`
     /// * `Ok(String)` – Each line formatted as `<device_handle>:<platform_string>\n`.
@@ -222,7 +213,7 @@ impl StatusInterface {
     /// or for multiple devices
     /// ```rust,no_run
     /// assert_eq!(platform_map, "fpga0:xlnx,zynqmp-pcap-fpga\nfpga1:xlnx,versal-fpga\n");
-    /// ````
+    /// ```
     ///
     async fn get_platform_types(&self) -> Result<String, fdo::Error> {
         info!("get_platform_types called");
