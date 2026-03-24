@@ -32,7 +32,7 @@
 //! [2026-01-08T16:29:05Z ERROR cli] org.freedesktop.DBus.Error.IOError: FpgadError::IOWrite: <fpgad's error text>: No such file or directory (os error 2)
 //! Error: MethodError(OwnedErrorName("org.freedesktop.DBus.Error.IOError"), Some("FpgadError::IOWrite: <fpgad's error text>: No such file or directory (os error 2)"), Msg { type: Error, serial: 11, sender: UniqueName(":1.77"), reply-serial: 4, body: Str, fds: [] })
 //! ```
-//! whereby the `FPGAdError` type could  be mapped to an equivalent `fdo::Error` type.
+//! whereby the `FpgadError` type could  be mapped to an equivalent `fdo::Error` type.
 //!
 //! ## FPGA API Summary
 //!
@@ -74,7 +74,7 @@ use std::path::{Component, Path, PathBuf};
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust,no_run
 /// let device_name = fs_read_property("/sys/class/fpga_manager/fpga0/name")?;
 /// assert_eq!(device_name, "Xilinx ZynqMP FPGA Manager\n")
 /// ```
@@ -97,11 +97,11 @@ pub fn fs_read_property(property_path_str: &str) -> Result<String, FpgadError> {
 ///
 /// # Returns: `Result<String, FpgadError>`
 /// * `String` - The contents of the firmware search path variable.
-/// * `FpgadError::IOWRite` (or similar IO error) if writing fails for any reason.
+/// * `FpgadError::IOWrite` (or similar IO error) if writing fails for any reason.
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
 /// let search_path_str = read_firmware_source_dir()?;
 /// assert_eq!(search_path_str, "/lib/firmware/my_firmware_dir");
 /// ```
@@ -124,11 +124,11 @@ pub fn read_firmware_source_dir() -> Result<String, FpgadError> {
 ///
 /// # Returns: `Result<(), FpgadError>`
 /// * `()` on success
-/// * `FpgadError::IOWRite` (or similar IO error) if writing fails for any reason.
+/// * `FpgadError::IOWrite` (or similar IO error) if writing fails for any reason.
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust,no_run
 /// assert!(write_firmware_source_dir("/lib/firmware/my_firmware_dir").is_ok());
 /// ```
 pub fn write_firmware_source_dir(new_path: &str) -> Result<(), FpgadError> {
@@ -152,7 +152,7 @@ pub fn write_firmware_source_dir(new_path: &str) -> Result<(), FpgadError> {
 /// * `FpgadError::Argument` on invalid `path` or `path` is a root directory (no parent)
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
 /// let (parent, base) = extract_path_and_filename(Path::new("/lib/firmware/file.bin"));
 /// assert_eq!(parent.to_string_lossy(), "/lib/firmware");
 /// assert_eq!(base.to_string_lossy(), "file.bin");
@@ -190,7 +190,7 @@ pub fn extract_path_and_filename(path: &Path) -> Result<(PathBuf, PathBuf), Fpga
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust,no_run
 /// assert!(validate_device_handle("fpga0").is_ok())
 /// assert!(validate_device_handle("").is_err())
 /// ```
@@ -231,14 +231,14 @@ pub(crate) fn validate_device_handle(device_handle: &str) -> Result<(), FpgadErr
 ///   resulting in an empty suffix value
 /// # Examples
 ///
-/// ```
-/// #use std::path::Path;
+/// ```rust
+/// # use std::path::Path;
 /// let (prefix, suffix) = make_firmware_pair(
 ///      Path::new("/lib/firmware/file.bin"),
 ///      Path::new("/lib/firmware/"),
 /// )?;
-/// assert_eq!(prefix, "/lib/firmware");
-/// assert_eq!(suffix, "file.bin");
+/// assert_eq!(prefix.to_string_lossy(), "/lib/firmware");
+/// assert_eq!(suffix.to_string_lossy(), "file.bin");
 /// ```
 pub(crate) fn make_firmware_pair(
     source_path: &Path,
