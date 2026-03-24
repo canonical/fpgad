@@ -46,7 +46,7 @@ use zbus::Connection;
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// let overlays = call_get_overlays().await?;
 /// for overlay in overlays {
 ///     println!("Found overlay: {}", overlay);
@@ -76,7 +76,7 @@ pub async fn call_get_overlays() -> Result<Vec<String>, zbus::Error> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// let state = call_get_fpga_state("fpga0").await?;
 /// println!("FPGA state: {}", state);
 /// ```
@@ -102,7 +102,7 @@ pub async fn call_get_fpga_state(device_handle: &str) -> Result<String, zbus::Er
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// let platform = call_get_platform_type("fpga0").await?;
 /// println!("Platform: {}", platform);
 /// ```
@@ -128,7 +128,7 @@ pub async fn call_get_platform_type(device_handle: &str) -> Result<String, zbus:
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// let status = call_get_overlay_status("universal", "overlay0").await?;
 /// println!("Overlay status: {}", status);
 /// ```
@@ -153,7 +153,7 @@ async fn call_get_overlay_status(
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// let platforms = call_get_platform_types().await?;
 /// for (device, platform) in platforms {
 ///     println!("{}: {}", device, platform);
@@ -187,7 +187,7 @@ pub async fn call_get_platform_types() -> Result<HashMap<String, String>, zbus::
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// let platform = get_first_platform().await?;
 /// println!("Using platform: {}", platform);
 /// ```
@@ -212,7 +212,7 @@ pub async fn get_first_platform() -> Result<String, zbus::Error> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// let overlay = get_first_overlay().await?;
 /// println!("First overlay: {}", overlay);
 /// ```
@@ -237,7 +237,7 @@ pub async fn get_first_overlay() -> Result<String, zbus::Error> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// let device = get_first_device_handle().await?;
 /// println!("Using device: {}", device);
 /// ```
@@ -266,7 +266,7 @@ pub async fn get_first_device_handle() -> Result<String, zbus::Error> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// let message = get_fpga_state_message("fpga0").await?;
 /// println!("{}", message);
 /// ```
@@ -296,7 +296,7 @@ async fn get_fpga_state_message(device_handle: &str) -> Result<String, zbus::Err
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// let status = get_full_status_message().await?;
 /// println!("{}", status);
 /// ```
@@ -356,7 +356,7 @@ async fn get_full_status_message() -> Result<String, zbus::Error> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// // Get status for all devices
 /// let status = status_handler(&None).await?;
 ///

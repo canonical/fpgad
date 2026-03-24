@@ -33,7 +33,7 @@
 //!
 //! ```rust,no_run
 //! use zbus::Connection;
-//! use status_proxy::StatusProxy;
+//! use crate::proxies::status_proxy::StatusProxy;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let connection = Connection::system().await?;
@@ -44,8 +44,8 @@
 //! # }
 //! ```
 //!
-//! For detailed method documentation, see the daemon's
-//! [status interface documentation](../../../../daemon/comm/dbus/status_interface/index.html).
+//! For detailed method documentation, see the daemon's control interface documentation in the main
+//! [fpgad daemon crate](https://docs.rs/crate/fpgad/latest/daemon/comm/dbus/control_interface/index.html)
 
 use zbus::{Result, proxy};
 

@@ -31,11 +31,12 @@
 //! # Usage
 //!
 //! These proxies are used internally by the CLI's command handlers ([`load`], [`remove`],
-//! [`set`], [`status`]) to communicate with the fpgad daemon. The proxies handle DBus
-//! connection management and method call marshalling automatically.
+//! [`set`], [`status`]) to communicate with the fpgad daemon. Callers are responsible for
+//! creating and managing the `zbus::Connection` and passing it to the proxy constructors;
+//! the proxies then handle method call marshalling and unmarshalling automatically.
 //!
 //! For more information on the DBus interfaces, see the
-//! [daemon DBus documentation](../../../daemon/comm/dbus/index.html).
+//! [fpgad daemon crate](https://docs.rs/crate/fpgad/latest/daemon/comm/dbus/control_interface/index.html)
 //!
 //! [`load`]: ../load/index.html
 //! [`remove`]: ../remove/index.html

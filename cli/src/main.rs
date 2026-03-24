@@ -235,8 +235,9 @@ enum LoadSubcommand {
 /// Subcommands for removing FPGA components.
 ///
 /// This enum defines the types of components that can be removed from an FPGA device:
-/// - **Overlay**: Removes a device tree overlay by its handle - no implementation currently available
-/// - **Bitstream**: Removes the currently loaded FPGA bitstream (vendor-specific operation)
+/// - **Overlay**: Removes a device tree overlay by its handle.
+/// - **Bitstream**: Intended to remove the currently loaded FPGA bitstream (vendor-specific
+///   operation)
 ///
 /// Removing overlays is important for proper cleanup when reconfiguring the FPGA.
 /// Bitstream removal support depends on the FPGA vendor and platform capabilities.
