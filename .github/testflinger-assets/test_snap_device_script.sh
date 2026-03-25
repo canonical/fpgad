@@ -16,12 +16,23 @@ while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|
 done
 echo "    --- Disabling auto-refresh for 24 hours"
 sudo snap refresh --hold=24h
-echo "    --- Installing fpgad.snap"
-  while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+echo "    --- Installing fpgad"
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
     echo "    --- snapd internal tasks still running... waiting..."
     sleep 10
 done
-sudo snap install ./fpgad.snap --dangerous
+
+if [[ -f ./fpgad.snap ]]; then
+    echo "    --- Found local snap attachment, installing ./fpgad.snap --dangerous"
+    sudo snap install ./fpgad.snap --dangerous
+else
+    SNAP_CHANNEL="stable"
+    if [[ -f ./snap_channel.txt ]]; then
+        SNAP_CHANNEL="$(head -n1 ./snap_channel.txt | xargs)"
+    fi
+    echo "    --- No local snap attachment found, installing from store channel: ${SNAP_CHANNEL}"
+    sudo snap install fpgad --channel="${SNAP_CHANNEL}"
+fi
 echo "    --- Installing provider snap(s)"
 echo "INFO: Done preparing device"
 
