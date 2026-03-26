@@ -16,9 +16,9 @@
 //! If FPGAd raises the error, then the fdo::Error strings are prepended with the relevant FPGAd error type e.g. `FpgadError::Argument: <error text>`. See [crate::comm::dbus] for a summary of this interface's methods.
 //!
 
-use crate::comm::dbus::{make_firmware_pair, validate_device_handle, write_firmware_source_dir};
-use crate::config::FPGA_MANAGERS_DIR;
-use crate::error::FpgadError;
+use crate::comm::dbus::{
+    make_firmware_pair, validate_device_handle, validate_property_path, write_firmware_source_dir,
+};
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 use crate::system_io::{fs_write, fs_write_bytes};
 use log::{info, trace};
@@ -340,13 +340,8 @@ impl ControlInterface {
         data: &str,
     ) -> Result<String, fdo::Error> {
         info!("write_property called with property_path_str: {property_path_str} and data: {data}");
-        let property_path = Path::new(property_path_str);
-        if !property_path.starts_with(Path::new(FPGA_MANAGERS_DIR)) {
-            return Err(fdo::Error::from(FpgadError::Argument(format!(
-                "Cannot access property {property_path_str}: does not begin with {FPGA_MANAGERS_DIR}"
-            ))));
-        }
-        fs_write(property_path, false, data)?;
+        let property_path = validate_property_path(property_path_str)?;
+        fs_write(&property_path, false, data)?;
         Ok(format!("{data} written to {property_path_str}"))
     }
 
@@ -386,13 +381,8 @@ impl ControlInterface {
         info!(
             "write_property called with property_path_str: {property_path_str} and data: {data:?}"
         );
-        let property_path = Path::new(property_path_str);
-        if !property_path.starts_with(Path::new(FPGA_MANAGERS_DIR)) {
-            return Err(fdo::Error::from(FpgadError::Argument(format!(
-                "Cannot access property {property_path_str}: does not begin with {FPGA_MANAGERS_DIR}"
-            ))));
-        }
-        fs_write_bytes(property_path, false, data)?;
+        let property_path = validate_property_path(property_path_str)?;
+        fs_write_bytes(&property_path, false, data)?;
         Ok(format!(
             "Byte string successfully written to {property_path_str}"
         ))

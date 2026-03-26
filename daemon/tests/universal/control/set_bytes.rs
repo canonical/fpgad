@@ -39,6 +39,11 @@ fn trim_trailing_vals(mut data: Vec<u8>, val: u8) -> Vec<u8> {
     vec![0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8],
     err(displays_as(contains_substring("FpgadError::Argument:")))
 )]
+#[case::path_traversal(
+    "/sys/class/fpga_manager/../../../usr/bin/evil_file.sh",
+    vec![0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8],
+    err(displays_as(contains_substring("path traversal")))
+)]
 #[case::all_good_abadcode(
     "/sys/class/fpga_manager/fpga0/key",
     vec![0xABu8, 0xADu8, 0xC0u8, 0xDEu8],

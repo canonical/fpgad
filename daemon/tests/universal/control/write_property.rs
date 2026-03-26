@@ -25,6 +25,11 @@ use zbus::{Connection, Result};
     "",
     err(displays_as(contains_substring("Cannot access property")))
 )]
+#[case::path_traversal(
+    "/sys/class/fpga_manager/../../../usr/bin/evil_file.sh",
+    "",
+    err(displays_as(contains_substring("path traversal")))
+)]
 #[case::missing_file(
     "/sys/class/fpga_manager/fpga0/write_not_exist.txt",
     "",
