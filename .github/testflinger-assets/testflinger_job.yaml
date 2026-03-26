@@ -47,7 +47,7 @@ test_data:
 
     echo "INFO: Running script on DUT"
     _run 'chmod +x /home/ubuntu/device_script.sh'
-    _run '/home/ubuntu/device_script.sh'
+    _run 'if [ -f /home/ubuntu/env_setup.sh ]; then . /home/ubuntu/env_setup.sh; fi; /home/ubuntu/device_script.sh'
 
     echo "INFO: Retrieving artifacts"
     mkdir -p artifacts

@@ -56,15 +56,15 @@ jobs:
         id: prepare-tf-job
         env:
           ROOT_DIR: ${{ github.workspace }}
+          SNAP_TEST_SOURCE: ${{ inputs.snap_test_source || 'local' }}
+          TF_JOB_QUEUE: ${{ inputs.tf_queue || 'xilinx-kv260-c36973' }}
         shell: bash
         run: |
-          SNAP_TEST_SOURCE="${{ inputs.snap_test_source }}"
-
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            export TF_JOB_QUEUE="xilinx-kv260-c36973"
-          else
-            export TF_JOB_QUEUE="${{ inputs.tf_queue }}"
-          fi
+          cat > env_setup.sh <<EOF
+          #!/usr/bin/env bash
+          export SNAP_TEST_SOURCE="${SNAP_TEST_SOURCE}"
+          EOF
+          chmod +x env_setup.sh
 
           if [[ "${SNAP_TEST_SOURCE}" == "local" ]]; then
             echo "::group::Preparing fpgad.snap"
@@ -79,8 +79,7 @@ jobs:
             echo "::endgroup::"
           else
             echo "::group::Preparing store channel selector"
-              printf '%s\n' "${SNAP_TEST_SOURCE}" > snap_channel.txt
-              echo "Using store channel: $(cat snap_channel.txt)"
+              echo "Using store channel: ${SNAP_TEST_SOURCE}"
             echo "::endgroup::"
           fi
 
@@ -93,19 +92,16 @@ jobs:
             .job_queue = env(TF_JOB_QUEUE) |
             .test_data.attachments = [
               { "agent": "device_script.sh", "local": strenv(ROOT_DIR) + "/.github/testflinger-assets/test_snap_device_script.sh" },
+              { "agent": "env_setup.sh", "local": strenv(ROOT_DIR) + "/env_setup.sh" },
               { "agent": "test_data.gz", "local": strenv(ROOT_DIR) + "/test_data.gz" },
               { "agent": "snap_tests.py", "local": strenv(ROOT_DIR) + "/tests/snap_tests.py" }
             ]
             ' .github/testflinger-assets/testflinger_job.yaml > job.yaml
 
             # Append source-specific attachment
-            if [[ "${SNAP_TEST_SOURCE}" == "artifact" ]]; then
+            if [[ "${SNAP_TEST_SOURCE}" == "local" ]]; then
                 yq -i '.test_data.attachments += [
                 { "agent": "fpgad.snap", "local": strenv(ROOT_DIR) + "/fpgad.snap" }
-                ]' job.yaml
-            else
-                yq -i '.test_data.attachments += [
-                { "agent": "snap_channel.txt", "local": strenv(ROOT_DIR) + "/snap_channel.txt" }
                 ]' job.yaml
             fi
 
