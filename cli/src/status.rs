@@ -51,6 +51,24 @@ fn parse_platform_types_lines(ret_str: &str) -> HashMap<String, String> {
         .collect()
 }
 
+fn first_overlay_or_error(overlays: &[String]) -> Result<String, zbus::Error> {
+    let first = overlays.first().ok_or(zbus::Error::Failure(
+        "Could not find an overlay to remove".to_string(),
+    ))?;
+    Ok(first.clone())
+}
+
+// Isolate empty-platform error mapping so unit tests can validate exact error
+// variant/message without depending on a live D-Bus service.
+fn first_device_handle_or_error(
+    platforms: &HashMap<String, String>,
+) -> Result<String, zbus::Error> {
+    match platforms.keys().next() {
+        Some(p) => Ok(p.clone()),
+        None => Err(zbus::Error::Failure("Got no platforms.".to_string())),
+    }
+}
+
 /// Retrieve a list of all loaded device tree overlays from the system.
 ///
 /// Sends the DBus command to get a list of overlays and parses the newline-separated
@@ -69,6 +87,8 @@ fn parse_platform_types_lines(ret_str: &str) -> HashMap<String, String> {
 ///     println!("Found overlay: {}", overlay);
 /// }
 /// ```
+// Isolate empty-overlay error mapping so unit tests can validate exact error
+// variant/message without depending on a live D-Bus service.
 pub async fn call_get_overlays() -> Result<Vec<String>, zbus::Error> {
     let connection = Connection::system().await?;
     let proxy = status_proxy::StatusProxy::new(&connection).await?;
@@ -224,10 +244,7 @@ pub async fn get_first_platform() -> Result<String, zbus::Error> {
 /// ```
 pub async fn get_first_overlay() -> Result<String, zbus::Error> {
     let overlays = call_get_overlays().await?;
-    let first = overlays.first().ok_or(zbus::Error::Failure(
-        "Could not find an overlay to remove".to_string(),
-    ))?;
-    Ok(first.clone())
+    first_overlay_or_error(&overlays)
 }
 
 /// Get the device handle of the first available FPGA device.
@@ -248,12 +265,8 @@ pub async fn get_first_overlay() -> Result<String, zbus::Error> {
 /// println!("Using device: {}", device);
 /// ```
 pub async fn get_first_device_handle() -> Result<String, zbus::Error> {
-    let platform = match call_get_platform_types().await?.keys().next() {
-        Some(p) => p.clone(),
-        None => return Err(zbus::Error::Failure("Got no platforms.".to_string())),
-    };
-
-    Ok(platform)
+    let platforms = call_get_platform_types().await?;
+    first_device_handle_or_error(&platforms)
 }
 
 /// Format the FPGA state for a single device as an ASCII table.
@@ -379,7 +392,11 @@ pub async fn status_handler(device_handle: &Option<String>) -> Result<String, zb
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_overlay_lines, parse_platform_types_lines};
+    use super::{
+        first_device_handle_or_error, first_overlay_or_error, parse_overlay_lines,
+        parse_platform_types_lines,
+    };
+    use std::collections::HashMap;
 
     #[test]
     fn parse_platform_types_ignores_invalid_lines() {
@@ -406,5 +423,34 @@ mod tests {
             overlays,
             vec!["overlay0".to_string(), "overlay1".to_string()]
         );
+    }
+
+    #[test]
+    fn first_overlay_returns_failure_error_with_expected_message() {
+        let overlays = Vec::<String>::new();
+        let err = first_overlay_or_error(&overlays).expect_err("empty overlays should fail");
+
+        match &err {
+            zbus::Error::Failure(message) => {
+                assert_eq!(message, "Could not find an overlay to remove")
+            }
+            _ => panic!("expected zbus::Error::Failure, got {err}"),
+        }
+
+        assert_eq!(err.to_string(), "Could not find an overlay to remove");
+    }
+
+    #[test]
+    fn first_device_handle_returns_failure_error_with_expected_message() {
+        let platforms = HashMap::<String, String>::new();
+        let err =
+            first_device_handle_or_error(&platforms).expect_err("empty platforms should fail");
+
+        match &err {
+            zbus::Error::Failure(message) => assert_eq!(message, "Got no platforms."),
+            _ => panic!("expected zbus::Error::Failure, got {err}"),
+        }
+
+        assert_eq!(err.to_string(), "Got no platforms.");
     }
 }
