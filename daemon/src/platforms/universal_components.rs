@@ -10,4 +10,5 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 pub mod universal_fpga;
+mod universal_helpers;
 pub mod universal_overlay_handler;

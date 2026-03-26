@@ -32,6 +32,12 @@ pub struct StatusInterface {}
 /// [crate::comm::dbus::status_interface] for a summary of this interface in general.
 #[interface(name = "com.canonical.fpgad.status")]
 impl StatusInterface {
+    async fn get_status_message(&self, platform_string: &str) -> Result<String, fdo::Error> {
+        info!("get_fpga_state called with platform_string: {platform_string}");
+        let platform = platform_from_compat_or_device(platform_string, "")?;
+        Ok(platform.status_message()?)
+    }
+
     /// The device handle (e.g., `fpga0`) of the FPGA.
     ///
     /// # Arguments
@@ -162,6 +168,8 @@ impl StatusInterface {
     /// ```
     ///
     async fn get_overlays(&self) -> Result<String, fdo::Error> {
+        // TODO(artie): this should be a platform specific call - dfx-mgr will require parsing the
+        //  -listPackage output.
         info!("get_overlays called");
         let overlay_handles = fs_read_dir(config::OVERLAY_CONTROL_DIR.as_ref())?;
         Ok(overlay_handles.join("\n"))
@@ -197,7 +205,7 @@ impl StatusInterface {
     /// * `Ok(String)` – Each line formatted as `<device_handle>:<platform_string>\n`.
     ///    Devices without a valid string appear as
     ///   `<device_handle>:\n`.
-    /// * `Err(fdo::Error)` if device validation or reading the compatible string fails.
+    /// * `Err(fdo::Error)` if reading FPGA managers directory or compatible strings fails.
     ///
     /// # Examples
     ///
