@@ -34,6 +34,23 @@ use crate::proxies::status_proxy;
 use std::collections::HashMap;
 use zbus::Connection;
 
+fn parse_overlay_lines(list_str: &str) -> Vec<String> {
+    list_str.lines().map(|line| line.to_string()).collect()
+}
+
+fn parse_platform_types_lines(ret_str: &str) -> HashMap<String, String> {
+    ret_str
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.splitn(2, ':');
+            match (parts.next(), parts.next()) {
+                (Some(key), Some(value)) => Some((key.to_string(), value.to_string())),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
 /// Retrieve a list of all loaded device tree overlays from the system.
 ///
 /// Sends the DBus command to get a list of overlays and parses the newline-separated
@@ -56,8 +73,7 @@ pub async fn call_get_overlays() -> Result<Vec<String>, zbus::Error> {
     let connection = Connection::system().await?;
     let proxy = status_proxy::StatusProxy::new(&connection).await?;
     let list_str = proxy.get_overlays().await?;
-    let ret_list: Vec<String> = list_str.lines().map(|line| line.to_string()).collect();
-    Ok(ret_list)
+    Ok(parse_overlay_lines(&list_str))
 }
 
 /// Retrieve the current state of an FPGA device.
@@ -163,17 +179,7 @@ pub async fn call_get_platform_types() -> Result<HashMap<String, String>, zbus::
     let connection = Connection::system().await?;
     let proxy = status_proxy::StatusProxy::new(&connection).await?;
     let ret_str = proxy.get_platform_types().await?;
-    let ret_map = ret_str
-        .lines() // split by '\n'
-        .filter_map(|line| {
-            let mut parts = line.splitn(2, ':');
-            match (parts.next(), parts.next()) {
-                (Some(key), Some(value)) => Some((key.to_string(), value.to_string())),
-                _ => None, // ignore lines without a colon
-            }
-        })
-        .collect();
-    Ok(ret_map)
+    Ok(parse_platform_types_lines(&ret_str))
 }
 
 /// Get the platform string of the first available FPGA device.
@@ -369,4 +375,36 @@ pub async fn status_handler(device_handle: &Option<String>) -> Result<String, zb
         Some(dev) => get_fpga_state_message(dev.as_str()).await?,
     };
     Ok(ret_string)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_overlay_lines, parse_platform_types_lines};
+
+    #[test]
+    fn parse_platform_types_ignores_invalid_lines() {
+        let parsed = parse_platform_types_lines("fpga0:xlnx,zynq\ninvalid_line\nfpga1:intel,foo\n");
+
+        assert_eq!(parsed.get("fpga0").map(String::as_str), Some("xlnx,zynq"));
+        assert_eq!(parsed.get("fpga1").map(String::as_str), Some("intel,foo"));
+        assert!(!parsed.contains_key("invalid_line"));
+    }
+
+    #[test]
+    fn parse_platform_types_keeps_value_with_extra_colons() {
+        let parsed = parse_platform_types_lines("fpga0:xilinx:zynq:mp\n");
+        assert_eq!(
+            parsed.get("fpga0").map(String::as_str),
+            Some("xilinx:zynq:mp")
+        );
+    }
+
+    #[test]
+    fn parse_overlay_lines_keeps_order() {
+        let overlays = parse_overlay_lines("overlay0\noverlay1\n");
+        assert_eq!(
+            overlays,
+            vec!["overlay0".to_string(), "overlay1".to_string()]
+        );
+    }
 }

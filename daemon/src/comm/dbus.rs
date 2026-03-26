@@ -79,7 +79,14 @@ use std::path::{Component, Path, PathBuf};
 /// assert_eq!(device_name, "Xilinx ZynqMP FPGA Manager\n")
 /// ```
 pub fn fs_read_property(property_path_str: &str) -> Result<String, FpgadError> {
-    let property_path = Path::new(property_path_str);
+    let property_path = validate_property_path(property_path_str)?;
+    fs_read(&property_path)
+}
+
+/// Validate that a property path is constrained under FPGA_MANAGERS_DIR and does not contain
+/// explicit parent traversal segments.
+pub(crate) fn validate_property_path(property_path_str: &str) -> Result<PathBuf, FpgadError> {
+    let property_path = PathBuf::from(property_path_str);
     if !property_path.starts_with(Path::new(config::FPGA_MANAGERS_DIR)) {
         return Err(FpgadError::Argument(format!(
             "Cannot access property {}: does not begin with {}",
@@ -87,7 +94,16 @@ pub fn fs_read_property(property_path_str: &str) -> Result<String, FpgadError> {
             config::FPGA_MANAGERS_DIR
         )));
     }
-    fs_read(property_path)
+    if property_path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return Err(FpgadError::Argument(format!(
+            "Cannot access property {}: path traversal ('..') is not allowed",
+            property_path_str
+        )));
+    }
+    Ok(property_path)
 }
 
 #[allow(dead_code)]
@@ -318,5 +334,47 @@ mod test_make_firmware_pair {
     ) {
         let result = make_firmware_pair(&PathBuf::from(source), &PathBuf::from(fw_path));
         assert_that!(&result, condition);
+    }
+}
+
+#[cfg(test)]
+mod test_validate_property_path {
+    use crate::comm::dbus::validate_property_path;
+    use googletest::prelude::*;
+    use std::path::PathBuf;
+
+    #[gtest]
+    fn should_pass_valid_path() {
+        let expected = PathBuf::from("/sys/class/fpga_manager/fpga0/name");
+        let result = validate_property_path("/sys/class/fpga_manager/fpga0/name");
+        assert_that!(&result, ok(eq(&expected)));
+    }
+
+    #[gtest]
+    fn should_fail_for_path_outside_fpga_dir() {
+        let result = validate_property_path("/usr/bin/evil_file.sh");
+        assert_that!(
+            &result,
+            err(displays_as(contains_substring("Cannot access property")))
+        );
+    }
+
+    #[gtest]
+    fn should_fail_for_root_path_traversal() {
+        let result =
+            validate_property_path("/sys/class/fpga_manager/../../../usr/bin/evil_file.sh");
+        assert_that!(
+            &result,
+            err(displays_as(contains_substring("path traversal")))
+        );
+    }
+
+    #[gtest]
+    fn should_fail_for_device_path_traversal() {
+        let result = validate_property_path("/sys/class/fpga_manager/fpga0/../name");
+        assert_that!(
+            &result,
+            err(displays_as(contains_substring("path traversal")))
+        );
     }
 }

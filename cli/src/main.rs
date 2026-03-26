@@ -338,3 +338,69 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 }
+
+#[cfg(test)]
+mod test_cli_parse {
+    use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn parses_set_with_explicit_handle() {
+        let cli = Cli::try_parse_from(["fpga", "--handle", "fpga0", "set", "flags", "0"])
+            .expect("cli parse should succeed");
+
+        assert_eq!(cli.handle, Some("fpga0".to_string()));
+        match cli.command {
+            Commands::Set { attribute, value } => {
+                assert_eq!(attribute, "flags");
+                assert_eq!(value, "0");
+            }
+            _ => panic!("expected set command"),
+        }
+    }
+
+    #[test]
+    fn parses_load_overlay_with_overlay_handle() {
+        let cli = Cli::try_parse_from([
+            "fpga",
+            "load",
+            "overlay",
+            "/lib/firmware/example.dtbo",
+            "--handle",
+            "ov0",
+        ])
+        .expect("cli parse should succeed");
+
+        assert_eq!(cli.handle, None);
+        match cli.command {
+            Commands::Load { command } => match command {
+                LoadSubcommand::Overlay { file, handle } => {
+                    assert_eq!(file, "/lib/firmware/example.dtbo");
+                    assert_eq!(handle, Some("ov0".to_string()));
+                }
+                _ => panic!("expected overlay load command"),
+            },
+            _ => panic!("expected load command"),
+        }
+    }
+
+    #[test]
+    fn parses_remove_bitstream() {
+        let cli =
+            Cli::try_parse_from(["fpga", "remove", "bitstream"]).expect("cli parse should succeed");
+
+        match cli.command {
+            Commands::Remove { command } => match command {
+                RemoveSubcommand::Bitstream => {}
+                _ => panic!("expected remove bitstream command"),
+            },
+            _ => panic!("expected remove command"),
+        }
+    }
+
+    #[test]
+    fn fails_without_subcommand() {
+        let res = Cli::try_parse_from(["fpga", "--handle", "fpga0"]);
+        assert!(res.is_err());
+    }
+}

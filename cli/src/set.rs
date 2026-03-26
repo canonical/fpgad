@@ -31,6 +31,14 @@ use crate::status::get_first_device_handle;
 use std::path::Path;
 use zbus::Connection;
 
+fn build_property_path(device_handle: &str, attribute: &str) -> String {
+    Path::new("/sys/class/fpga_manager/")
+        .join(device_handle)
+        .join(attribute)
+        .to_string_lossy()
+        .to_string()
+}
+
 /// Sends the DBus command to write a property value.
 ///
 /// Communicates with the fpgad daemon via DBus to write a value to a
@@ -81,12 +89,25 @@ pub async fn set_handler(
     value: &str,
 ) -> Result<String, zbus::Error> {
     let property_path = match device_handle {
-        None => Path::new("/sys/class/fpga_manager/")
-            .join(get_first_device_handle().await?)
-            .join(attribute),
-        Some(dev) => Path::new("/sys/class/fpga_manager/")
-            .join(dev)
-            .join(attribute),
+        None => build_property_path(&get_first_device_handle().await?, attribute),
+        Some(dev) => build_property_path(dev, attribute),
     };
-    call_write_property(property_path.to_string_lossy().to_string().as_ref(), value).await
+    call_write_property(&property_path, value).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_property_path;
+
+    #[test]
+    fn build_property_path_for_standard_attribute() {
+        let path = build_property_path("fpga0", "flags");
+        assert_eq!(path, "/sys/class/fpga_manager/fpga0/flags");
+    }
+
+    #[test]
+    fn build_property_path_keeps_nested_attribute_segments() {
+        let path = build_property_path("fpga0", "subdir/attr");
+        assert_eq!(path, "/sys/class/fpga_manager/fpga0/subdir/attr");
+    }
 }
