@@ -86,14 +86,17 @@ pub fn fs_read_property(property_path_str: &str) -> Result<String, FpgadError> {
 /// Validate that a property path is constrained under FPGA_MANAGERS_DIR and does not contain
 /// explicit parent traversal segments.
 pub(crate) fn validate_property_path(property_path_str: &str) -> Result<PathBuf, FpgadError> {
+    validate_property_path_with_base(property_path_str, Path::new(config::FPGA_MANAGERS_DIR))
+}
+
+/// Validate that a property path resolves under a provided base directory.
+///
+/// This canonicalizes both paths to prevent symlink/dot-segment escapes.
+pub(crate) fn validate_property_path_with_base(
+    property_path_str: &str,
+    base_path: &Path,
+) -> Result<PathBuf, FpgadError> {
     let property_path = PathBuf::from(property_path_str);
-    if !property_path.starts_with(Path::new(config::FPGA_MANAGERS_DIR)) {
-        return Err(FpgadError::Argument(format!(
-            "Cannot access property {}: does not begin with {}",
-            property_path_str,
-            config::FPGA_MANAGERS_DIR
-        )));
-    }
     if property_path
         .components()
         .any(|component| matches!(component, Component::ParentDir))
@@ -103,7 +106,32 @@ pub(crate) fn validate_property_path(property_path_str: &str) -> Result<PathBuf,
             property_path_str
         )));
     }
-    Ok(property_path)
+
+    let canonical_base = base_path.canonicalize().map_err(|e| {
+        FpgadError::Argument(format!(
+            "Cannot access property {}: failed to resolve base path {}: {}",
+            property_path_str,
+            base_path.display(),
+            e
+        ))
+    })?;
+    let canonical_property = property_path.canonicalize().map_err(|e| {
+        FpgadError::Argument(format!(
+            "Cannot access property {}: failed to resolve property path: {}",
+            property_path_str, e
+        ))
+    })?;
+
+    if !canonical_property.starts_with(&canonical_base) {
+        return Err(FpgadError::Argument(format!(
+            "Cannot access property {}: resolved path {} is outside {}",
+            property_path_str,
+            canonical_property.display(),
+            canonical_base.display()
+        )));
+    }
+
+    Ok(canonical_property)
 }
 
 #[allow(dead_code)]
@@ -339,30 +367,73 @@ mod test_make_firmware_pair {
 
 #[cfg(test)]
 mod test_validate_property_path {
-    use crate::comm::dbus::validate_property_path;
+    use crate::comm::dbus::validate_property_path_with_base;
     use googletest::prelude::*;
+    use std::fs;
     use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_test_dir(test_name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("fpgad_validate_property_path_{test_name}_{nanos}"))
+    }
 
     #[gtest]
     fn should_pass_valid_path() {
-        let expected = PathBuf::from("/sys/class/fpga_manager/fpga0/name");
-        let result = validate_property_path("/sys/class/fpga_manager/fpga0/name");
+        let root = unique_test_dir("valid_path");
+        let base = root.join("fpga_manager");
+        let property = base.join("fpga0").join("name");
+
+        fs::create_dir_all(property.parent().expect("property should have parent"))
+            .expect("create parent dirs");
+        fs::write(&property, "name\n").expect("create property file");
+
+        let expected = fs::canonicalize(&property).expect("canonicalize property");
+        let result = validate_property_path_with_base(
+            property.to_str().expect("path should be utf-8"),
+            &base,
+        );
+
+        fs::remove_dir_all(root).expect("cleanup temp dirs");
         assert_that!(&result, ok(eq(&expected)));
     }
 
     #[gtest]
     fn should_fail_for_path_outside_fpga_dir() {
-        let result = validate_property_path("/usr/bin/evil_file.sh");
-        assert_that!(
-            &result,
-            err(displays_as(contains_substring("Cannot access property")))
+        let root = unique_test_dir("outside_base");
+        let base = root.join("fpga_manager");
+        let outside = root.join("outside").join("evil_file.sh");
+
+        fs::create_dir_all(&base).expect("create base dir");
+        fs::create_dir_all(outside.parent().expect("outside should have parent"))
+            .expect("create outside dir");
+        fs::write(&outside, "evil\n").expect("create outside file");
+
+        let result = validate_property_path_with_base(
+            outside.to_str().expect("path should be utf-8"),
+            &base,
         );
+
+        fs::remove_dir_all(root).expect("cleanup temp dirs");
+        assert_that!(&result, err(displays_as(contains_substring("is outside"))));
     }
 
     #[gtest]
     fn should_fail_for_root_path_traversal() {
-        let result =
-            validate_property_path("/sys/class/fpga_manager/../../../usr/bin/evil_file.sh");
+        let root = unique_test_dir("root_traversal");
+        let base = root.join("fpga_manager");
+        fs::create_dir_all(&base).expect("create base dir");
+
+        let traversal = base.join("..").join("outside").join("evil_file.sh");
+        let result = validate_property_path_with_base(
+            traversal.to_str().expect("path should be utf-8"),
+            &base,
+        );
+
+        fs::remove_dir_all(root).expect("cleanup temp dirs");
         assert_that!(
             &result,
             err(displays_as(contains_substring("path traversal")))
@@ -371,10 +442,47 @@ mod test_validate_property_path {
 
     #[gtest]
     fn should_fail_for_device_path_traversal() {
-        let result = validate_property_path("/sys/class/fpga_manager/fpga0/../name");
+        let root = unique_test_dir("device_traversal");
+        let base = root.join("fpga_manager");
+        fs::create_dir_all(base.join("fpga0")).expect("create fpga0 dir");
+
+        let traversal = base.join("fpga0").join("..").join("name");
+        let result = validate_property_path_with_base(
+            traversal.to_str().expect("path should be utf-8"),
+            &base,
+        );
+
+        fs::remove_dir_all(root).expect("cleanup temp dirs");
         assert_that!(
             &result,
             err(displays_as(contains_substring("path traversal")))
         );
+    }
+
+    #[cfg(unix)]
+    #[gtest]
+    fn should_fail_for_symlink_escape() {
+        use std::os::unix::fs::symlink;
+
+        let root = unique_test_dir("symlink_escape");
+        let base = root.join("fpga_manager");
+        let outside = root.join("outside");
+        let link_target_file = outside.join("escaped_name");
+        let fpga0_dir = base.join("fpga0");
+        let link_in_base = fpga0_dir.join("link_outside");
+
+        fs::create_dir_all(&fpga0_dir).expect("create fpga0 dir");
+        fs::create_dir_all(&outside).expect("create outside dir");
+        fs::write(&link_target_file, "evil\n").expect("create outside target file");
+        symlink(&outside, &link_in_base).expect("create symlink escaping base");
+
+        let escaped_path = link_in_base.join("escaped_name");
+        let result = validate_property_path_with_base(
+            escaped_path.to_str().expect("path should be utf-8"),
+            &base,
+        );
+
+        fs::remove_dir_all(root).expect("cleanup temp dirs");
+        assert_that!(&result, err(displays_as(contains_substring("is outside"))));
     }
 }
