@@ -47,11 +47,11 @@ plugs:
       - /sys/kernel/config/device-tree/overlays
 apps:
   fpgad:
-    command: bin/cli
+    command: bin/fpgad_cli
     plugs:
       - cli-dbus
   daemon:
-    command: bin/daemon
+    command: bin/fpgad
     daemon: dbus
     restart-condition: always
     start-timeout: 30s
