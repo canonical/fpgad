@@ -199,9 +199,9 @@ pub trait OverlayHandler {
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::platforms::platform::Platform;
+/// # use crate::platforms::platform::Platform;
 /// #
-/// # fn example(platform: &dyn Platform) -> Result<(), daemon::error::FpgadError> {
+/// # fn example(platform: &dyn Platform) -> Result<(), crate::error::FpgadError> {
 /// // Get an FPGA device instance
 /// let fpga = platform.fpga("fpga0")?;
 /// let state = fpga.state()?;
@@ -267,17 +267,13 @@ pub trait Platform: Any {
 /// * `Err(FpgadError::Argument)` - No matching platform found
 ///
 /// # Examples
-///
-/// ```rust,no_run
-/// # use daemon::platforms::platform::match_platform_string;
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
-/// // Match a single component
+/// Match on one component:
+/// ```rust,ignore
 /// let platform = match_platform_string("xlnx")?;
-///
-/// // Match multiple components
+/// ```
+/// Match on all of multiple components:
+/// ```rust,ignore
 /// let platform = match_platform_string("xlnx,zynqmp-pcap-fpga")?;
-/// # Ok(())
-/// # }
 /// ```
 fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
     let registry = PLATFORM_REGISTRY
@@ -318,8 +314,8 @@ fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, Fpg
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::platforms::platform::discover_platform;
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
+/// # use crate::platforms::platform::discover_platform;
+/// # fn example() -> Result<(), crate::error::FpgadError> {
 /// let platform = discover_platform("fpga0")?;
 /// let fpga = platform.fpga("fpga0")?;
 /// # Ok(())
@@ -339,7 +335,8 @@ fn discover_platform(device_handle: &str) -> Result<Box<dyn Platform>, FpgadErro
 ///
 /// Reads the compatibility string from `/sys/class/fpga_manager/<device>/of_node/compatible`.
 /// This string identifies the hardware and is used for platform matching. The function
-/// handles null-terminated strings that some drivers write to sysfs.
+/// handles null-terminated strings that some drivers write to sysfs by trimming the final trailing
+/// null byte.
 ///
 /// # Arguments
 ///
@@ -352,8 +349,8 @@ fn discover_platform(device_handle: &str) -> Result<Box<dyn Platform>, FpgadErro
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::platforms::platform::read_compatible_string;
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
+/// # use crate::platforms::platform::read_compatible_string;
+/// # fn example() -> Result<(), crate::error::FpgadError> {
 /// let compat = read_compatible_string("fpga0")?;
 /// println!("Compatibility: {}", compat);
 /// # Ok(())
@@ -396,8 +393,8 @@ pub fn read_compatible_string(device_handle: &str) -> Result<String, FpgadError>
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::platforms::platform::platform_from_compat_or_device;
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
+/// # use crate::platforms::platform::platform_from_compat_or_device;
+/// # fn example() -> Result<(), crate::error::FpgadError> {
 /// // Auto-discover from device
 /// let platform = platform_from_compat_or_device("", "fpga0")?;
 ///
@@ -434,8 +431,8 @@ pub fn platform_from_compat_or_device(
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::platforms::platform::platform_for_known_platform;
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
+/// # use crate::platforms::platform::platform_for_known_platform;
+/// # fn example() -> Result<(), crate::error::FpgadError> {
 /// let platform = platform_for_known_platform("xlnx,zynqmp-pcap-fpga")?;
 /// # Ok(())
 /// # }
@@ -474,8 +471,8 @@ pub fn init_platform_registry() -> Mutex<HashMap<&'static str, PlatformConstruct
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::platforms::platform::register_platform;
-/// # use daemon::platforms::universal::UniversalPlatform;
+/// # use crate::platforms::platform::register_platform;
+/// # use crate::platforms::universal::UniversalPlatform;
 /// register_platform("new_platform,compatibility-string", || {
 ///     Box::new(NewPlatform::new())
 /// });
@@ -502,8 +499,8 @@ pub fn register_platform(compatible: &'static str, constructor: PlatformConstruc
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::platforms::platform::list_fpga_managers;
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
+/// # use crate::platforms::platform::list_fpga_managers;
+/// # fn example() -> Result<(), crate::error::FpgadError> {
 /// let devices = list_fpga_managers()?;
 /// for device in devices {
 ///     println!("Found FPGA device: {}", device);

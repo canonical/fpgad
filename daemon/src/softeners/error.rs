@@ -13,7 +13,7 @@
 //! Error types for FPGA softener implementations.
 //!
 //! This module defines error types specific to vendor-specific softener implementations
-//! (like Xilinx DFX Manager). These errors are converted to the main [`FpgadError`] type
+//! (like Xilinx DFX Manager). These errors are converted to the main [`crate::error::FpgadError`] type
 //! for propagation through the daemon's DBus interfaces.
 //!
 //! # Error Types

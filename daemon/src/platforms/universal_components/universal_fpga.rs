@@ -49,20 +49,18 @@
 //! - `firmware` - Trigger bitstream loading by writing filename
 //!
 //! with any other files being controllable using the
-//! [`write_property_bytes`](../../../../daemon/comm/dbus/control_interface/struct.ControlInterface.html#method.write_property_bytes)
+//! [`write_property_bytes`](crate::comm::dbus::control_interface::ControlInterface::write_property_bytes)
 //! and
-//! [`write_property`](../../../../daemon/comm/dbus/control_interface/struct.ControlInterface.html#method.write_property)
+//! [`write_property`](crate::comm::dbus::control_interface::ControlInterface::write_property)
 //! DBus methods.
-//! See the [`control_interface`](../../../../daemon/comm/dbus/control_interface/index.html) documentation for more details.
+//! See the [`control_interface`](crate::comm::dbus::control_interface) documentation for more details.
 //!
 //! # Examples
 //!
-//! ```rust,no_run
-//! # use daemon::platforms::universal_components::universal_fpga::UniversalFPGA;
-//! # use daemon::platforms::platform::platform_for_known_platform;
-//! #
-//! # fn example() -> Result<(), daemon::error::FpgadError> {
-//! let fpga = platform_for_known_platform("universal").fpga("fpga0")?;
+//! ```rust,ignore
+//! // create platform
+//! let platform = platform_for_known_platform("universal")?;
+//! let fpga = platform.fpga("fpga0")?;
 //!
 //! // Check state
 //! let state = fpga.state()?;
@@ -71,8 +69,6 @@
 //! // Get flags
 //! let flags = fpga.flags()?;
 //! println!("Flags: 0x{:X}", flags);
-//! # Ok(())
-//! # }
 //! ```
 
 use crate::config;
@@ -112,10 +108,9 @@ impl UniversalFPGA {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
-    /// use daemon::platforms::universal_components::universal_fpga::UniversalFPGA;
-    ///
-    /// let fpga = platform_for_known_platform("universal").fpga("fpga0")?;
+    /// ```rust,ignore
+    /// let platform = platform_for_known_platform("universal")?;
+    /// let fpga = platform.fpga("fpga0")?;
     /// ```
     pub(crate) fn new(device_handle: &str) -> UniversalFPGA {
         UniversalFPGA {
@@ -135,14 +130,12 @@ impl UniversalFPGA {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
-    /// # use daemon::platforms::universal_components::universal_fpga::UniversalFPGA;
-    /// # fn example(fpga: &UniversalFPGA) -> Result<(), daemon::error::FpgadError> {
+    /// ```rust,ignore
+    /// let platform = platform_for_known_platform("universal")?;
+    /// let fpga = platform.fpga("fpga0")?;
     /// // After loading a bitstream
     /// fpga.assert_state()?;
     /// println!("FPGA is operating correctly");
-    /// # Ok(())
-    /// # }
     /// ```
     pub(crate) fn assert_state(&self) -> Result<(), FpgadError> {
         match self.state() {
@@ -288,15 +281,11 @@ impl Fpga for UniversalFPGA {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
-    /// # use daemon::platforms::universal_components::universal_fpga::UniversalFPGA;
-    /// # use daemon::platforms::platform::Fpga;
-    /// # use std::path::Path;
-    /// # fn example(fpga: &UniversalFPGA) -> Result<(), daemon::error::FpgadError> {
+    /// ```rust,ignore
+    /// let platform = platform_for_known_platform("universal")?;
+    /// let fpga = platform.fpga("fpga0")?;
     /// fpga.load_firmware(Path::new("design.bit.bin"))?;
     /// println!("Bitstream loaded successfully");
-    /// # Ok(())
-    /// # }
     /// ```
     fn load_firmware(&self, bitstream_path_rel: &Path) -> Result<(), FpgadError> {
         let control_path = Path::new(config::FPGA_MANAGERS_DIR)

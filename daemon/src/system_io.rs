@@ -21,10 +21,10 @@
 //! # Examples
 //!
 //! ```rust,no_run
-//! # use daemon::system_io::{fs_read, fs_write};
+//! # use crate::system_io::{fs_read, fs_write};
 //! # use std::path::Path;
 //!
-//! # fn example() -> Result<(), daemon::error::FpgadError> {
+//! # fn example() -> Result<(), crate::error::FpgadError> {
 //! // Read a file
 //! let content = fs_read(Path::new("/sys/class/fpga_manager/fpga0/state"))?;
 //!
@@ -57,10 +57,10 @@ use std::path::Path;
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::system_io::fs_read;
+/// # use crate::system_io::fs_read;
 /// # use std::path::Path;
 ///
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
+/// # fn example() -> Result<(), crate::error::FpgadError> {
 /// let state = fs_read(Path::new("/sys/class/fpga_manager/fpga0/state"))?;
 /// println!("FPGA state: {}", state.trim());
 /// # Ok(())
@@ -104,10 +104,10 @@ pub fn fs_read(file_path: &Path) -> Result<String, FpgadError> {
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::system_io::fs_write;
+/// # use crate::system_io::fs_write;
 /// # use std::path::Path;
 /// #
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
+/// # fn example() -> Result<(), crate::error::FpgadError> {
 /// // Write to an existing file
 /// fs_write(Path::new("/sys/class/fpga_manager/fpga0/flags"), false, "0")?;
 ///
@@ -158,10 +158,10 @@ pub fn fs_write(file_path: &Path, create: bool, value: impl AsRef<str>) -> Resul
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::system_io::fs_write_bytes;
+/// # use crate::system_io::fs_write_bytes;
 /// # use std::path::Path;
 /// #
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
+/// # fn example() -> Result<(), crate::error::FpgadError> {
 /// let data = vec![0xDE, 0xAD, 0xBE, 0xEF];
 /// fs_write_bytes(Path::new("/tmp/binary_file"), true, &data)?;
 /// # Ok(())
@@ -205,10 +205,10 @@ pub fn fs_write_bytes(file_path: &Path, create: bool, data: &[u8]) -> Result<(),
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::system_io::fs_create_dir;
+/// # use crate::system_io::fs_create_dir;
 /// # use std::path::Path;
 /// #
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
+/// # fn example() -> Result<(), crate::error::FpgadError> {
 /// // Create nested directories
 /// fs_create_dir(Path::new("/sys/kernel/config/device-tree/overlays/my_overlay"))?;
 /// # Ok(())
@@ -246,10 +246,10 @@ pub fn fs_create_dir(path: &Path) -> Result<(), FpgadError> {
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::system_io::fs_remove_dir;
+/// # use crate::system_io::fs_remove_dir;
 /// # use std::path::Path;
 /// #
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
+/// # fn example() -> Result<(), crate::error::FpgadError> {
 /// // Remove an overlay directory
 /// fs_remove_dir(Path::new("/sys/kernel/config/device-tree/overlays/my_overlay"))?;
 /// # Ok(())
@@ -287,10 +287,10 @@ pub fn fs_remove_dir(path: &Path) -> Result<(), FpgadError> {
 /// # Examples
 ///
 /// ```rust,no_run
-/// # use daemon::system_io::fs_read_dir;
+/// # use crate::system_io::fs_read_dir;
 /// # use std::path::Path;
 ///
-/// # fn example() -> Result<(), daemon::error::FpgadError> {
+/// # fn example() -> Result<(), crate::error::FpgadError> {
 /// // List all FPGA devices
 /// let devices = fs_read_dir(Path::new("/sys/class/fpga_manager"))?;
 /// for device in devices {

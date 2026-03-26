@@ -39,16 +39,10 @@
 //!
 //! # Examples
 //!
-//! ```rust,no_run
-//! # use daemon::platforms::universal::UniversalPlatform;
-//! # use daemon::platforms::platform::Platform;
-//!
-//! # fn example() -> Result<(), daemon::error::FpgadError> {
-//! let platform = platform_for_known_platform("universal");
+//! ```rust,ignore
+//! let platform = platform_for_known_platform("universal")?;
 //! let fpga = platform.fpga("fpga0")?;
 //! let state = fpga.state()?;
-//! # Ok(())
-//! # }
 //! ```
 
 use crate::error::FpgadError;
@@ -105,9 +99,9 @@ impl UniversalPlatform {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use daemon::platforms::universal::UniversalPlatform;
+    /// use crate::platforms::universal::UniversalPlatform;
     ///
-    /// let platform = platform_for_known_platform("universal");
+    /// let platform = platform_for_known_platform("universal")?;
     /// ```
     pub fn new() -> Self {
         trace!("creating new universal_platform");

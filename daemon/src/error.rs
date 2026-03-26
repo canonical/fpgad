@@ -34,12 +34,12 @@
 //! # Examples
 //!
 //! ```rust,no_run
-//! # use daemon::error::FpgadError;
+//! # use crate::error::FpgadError;
 //! # use std::path::Path;
-//! #
+//!
 //! fn read_config(path: &Path) -> Result<String, FpgadError> {
 //!     // Will produce: FpgadError::IORead: An IO error occurred when reading from ...
-//!     daemon::system_io::fs_read(path)
+//!     crate::system_io::fs_read(path)
 //! }
 //! ```
 
