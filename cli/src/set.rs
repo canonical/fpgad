@@ -12,15 +12,56 @@
 
 use crate::proxies::control_proxy;
 use crate::status::get_first_device_handle;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use zbus::Connection;
 
-fn build_property_path(device_handle: &str, attribute: &str) -> String {
-    Path::new("/sys/class/fpga_manager/")
-        .join(device_handle)
-        .join(attribute)
+fn sanitize_segment(segment: &str, field_name: &str) -> Result<String, zbus::Error> {
+    if Path::new(segment).is_absolute() {
+        return Err(zbus::Error::Failure(format!(
+            "Invalid {} '{}': absolute paths are not allowed",
+            field_name, segment
+        )));
+    }
+
+    let mut buf = PathBuf::new();
+    for comp in Path::new(segment).components() {
+        match comp {
+            Component::Normal(part) => buf.push(part),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                return Err(zbus::Error::Failure(format!(
+                    "Invalid {} '{}': parent directory traversal is not allowed",
+                    field_name, segment
+                )));
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err(zbus::Error::Failure(format!(
+                    "Invalid {} '{}': path root/prefix is not allowed",
+                    field_name, segment
+                )));
+            }
+        }
+    }
+
+    if buf.as_os_str().is_empty() {
+        return Err(zbus::Error::Failure(format!(
+            "Invalid {} '{}': empty path segment",
+            field_name, segment
+        )));
+    }
+
+    Ok(buf.to_string_lossy().to_string())
+}
+
+fn build_property_path(device_handle: &str, attribute: &str) -> Result<String, zbus::Error> {
+    let safe_device = sanitize_segment(device_handle, "device handle")?;
+    let safe_attribute = sanitize_segment(attribute, "attribute")?;
+
+    Ok(Path::new("/sys/class/fpga_manager/")
+        .join(safe_device)
+        .join(safe_attribute)
         .to_string_lossy()
-        .to_string()
+        .to_string())
 }
 
 async fn call_write_property(property: &str, value: &str) -> Result<String, zbus::Error> {
@@ -36,8 +77,8 @@ pub async fn set_handler(
     value: &str,
 ) -> Result<String, zbus::Error> {
     let property_path = match device_handle {
-        None => build_property_path(&get_first_device_handle().await?, attribute),
-        Some(dev) => build_property_path(dev, attribute),
+        None => build_property_path(&get_first_device_handle().await?, attribute)?,
+        Some(dev) => build_property_path(dev, attribute)?,
     };
     call_write_property(&property_path, value).await
 }
@@ -48,13 +89,26 @@ mod tests {
 
     #[test]
     fn build_property_path_for_standard_attribute() {
-        let path = build_property_path("fpga0", "flags");
+        let path = build_property_path("fpga0", "flags").expect("path should be valid");
         assert_eq!(path, "/sys/class/fpga_manager/fpga0/flags");
     }
 
     #[test]
     fn build_property_path_keeps_nested_attribute_segments() {
-        let path = build_property_path("fpga0", "subdir/attr");
+        let path =
+            build_property_path("fpga0", "subdir/attr").expect("nested path should be valid");
         assert_eq!(path, "/sys/class/fpga_manager/fpga0/subdir/attr");
+    }
+
+    #[test]
+    fn build_property_path_with_absolute_root() {
+        let result = build_property_path("/fpga0", "subdir/attr");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn build_property_path_with_parent_traversal() {
+        let result = build_property_path("fpga0", "../attr");
+        assert!(result.is_err());
     }
 }
