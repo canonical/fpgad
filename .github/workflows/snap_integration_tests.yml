@@ -54,6 +54,8 @@ jobs:
           path: ./
       - name: Prepare Testflinger Job
         id: prepare-tf-job
+        env:
+          ROOT_DIR: ${{ github.workspace }}
         shell: bash
         run: |
           SNAP_TEST_SOURCE="${{ inputs.snap_test_source }}"
@@ -67,7 +69,7 @@ jobs:
           if [[ "${SNAP_TEST_SOURCE}" == "local" ]]; then
             echo "::group::Preparing fpgad.snap"
               SRC=$(find "${{ steps.download-snap.outputs.download-path }}" -maxdepth 1 -name "*.snap" | head -n 1)
-              DEST="$(pwd)/fpgad.snap"
+              DEST="${ROOT_DIR}/fpgad.snap"
               if [[ -z "$SRC" || ! -f "$SRC" ]]; then
                 echo "::error::Snap file not found at: $SRC"
                 exit 1
@@ -87,25 +89,23 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::creating job.yaml"
-            ROOT_DIR="$(pwd)"
-
             yq '
             .job_queue = env(TF_JOB_QUEUE) |
             .test_data.attachments = [
-                { "agent": "device_script.sh", "local": "'"${ROOT_DIR}"'/.github/testflinger-assets/test_snap_device_script.sh" },
-                { "agent": "test_data.gz", "local": "'"${ROOT_DIR}"'/test_data.gz" },
-                { "agent": "snap_tests.py", "local": "'"${ROOT_DIR}"'/tests/snap_tests.py" }
+              { "agent": "device_script.sh", "local": strenv(ROOT_DIR) + "/.github/testflinger-assets/test_snap_device_script.sh" },
+              { "agent": "test_data.gz", "local": strenv(ROOT_DIR) + "/test_data.gz" },
+              { "agent": "snap_tests.py", "local": strenv(ROOT_DIR) + "/tests/snap_tests.py" }
             ]
             ' .github/testflinger-assets/testflinger_job.yaml > job.yaml
 
             # Append source-specific attachment
             if [[ "${SNAP_TEST_SOURCE}" == "artifact" ]]; then
                 yq -i '.test_data.attachments += [
-                    { "agent": "fpgad.snap", "local": "'"${ROOT_DIR}"'/fpgad.snap" }
+                { "agent": "fpgad.snap", "local": strenv(ROOT_DIR) + "/fpgad.snap" }
                 ]' job.yaml
             else
                 yq -i '.test_data.attachments += [
-                    { "agent": "snap_channel.txt", "local": "'"${ROOT_DIR}"'/snap_channel.txt" }
+                { "agent": "snap_channel.txt", "local": strenv(ROOT_DIR) + "/snap_channel.txt" }
                 ]' job.yaml
             fi
 
