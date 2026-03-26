@@ -1,12 +1,15 @@
 [package]
-name = "daemon"
-version = "0.1.0"
-edition = "2024"
-license = "GPL-3.0"
+name = "fpgad"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+authors.workspace = true
 description = "An FPGA manager daemon that handles the dirty work for you."
-homepage = "https://github.com/talhaHavadar/fpgad"
-repository = "https://github.com/talhaHavadar/fpgad"
 readme = "README.md"
+keywords = ["fpga", "daemon", "embedded", "hardware", "xilinx"]
+categories = ["hardware-support", "embedded"]
 
 [features]
 default = ["softeners-all"]
@@ -15,7 +18,7 @@ softeners = []
 xilinx-dfx-mgr = ["softeners"]
 
 [dependencies]
-fpgad_macros = { path = "../fpgad_macros" }
+fpgad_macros = { workspace = true }
 log = "0.4.27"
 env_logger = "0.11.8"
 tokio = { version = "1.47.0", features = ["full"] }
