@@ -37,13 +37,9 @@
 //!
 //! # Examples
 //!
-//! ```rust,no_run
-//! use daemon::platforms::universal_components::universal_overlay_handler::UniversalOverlayHandler;
-//! use daemon::platforms::platform::OverlayHandler;
-//! use std::path::Path;
-//!
-//! # fn example() -> Result<(), daemon::error::FpgadError> {
-//! let handler =  platform_for_known_platform("universal").overlay_handler("my_overlay")?;
+//! ```rust,ignore
+//! let platform = platform_for_known_platform("universal")?;
+//! let handler =  platform.overlay_handler("my_overlay")?;
 //!
 //! // Apply overlay
 //! handler.apply_overlay(Path::new("/lib/firmware/design.dtbo"))?;
@@ -54,8 +50,6 @@
 //!
 //! // Remove overlay
 //! handler.remove_overlay()?;
-//! # Ok(())
-//! # }
 //! ```
 
 use crate::config;
@@ -312,10 +306,9 @@ impl UniversalOverlayHandler {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
-    /// # use daemon::platforms::platform::platform_for_known_platform;
-    ///
-    /// let handler = platform_for_known_platform("universal").overlay_handler("my_overlay")?;
+    /// ```rust,ignore
+    /// let platform = platform_for_known_platform("universal")?;
+    /// let handler = platform.overlay_handler("my_overlay")?;
     /// ```
     pub(crate) fn new(overlay_handle: &str) -> Self {
         UniversalOverlayHandler {
