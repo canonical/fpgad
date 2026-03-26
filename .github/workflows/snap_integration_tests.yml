@@ -1,0 +1,150 @@
+name: Run snap integration tests on a DUT via testflinger
+on:
+  workflow_dispatch:
+    inputs:
+      snap_test_source:
+        description: "Snap source channel when source=store (examples: local, beta, edge, stable). If source=local, will use a locally built snap."
+        required: true
+        default: local
+        type: string
+      tf_queue:
+        description: "Device identifier suffix as seen in C3 (example: xilinx-kv260-c36973)"
+        required: true
+        default: xilinx-kv260-c36973
+        type: string
+  pull_request:
+jobs:
+  snap-build:
+    name: Check Snap Builds
+    runs-on: [self-hosted, linux, noble, ARM64]
+    outputs:
+      artifact_id: ${{ steps.upload-snap.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: canonical/action-build@v1.3.0
+        id: snapcraft
+        if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.snap_test_source == 'local') }}
+      - uses: actions/upload-artifact@v6
+        id: upload-snap
+        if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.snap_test_source == 'local') }}
+        with:
+          name: snap-fpgad-${{ github.event.pull_request != null && github.event.pull_request.head.sha || 'workflow-dispatch' }}
+          path: ${{ steps.snapcraft.outputs.snap }}
+  snap-integration-tests:
+    name: Install and Test the Snap Package on DUT
+    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-medium]
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
+    needs: ['snap-build']
+    timeout-minutes: 3600
+    steps:
+      - name: checkout
+        uses: actions/checkout@v6
+      - name: Install dependencies
+        shell: bash
+        run: |
+          echo "::group::install dependencies"
+            sudo snap install yq
+          echo "::endgroup::"
+      - name: Download built snap
+        id: download-snap
+        uses: actions/download-artifact@v7
+        if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.snap_test_source == 'local') }}
+        with:
+          artifact-ids: ${{ needs['snap-build'].outputs.artifact_id }}
+          path: ./
+      - name: Prepare Testflinger Job
+        id: prepare-tf-job
+        env:
+          ROOT_DIR: ${{ github.workspace }}
+          SNAP_TEST_SOURCE: ${{ inputs.snap_test_source || 'local' }}
+          TF_JOB_QUEUE: ${{ inputs.tf_queue || 'xilinx-kv260-c36973' }}
+        shell: bash
+        run: |
+          cat > env_setup.sh <<EOF
+          #!/usr/bin/env bash
+          export SNAP_TEST_SOURCE="${SNAP_TEST_SOURCE}"
+          EOF
+          chmod +x env_setup.sh
+
+          if [[ "${SNAP_TEST_SOURCE}" == "local" ]]; then
+            echo "::group::Preparing fpgad.snap"
+              SRC=$(find "${{ steps.download-snap.outputs.download-path }}" -maxdepth 1 -name "*.snap" | head -n 1)
+              DEST="${ROOT_DIR}/fpgad.snap"
+              if [[ -z "$SRC" || ! -f "$SRC" ]]; then
+                echo "::error::Snap file not found at: $SRC"
+                exit 1
+              fi
+              mv "$SRC" "$DEST"
+              echo "Snap moved successfully"
+            echo "::endgroup::"
+          else
+            echo "::group::Preparing store channel selector"
+              echo "Using store channel: ${SNAP_TEST_SOURCE}"
+            echo "::endgroup::"
+          fi
+
+          echo "::group::Create test_data tarball"
+            tar -czvf test_data.gz -C daemon/tests/test_data/ .
+          echo "::endgroup::"
+
+          echo "::group::creating job.yaml"
+            yq '
+            .job_queue = env(TF_JOB_QUEUE) |
+            .test_data.attachments = [
+              { "agent": "device_script.sh", "local": strenv(ROOT_DIR) + "/.github/testflinger-assets/test_snap_device_script.sh" },
+              { "agent": "env_setup.sh", "local": strenv(ROOT_DIR) + "/env_setup.sh" },
+              { "agent": "test_data.gz", "local": strenv(ROOT_DIR) + "/test_data.gz" },
+              { "agent": "snap_tests.py", "local": strenv(ROOT_DIR) + "/tests/snap_tests.py" }
+            ]
+            ' .github/testflinger-assets/testflinger_job.yaml > job.yaml
+
+            # Append source-specific attachment
+            if [[ "${SNAP_TEST_SOURCE}" == "local" ]]; then
+                yq -i '.test_data.attachments += [
+                { "agent": "fpgad.snap", "local": strenv(ROOT_DIR) + "/fpgad.snap" }
+                ]' job.yaml
+            fi
+
+            cat job.yaml
+          echo "::endgroup::"
+
+          echo "test_path=job.yaml" >> $GITHUB_OUTPUT
+      - name: Submit TF job
+        id: submit
+        uses: canonical/testflinger/.github/actions/submit@rev263
+        continue-on-error: true
+        with:
+          poll: true
+          job-path: ${{ steps.prepare-tf-job.outputs.test_path }}
+      - name: Fetch and Display Artifacts
+        shell: bash
+        run: |
+          echo "::group::retrieving snap test artifacts"
+            testflinger artifacts ${{steps.submit.outputs.id }}
+            tar -xvzf artifacts.tgz
+          echo "::endgroup::"
+          for f in artifacts/* ; do
+            echo "::group::$f"
+            cat "$f"
+            echo "::endgroup::"
+          done
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: snap-testing-artifacts
+          path: artifacts/*
+      - name: Report test status
+        shell: bash
+        run: |-
+          if [ "${{ steps.submit.outcome }}" != "success" ]; then
+            echo "::error::test job didn't complete successfully"
+            exit 1
+          fi
+          if [[ ! -f artifacts/snap_test.log ]]; then
+            echo "::error::snap_test.log not found, did the tests fail to start?"
+            exit 1
+          fi
+          if grep -q "FAILED (" artifacts/snap_test.log; then
+            echo "::error::found failure phrase in snap_test.log"
+            exit 1
+          fi

@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
+if [[ -f ./env_setup.sh ]]; then
+    # shellcheck disable=SC1091
+    . ./env_setup.sh
+fi
+
+SNAP_TEST_SOURCE="${SNAP_TEST_SOURCE:-local}"
+SNAP_CHANNEL="${SNAP_CHANNEL:-${SNAP_TEST_SOURCE}}"
+
 echo "INFO: Preparing device"
 echo "    --- Updating with apt"
 sudo env DEBIAN_FRONTEND=noninteractive apt update && sudo env DEBIAN_FRONTEND=noninteractive apt install build-essential -y
@@ -16,12 +24,23 @@ while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|
 done
 echo "    --- Disabling auto-refresh for 24 hours"
 sudo snap refresh --hold=24h
-echo "    --- Installing fpgad.snap"
-  while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+echo "    --- Installing fpgad"
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
     echo "    --- snapd internal tasks still running... waiting..."
     sleep 10
 done
-sudo snap install ./fpgad.snap --dangerous
+
+if [[ "${SNAP_TEST_SOURCE}" == "local" ]]; then
+    if [[ ! -f ./fpgad.snap ]]; then
+        echo "ERROR: SNAP_TEST_SOURCE=local but ./fpgad.snap is not present"
+        exit 1
+    fi
+    echo "    --- SNAP_TEST_SOURCE=local, installing ./fpgad.snap --dangerous"
+    sudo snap install ./fpgad.snap --dangerous
+else
+    echo "    --- SNAP_TEST_SOURCE=${SNAP_TEST_SOURCE}, installing from store channel: ${SNAP_TEST_SOURCE}"
+    sudo snap install fpgad --channel="${SNAP_TEST_SOURCE}"
+fi
 echo "    --- Installing provider snap(s)"
 echo "INFO: Done preparing device"
 
