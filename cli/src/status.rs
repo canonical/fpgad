@@ -14,10 +14,45 @@ use crate::proxies::status_proxy;
 use std::collections::HashMap;
 use zbus::Connection;
 
+/// Parses a newline-separated string of overlays into a Vec<String>
+///
+/// # Arguments
+/// * `list_str` - The string containing overlay names separated by newlines.
+///
+/// # Returns: Vec<String>
+/// A Vec<String> where each element is an overlay name from the input string.
+///
+/// # Examples
+/// ```rust,no_run
+/// let overlays = parse_overlay_lines("overlay0\noverlay1\n");
+/// assert_eq!(overlays, vec!["overlay0".to_string(), "overlay1".to_string()]);
+/// ```
 fn parse_overlay_lines(list_str: &str) -> Vec<String> {
     list_str.lines().map(|line| line.to_string()).collect()
 }
 
+/// Parses a newline-separated string of platform types into a HashMap of device to platform string.
+/// Each line is expected to be in the format "device:platform_string".
+/// Lines that do not conform to this format are ignored.
+///
+/// # Arguments
+/// * `ret_str` - The string containing device-platform pairs separated by newlines.
+///
+/// # Returns: HashMap<String, String>
+/// A HashMap<String, String> where the key is the device and the value is the platform string.
+///
+/// # Examples
+/// ```rust,no_run
+/// let platforms = parse_platform_types_lines("fpga0:xlnx,zynq\n
+/// invalid_line\nfpga1:intel,foo\n");
+/// assert_eq!(platforms.get("fpga0").map(String::as_str), Some("xlnx,zynq"));
+/// assert_eq!(platforms.get("fpga1").map(String::as_str), Some("intel,foo"));
+/// assert!(!platforms.contains_key("invalid_line"));
+/// ```
+/// ```rust,no_run
+/// let platforms = parse_platform_types_lines("fpga0:xilinx:zynq:mp\n");
+/// assert_eq!(platforms.get("fpga0").map(String::as_str), Some("xilinx:zynq:mp"));
+/// ```
 fn parse_platform_types_lines(ret_str: &str) -> HashMap<String, String> {
     ret_str
         .lines()
@@ -31,8 +66,23 @@ fn parse_platform_types_lines(ret_str: &str) -> HashMap<String, String> {
         .collect()
 }
 
-// Isolate empty-overlay error mapping so unit tests can validate exact error
-// variant/message without depending on a live D-Bus service.
+/// Returns the first overlay from the list or an error if the list is empty.
+///
+/// # Arguments
+/// * `overlays` - A slice of overlay names.
+///
+/// # Returns: Result<String, zbus::Error>
+/// The first overlay name as a String if the list is not empty, or a zbus::Error if the list is empty.
+///
+/// # Examples
+/// ```rust,no_run
+/// let overlay = first_overlay_or_error(&vec!["overlay0".to_string(), "overlay1".to_string()]).expect("should return first overlay");
+/// assert_eq!(overlay, "overlay0".to_string());
+/// ```
+/// ```rust,no_run
+/// let result = first_overlay_or_error(&vec![]);
+/// assert!(result.is_err());
+/// ```
 fn first_overlay_or_error(overlays: &[String]) -> Result<String, zbus::Error> {
     let first = overlays.first().ok_or(zbus::Error::Failure(
         "Could not find an overlay to remove".to_string(),
@@ -40,8 +90,23 @@ fn first_overlay_or_error(overlays: &[String]) -> Result<String, zbus::Error> {
     Ok(first.clone())
 }
 
-// Isolate empty-platform error mapping so unit tests can validate exact error
-// variant/message without depending on a live D-Bus service.
+/// Returns the first device handle from the platforms map or an error if the map is empty.
+///
+/// # Arguments
+/// * `platforms` - A HashMap where keys are device handles and values are platform strings.
+///
+/// # Returns: Result<String, zbus::Error>
+/// The first device handle as a String if the map is not empty, or a zbus::Error if the map is empty.
+///
+/// # Examples
+/// ```rust,no_run
+/// let device_handle = first_device_handle_or_error(&[("fpga0".to_string(), "xlnx,zynq".to_string())].iter().cloned().collect()).expect("should return first device handle");
+/// assert_eq!(device_handle, "fpga0".to_string());
+/// ```
+/// ```rust,no_run
+/// let result = first_device_handle_or_error(&HashMap::new());
+/// assert!(result.is_err());
+/// ```
 fn first_device_handle_or_error(
     platforms: &HashMap<String, String>,
 ) -> Result<String, zbus::Error> {
