@@ -31,6 +31,26 @@ use crate::status::get_first_device_handle;
 use std::path::{Component, Path, PathBuf};
 use zbus::Connection;
 
+/// Sanitizes a path segment by ensuring it does not contain absolute paths,
+/// parent directory traversal, or root/prefix components.
+///
+/// # Arguments
+/// * `segment` - The path segment to sanitize.
+/// * `field_name` - A descriptive name for the field being sanitized, used in error messages.
+///
+/// # Returns: Result<String, zbus::Error>
+/// A sanitized version of the path segment if valid, or a zbus::Error if invalid
+///
+/// # Examples
+/// ```rust,no_run
+/// let safe_segment = sanitize_segment("valid/segment", "attribute").expect("should be
+/// valid");
+/// assert_eq!(safe_segment, "valid/segment");
+/// ```
+/// ```rust,no_run
+/// let result = sanitize_segment("../invalid", "attribute");
+/// assert!(result.is_err());
+/// ```
 fn sanitize_segment(segment: &str, field_name: &str) -> Result<String, zbus::Error> {
     if Path::new(segment).is_absolute() {
         return Err(zbus::Error::Failure(format!(
@@ -69,6 +89,26 @@ fn sanitize_segment(segment: &str, field_name: &str) -> Result<String, zbus::Err
     Ok(buf.to_string_lossy().to_string())
 }
 
+/// Builds a property path for the given device handle and attribute,
+/// ensuring that the inputs are sanitized to prevent path traversal or absolute paths.
+///
+/// # Arguments
+/// * `device_handle` - The device handle to include in the path.
+/// * `attribute` - The attribute to include in the path.
+///
+/// # Returns: Result<String, zbus::Error>
+/// A string representing the full property path if inputs are valid, or a zbus::Error
+/// if the inputs are invalid.
+///
+/// # Examples
+/// ```rust,no_run
+/// let path = build_property_path("fpga0", "flags").expect("should build path");
+/// assert_eq!(path, "/sys/class/fpga_manager/fpga0/flags");
+/// ```
+/// ```rust,no_run
+/// let result = build_property_path("../fpga0", "flags");
+/// assert!(result.is_err());
+/// ```
 fn build_property_path(device_handle: &str, attribute: &str) -> Result<String, zbus::Error> {
     let safe_device = sanitize_segment(device_handle, "device handle")?;
     let safe_attribute = sanitize_segment(attribute, "attribute")?;

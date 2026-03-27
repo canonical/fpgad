@@ -83,15 +83,48 @@ pub fn fs_read_property(property_path_str: &str) -> Result<String, FpgadError> {
     fs_read(&property_path)
 }
 
-/// Validate that a property path is constrained under FPGA_MANAGERS_DIR and does not contain
-/// explicit parent traversal segments.
+/// Write a value to an FPGA property path. The property path must be a subdirectory of the fpga manager directory (typically, /sys/class/fpga_manager/)
+///
+/// # Arguments
+/// * `property_path_str`: path to the variable to write e.g. /sys/class/fpga_manager/fpga0/flags
+/// * `data`: the data to write to the property path, as a string. Note that this will be written directly to the file, so it must be in the correct format for the target variable (e.g. flags should be a hexadecimal string representing the flags to set).
+///
+/// # Returns: `Result<String, FpgadError>`
+/// * `String` - Confirmation of the value written, typically just an echo of the input `data` value, but could be more complex depending on the property being written to.
+/// * `FpgadError::Argument` if the path is not found within the compile time [config::FPGA_MANAGERS_DIR] or if the data is not in the correct format for the target variable.
+/// * `FpgadError::IOWrite` (or similar IO error) if writing fails for any reason.
+///
+/// # Examples
+/// ```rust,no_run
+/// let result = fs_write_property("/sys/class/fpga_manager/fpga0/flags", "0x1");
+/// assert!(result.is_ok());
+/// ```
+/// ```rust,no_run
+/// let result = fs_write_property("/sys/class/fpga_manager/fpga0/flags", "invalid_data");
+/// assert!(result.is_err());
+/// ```
 pub(crate) fn validate_property_path(property_path_str: &str) -> Result<PathBuf, FpgadError> {
     validate_property_path_with_base(property_path_str, Path::new(config::FPGA_MANAGERS_DIR))
 }
 
-/// Validate that a property path resolves under a provided base directory.
+/// Validates that a property path is constrained under a specified base path and does not contain
+/// explicit parent traversal segments. This is a more general version of `validate_property_path` which
+/// can be used to validate paths under different base directories, such as the firmware lookup control path.
 ///
-/// This canonicalizes both paths to prevent symlink/dot-segment escapes.
+/// # Arguments
+/// * `property_path_str` - The property path to validate as a string.
+/// * `base_path` - The base path under which the property path must be constrained.
+///
+/// # Returns: `Result<PathBuf, FpgadError>`
+/// A `PathBuf` representing the validated property path if it is valid, or a `FpgadError` if the path is invalid.
+///
+/// # Examples
+/// ```rust,no_run
+/// let valid_path = validate_property_path_with_base("/sys/class/fpga_manager/fpga0/name", Path::new("/sys/class/fpga_manager/"))?;
+/// assert_eq!(valid_path.to_string_lossy(), "/sys/class/fpga_manager/fpga0/name");
+/// let invalid_path = validate_property_path_with_base("/sys/class/fpga_manager/../etc/passwd", Path::new("/sys/class/fpga_manager/"));
+/// assert!(invalid_path.is_err());
+/// ```
 pub(crate) fn validate_property_path_with_base(
     property_path_str: &str,
     base_path: &Path,
