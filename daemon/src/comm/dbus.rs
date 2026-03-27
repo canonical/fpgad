@@ -59,7 +59,7 @@ use crate::config;
 use crate::error::FpgadError;
 use crate::system_io::{fs_read, fs_write};
 use log::trace;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Component, Path, PathBuf, absolute};
 
 /// Read the current contents of an FPGA device property, e.g. "name". The property path must be a subdirectory of the fpga manager directory (typically, /sys/class/fpga_manager/)
 ///
@@ -136,7 +136,7 @@ pub(crate) fn validate_property_path_with_base(
         )));
     }
 
-    let canonical_base = base_path.canonicalize().map_err(|e| {
+    let canonical_base = absolute(base_path).map_err(|e| {
         FpgadError::Argument(format!(
             "Cannot access property {}: failed to resolve base path {}: {}",
             property_path.display(),
@@ -144,7 +144,7 @@ pub(crate) fn validate_property_path_with_base(
             e
         ))
     })?;
-    let canonical_property = property_path.canonicalize().map_err(|e| {
+    let canonical_property = absolute(&property_path).map_err(|e| {
         FpgadError::Argument(format!(
             "Cannot access property {}: failed to resolve property path: {}",
             property_path.display(),
@@ -479,8 +479,9 @@ mod test_validate_property_path {
 
     #[cfg(unix)]
     #[gtest]
-    fn should_fail_for_symlink_escape() {
+    fn should_allow_symlink_path_without_resolution() {
         use std::os::unix::fs::symlink;
+        use std::path::absolute;
 
         let root = unique_test_dir("symlink_escape");
         let base = root.join("fpga_manager");
@@ -495,9 +496,10 @@ mod test_validate_property_path {
         symlink(&outside, &link_in_base).expect("create symlink escaping base");
 
         let escaped_path = link_in_base.join("escaped_name");
+        let expected = absolute(&escaped_path).expect("resolve absolute escaped path");
         let result = validate_property_path_with_base(&escaped_path, &base);
 
         fs::remove_dir_all(root).expect("cleanup temp dirs");
-        assert_that!(&result, err(displays_as(contains_substring("is outside"))));
+        assert_that!(&result, ok(eq(&expected)));
     }
 }
