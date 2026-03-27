@@ -10,6 +10,24 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+//! Load command implementation for the FPGA CLI.
+//!
+//! This module handles the loading of FPGA bitstreams and device tree overlays through
+//! the fpgad daemon's DBus interface. It provides functionality to:
+//! - Load FPGA bitstreams onto FPGA devices
+//! - Apply device tree overlays
+//! - Automatically detect and use default FPGA devices when not specified
+//!
+//! The module communicates with the fpgad daemon via DBus to perform these privileged
+//! operations on the FPGA subsystem.
+//!
+//! For information on [Device Handles], [Overlay Handles], and [Error Handling],
+//! see the [Common Concepts](../index.html#common-concepts) section in the main CLI documentation.
+//!
+//! [Device Handles]: ../index.html#device-handles
+//! [Overlay Handles]: ../index.html#overlay-handles
+//! [Error Handling]: ../index.html#error-handling
+
 use crate::LoadSubcommand;
 use crate::proxies::control_proxy;
 use crate::status::{
@@ -18,6 +36,15 @@ use crate::status::{
 use std::path;
 use zbus::Connection;
 
+/// Sanitizes and converts a file path string to an absolute path.
+///
+/// # Arguments
+///
+/// * `in_str` - The input path string to sanitize
+///
+/// # Returns: `Result<String, zbus::Error>`
+/// * `String` - Absolute path string resolved from the input
+/// * `zbus::Error::Failure` - If the path cannot be resolved to an absolute path
 fn sanitize_path_str(in_str: &str) -> Result<String, zbus::Error> {
     match path::absolute(in_str) {
         Ok(absolute_path) => Ok(absolute_path.to_string_lossy().to_string()),
@@ -27,7 +54,23 @@ fn sanitize_path_str(in_str: &str) -> Result<String, zbus::Error> {
         ))),
     }
 }
-/// Sends the dbus command to load a bitstream
+
+/// Sends the DBus command to load a bitstream onto an FPGA device.
+///
+/// Communicates with the fpgad daemon via DBus to write a bitstream file to the
+/// specified FPGA device. The bitstream configures the FPGA's logic fabric.
+///
+/// # Arguments
+///
+/// * `platform_str` - Platform identifier (empty string for auto-detection)
+/// * `device_handle` - The [device handle](../index.html#device-handles) (e.g., "fpga0")
+/// * `file_path` - Absolute path to the bitstream file
+/// * `firmware_lookup_path` - Optional firmware lookup path (empty string for default)
+///
+/// # Returns: `Result<String, zbus::Error>`
+/// * `Ok(String)` - Success message from the daemon
+/// * `Err(zbus::Error)` - DBus communication error or FpgadError.
+///   See [Error Handling](../index.html#error-handling) for details.
 async fn call_load_bitstream(
     platform_str: &str,
     device_handle: &str,
@@ -41,7 +84,22 @@ async fn call_load_bitstream(
         .await
 }
 
-/// Sends the dbus command to apply an overlay
+/// Sends the DBus command to apply a device tree overlay.
+///
+/// Communicates with the fpgad daemon via DBus to load a device tree overlay file.
+/// Overlays describe hardware configuration and interfaces for the FPGA peripherals.
+///
+/// # Arguments
+///
+/// * `platform` - Platform identifier string
+/// * `file_path` - Absolute path to the overlay file (.dtbo)
+/// * `overlay_handle` - [Overlay handle](../index.html#overlay-handles) for the overlay directory in configfs
+/// * `firmware_lookup_path` - Optional firmware lookup path (empty string for default)
+///
+/// # Returns: `Result<String, zbus::Error>`
+/// * `Ok(String)` - Success message from the daemon
+/// * `Err(zbus::Error)` - DBus communication error or FpgadError.
+///   See [Error Handling](../index.html#error-handling) for details.
 async fn call_apply_overlay(
     platform: &str,
     file_path: &str,
@@ -55,7 +113,25 @@ async fn call_apply_overlay(
         .await
 }
 
-/// Populates the platform and overlay handle appropriately before calling `call_apply_overlay`
+/// Applies a device tree overlay with automatic platform and handle detection.
+///
+/// This function handles the logic for determining the appropriate platform and overlay
+/// handle based on what the user has provided. It supports four scenarios:
+/// 1. Both device and overlay handles provided - use both as-is
+/// 2. Only device handle provided - use device name as overlay handle
+/// 3. Only overlay handle provided - auto-detect first platform
+/// 4. Neither provided - auto-detect both from first available device
+///
+/// # Arguments
+///
+/// * `dev_handle` - Optional [device handle](../index.html#device-handles) (e.g., "fpga0")
+/// * `file_path` - Path to the overlay file (.dtbo)
+/// * `overlay_handle` - Optional [overlay handle](../index.html#overlay-handles) for the overlay directory
+///
+/// # Returns: `Result<String, zbus::Error>`
+/// * `Ok(String)` - Success message from the daemon
+/// * `Err(zbus::Error)` - DBus communication error, device detection failure, or FpgadError.
+///   See [Error Handling](../index.html#error-handling) for details.
 async fn apply_overlay(
     dev_handle: &Option<String>,
     file_path: &str,
@@ -103,7 +179,20 @@ async fn apply_overlay(
     .await
 }
 
-/// Populates the device_handle appropriately before calling `call_load_bitstream`
+/// Loads a bitstream onto an FPGA device with automatic device detection.
+///
+/// If no device handle is provided, this function automatically detects and uses
+/// the first available FPGA device in the system.
+///
+/// # Arguments
+///
+/// * `device_handle` - Optional [device handle](../index.html#device-handles) (e.g., "fpga0")
+/// * `file_path` - Path to the bitstream file
+///
+/// # Returns: `Result<String, zbus::Error>`
+/// * `Ok(String)` - Success message from the daemon
+/// * `Err(zbus::Error)` - DBus communication error, device detection failure, or FpgadError.
+///   See [Error Handling](../index.html#error-handling) for details.
 async fn load_bitstream(
     device_handle: &Option<String>,
     file_path: &str,
@@ -115,7 +204,21 @@ async fn load_bitstream(
     call_load_bitstream("", &dev, &sanitize_path_str(file_path)?, "").await
 }
 
-/// Argument parser for the load command
+/// Main handler for the load command.
+///
+/// Dispatches to the appropriate load function based on the subcommand type
+/// (overlay or bitstream). This is the entry point called by the CLI's main
+/// function when a load command is issued.
+///
+/// # Arguments
+///
+/// * `dev_handle` - Optional [device handle](../index.html#device-handles)
+/// * `sub_command` - The load subcommand specifying what to load (overlay or bitstream)
+///
+/// # Returns: `Result<String, zbus::Error>`
+/// * `Ok(String)` - Success message from the operation
+/// * `Err(zbus::Error)` - DBus communication error, operation failure, or FpgadError.
+///   See [Error Handling](../index.html#error-handling) for details.
 pub async fn load_handler(
     dev_handle: &Option<String>,
     sub_command: &LoadSubcommand,
