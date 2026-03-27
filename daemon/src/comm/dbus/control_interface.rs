@@ -340,7 +340,7 @@ impl ControlInterface {
         data: &str,
     ) -> Result<String, fdo::Error> {
         info!("write_property called with property_path_str: {property_path_str} and data: {data}");
-        let property_path = validate_property_path(property_path_str)?;
+        let property_path = validate_property_path(Path::new(property_path_str))?;
         fs_write(&property_path, false, data)?;
         Ok(format!("{data} written to {property_path_str}"))
     }
@@ -381,7 +381,7 @@ impl ControlInterface {
         info!(
             "write_property called with property_path_str: {property_path_str} and data: {data:?}"
         );
-        let property_path = validate_property_path(property_path_str)?;
+        let property_path = validate_property_path(Path::new(property_path_str))?;
         fs_write_bytes(&property_path, false, data)?;
         Ok(format!(
             "Byte string successfully written to {property_path_str}"
