@@ -15,9 +15,9 @@
 set -xeu
 
 # Enable llvm-coverage build results
-eval "$(cargo llvm-cov show-env --export-prefix)"
+eval "$(cargo llvm-cov show-env --sh)"
 
-export RUSTFLAGS="$RUSTFLAGS -C llvm-args=-runtime-counter-relocation"
+export RUSTFLAGS="${RUSTFLAGS:-} -C llvm-args=-runtime-counter-relocation"
 
 # build the daemon only, to avoid getting coverage for cli (no tests written)
 cargo build --bin daemon
