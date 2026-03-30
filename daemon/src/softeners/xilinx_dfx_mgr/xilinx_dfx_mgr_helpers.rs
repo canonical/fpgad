@@ -102,7 +102,7 @@ pub fn extract_firmware_name(dtbo_path: &Path) -> Result<String, FpgadError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::softeners::xilinx_dfx_mgr_helpers::extract_firmware_name;
+    use crate::softeners::xilinx_dfx_mgr::xilinx_dfx_mgr_helpers::extract_firmware_name;
     use std::path::PathBuf;
 
     #[test]

@@ -45,7 +45,8 @@
 use crate::error::FpgadError;
 use crate::platforms::platform::OverlayHandler;
 use crate::softeners::error::FpgadSoftenerError;
-use crate::softeners::{xilinx_dfx_mgr, xilinx_dfx_mgr_helpers};
+use crate::softeners::xilinx_dfx_mgr;
+use crate::softeners::xilinx_dfx_mgr::xilinx_dfx_mgr_helpers;
 use crate::system_io;
 use log::{debug, trace};
 use std::option::Option;
