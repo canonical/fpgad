@@ -34,6 +34,7 @@ test_data:
     - agent: device_script.sh
       local: ./device_script.sh
   test_cmds: |
+    set -e
     # get hw-cert-team helper tools
     echo "INFO: setting up scriptlets"
     export TOOLS_PATH=tools
@@ -47,8 +48,16 @@ test_data:
 
     echo "INFO: Running script on DUT"
     _run 'chmod +x /home/ubuntu/device_script.sh'
+
+    # Run the test script, but always retrieve artifacts even if it fails
+    set +e
     _run '/home/ubuntu/device_script.sh'
+    TEST_SCRIPT_EXIT=$?
+    set -e
 
     echo "INFO: Retrieving artifacts"
     mkdir -p artifacts
     _get fpgad/artifacts/* artifacts
+
+    # Fail the job if the test script failed
+    exit $TEST_SCRIPT_EXIT
