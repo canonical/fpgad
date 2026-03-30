@@ -59,7 +59,7 @@ use crate::config;
 use crate::error::FpgadError;
 use crate::system_io::{fs_read, fs_write};
 use log::trace;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Component, Path, PathBuf, absolute};
 
 /// Read the current contents of an FPGA device property, e.g. "name". The property path must be a subdirectory of the fpga manager directory (typically, /sys/class/fpga_manager/)
 ///
@@ -79,15 +79,89 @@ use std::path::{Component, Path, PathBuf};
 /// assert_eq!(device_name, "Xilinx ZynqMP FPGA Manager\n")
 /// ```
 pub fn fs_read_property(property_path_str: &str) -> Result<String, FpgadError> {
-    let property_path = Path::new(property_path_str);
-    if !property_path.starts_with(Path::new(config::FPGA_MANAGERS_DIR)) {
+    let property_path = validate_property_path(Path::new(property_path_str))?;
+    fs_read(&property_path)
+}
+
+/// Validates that a property path is constrained under the fpga manager directory and does not contain explicit parent traversal segments.
+/// This is used to validate paths for all read/write property access methods in the control and status interfaces.
+///
+/// # Arguments
+/// * `property_path` - The property path to validate as a Path.
+///
+/// # Returns: `Result<PathBuf, FpgadError>`
+/// A `PathBuf` representing the validated property path if it is valid, or a `FpgadError` if the path is invalid.
+///
+/// # Examples
+/// ```rust,no_run
+/// let valid_path = validate_property_path("/sys/class/fpga_manager/fpga0/name")?;
+/// assert_eq!(valid_path.to_string_lossy(), "/sys/class/fpga_manager/fpga0/name");
+/// let invalid_path = validate_property_path("/sys/class/fpga_manager/../etc/passwd");
+/// assert!(invalid_path.is_err());
+/// ```
+pub(crate) fn validate_property_path(property_path: &Path) -> Result<PathBuf, FpgadError> {
+    validate_property_path_with_base(property_path, Path::new(config::FPGA_MANAGERS_DIR))
+}
+
+/// Validates that a property path is constrained under a specified base path and does not contain
+/// explicit parent traversal segments. This is a more general version of `validate_property_path` which
+/// can be used to validate paths under different base directories, such as the firmware lookup control path.
+///
+/// # Arguments
+/// * `property_path` - The property path to validate as a Path.
+/// * `base_path` - The base path under which the property path must be constrained.
+///
+/// # Returns: `Result<PathBuf, FpgadError>`
+/// A `PathBuf` representing the validated property path if it is valid, or a `FpgadError` if the path is invalid.
+///
+/// # Examples
+/// ```rust,no_run
+/// let valid_path = validate_property_path_with_base("/sys/class/fpga_manager/fpga0/name", Path::new("/sys/class/fpga_manager/"))?;
+/// assert_eq!(valid_path.to_string_lossy(), "/sys/class/fpga_manager/fpga0/name");
+/// let invalid_path = validate_property_path_with_base("/sys/class/fpga_manager/../etc/passwd", Path::new("/sys/class/fpga_manager/"));
+/// assert!(invalid_path.is_err());
+/// ```
+pub(crate) fn validate_property_path_with_base(
+    property_path: &Path,
+    base_path: &Path,
+) -> Result<PathBuf, FpgadError> {
+    let property_path = PathBuf::from(property_path);
+    if property_path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
         return Err(FpgadError::Argument(format!(
-            "Cannot access property {}: does not begin with {}",
-            property_path_str,
-            config::FPGA_MANAGERS_DIR
+            "Cannot access property {}: path traversal ('..') is not allowed",
+            property_path.display()
         )));
     }
-    fs_read(property_path)
+
+    let canonical_base = absolute(base_path).map_err(|e| {
+        FpgadError::Argument(format!(
+            "Cannot access property {}: failed to resolve base path {}: {}",
+            property_path.display(),
+            base_path.display(),
+            e
+        ))
+    })?;
+    let canonical_property = absolute(&property_path).map_err(|e| {
+        FpgadError::Argument(format!(
+            "Cannot access property {}: failed to resolve property path: {}",
+            property_path.display(),
+            e
+        ))
+    })?;
+
+    if !canonical_property.starts_with(&canonical_base) {
+        return Err(FpgadError::Argument(format!(
+            "Cannot access property {}: resolved path {} is outside {}",
+            property_path.display(),
+            canonical_property.display(),
+            canonical_base.display()
+        )));
+    }
+
+    Ok(canonical_property)
 }
 
 #[allow(dead_code)]
@@ -318,5 +392,114 @@ mod test_make_firmware_pair {
     ) {
         let result = make_firmware_pair(&PathBuf::from(source), &PathBuf::from(fw_path));
         assert_that!(&result, condition);
+    }
+}
+
+#[cfg(test)]
+mod test_validate_property_path {
+    use crate::comm::dbus::validate_property_path_with_base;
+    use googletest::prelude::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_test_dir(test_name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("fpgad_validate_property_path_{test_name}_{nanos}"))
+    }
+
+    #[gtest]
+    fn should_pass_valid_path() {
+        let root = unique_test_dir("valid_path");
+        let base = root.join("fpga_manager");
+        let property = base.join("fpga0").join("name");
+
+        fs::create_dir_all(property.parent().expect("property should have parent"))
+            .expect("create parent dirs");
+        fs::write(&property, "name\n").expect("create property file");
+
+        let expected = fs::canonicalize(&property).expect("canonicalize property");
+        let result = validate_property_path_with_base(&property, &base);
+
+        fs::remove_dir_all(root).expect("cleanup temp dirs");
+        assert_that!(&result, ok(eq(&expected)));
+    }
+
+    #[gtest]
+    fn should_fail_for_path_outside_fpga_dir() {
+        let root = unique_test_dir("outside_base");
+        let base = root.join("fpga_manager");
+        let outside = root.join("outside").join("evil_file.sh");
+
+        fs::create_dir_all(&base).expect("create base dir");
+        fs::create_dir_all(outside.parent().expect("outside should have parent"))
+            .expect("create outside dir");
+        fs::write(&outside, "evil\n").expect("create outside file");
+
+        let result = validate_property_path_with_base(&outside, &base);
+
+        fs::remove_dir_all(root).expect("cleanup temp dirs");
+        assert_that!(&result, err(displays_as(contains_substring("is outside"))));
+    }
+
+    #[gtest]
+    fn should_fail_for_root_path_traversal() {
+        let root = unique_test_dir("root_traversal");
+        let base = root.join("fpga_manager");
+        fs::create_dir_all(&base).expect("create base dir");
+
+        let traversal = base.join("..").join("outside").join("evil_file.sh");
+        let result = validate_property_path_with_base(&traversal, &base);
+
+        fs::remove_dir_all(root).expect("cleanup temp dirs");
+        assert_that!(
+            &result,
+            err(displays_as(contains_substring("path traversal")))
+        );
+    }
+
+    #[gtest]
+    fn should_fail_for_device_path_traversal() {
+        let root = unique_test_dir("device_traversal");
+        let base = root.join("fpga_manager");
+        fs::create_dir_all(base.join("fpga0")).expect("create fpga0 dir");
+
+        let traversal = base.join("fpga0").join("..").join("name");
+        let result = validate_property_path_with_base(&traversal, &base);
+
+        fs::remove_dir_all(root).expect("cleanup temp dirs");
+        assert_that!(
+            &result,
+            err(displays_as(contains_substring("path traversal")))
+        );
+    }
+
+    #[cfg(unix)]
+    #[gtest]
+    fn should_allow_symlink_path_without_resolution() {
+        use std::os::unix::fs::symlink;
+        use std::path::absolute;
+
+        let root = unique_test_dir("symlink_escape");
+        let base = root.join("fpga_manager");
+        let outside = root.join("outside");
+        let link_target_file = outside.join("escaped_name");
+        let fpga0_dir = base.join("fpga0");
+        let link_in_base = fpga0_dir.join("link_outside");
+
+        fs::create_dir_all(&fpga0_dir).expect("create fpga0 dir");
+        fs::create_dir_all(&outside).expect("create outside dir");
+        fs::write(&link_target_file, "evil\n").expect("create outside target file");
+        symlink(&outside, &link_in_base).expect("create symlink escaping base");
+
+        let escaped_path = link_in_base.join("escaped_name");
+        let expected = absolute(&escaped_path).expect("resolve absolute escaped path");
+        let result = validate_property_path_with_base(&escaped_path, &base);
+
+        fs::remove_dir_all(root).expect("cleanup temp dirs");
+        assert_that!(&result, ok(eq(&expected)));
     }
 }

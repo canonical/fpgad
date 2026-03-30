@@ -23,6 +23,10 @@ use zbus::Connection;
     "/sys/class/fpga_manager/fpga0/read_not_exist.txt",
     err(displays_as(contains_substring("FpgadError::IORead")))
 )]
+#[case::path_traversal(
+    "/sys/class/fpga_manager/../../../etc/passwd",
+    err(displays_as(contains_substring("path traversal")))
+)]
 #[case::read_name(
     "/sys/class/fpga_manager/fpga0/name",
     ok(eq("Xilinx ZynqMP FPGA Manager\n"))

@@ -34,6 +34,108 @@ use crate::proxies::status_proxy;
 use std::collections::HashMap;
 use zbus::Connection;
 
+/// Parses a newline-separated string of overlays into a Vec<String>
+///
+/// # Arguments
+/// * `list_str` - The string containing overlay names separated by newlines.
+///
+/// # Returns: Vec<String>
+/// A Vec<String> where each element is an overlay name from the input string.
+///
+/// # Examples
+/// ```rust,no_run
+/// let overlays = parse_overlay_lines("overlay0\noverlay1\n");
+/// assert_eq!(overlays, vec!["overlay0".to_string(), "overlay1".to_string()]);
+/// ```
+fn parse_overlay_lines(list_str: &str) -> Vec<String> {
+    list_str.lines().map(|line| line.to_string()).collect()
+}
+
+/// Parses a newline-separated string of platform types into a HashMap of device to platform string.
+/// Each line is expected to be in the format "device:platform_string".
+/// Lines that do not conform to this format are ignored.
+///
+/// # Arguments
+/// * `ret_str` - The string containing device-platform pairs separated by newlines.
+///
+/// # Returns: HashMap<String, String>
+/// A HashMap<String, String> where the key is the device and the value is the platform string.
+///
+/// # Examples
+/// ```rust,no_run
+/// let platforms = parse_platform_types_lines("fpga0:xlnx,zynq\n
+/// invalid_line\nfpga1:intel,foo\n");
+/// assert_eq!(platforms.get("fpga0").map(String::as_str), Some("xlnx,zynq"));
+/// assert_eq!(platforms.get("fpga1").map(String::as_str), Some("intel,foo"));
+/// assert!(!platforms.contains_key("invalid_line"));
+/// ```
+/// ```rust,no_run
+/// let platforms = parse_platform_types_lines("fpga0:xilinx:zynq:mp\n");
+/// assert_eq!(platforms.get("fpga0").map(String::as_str), Some("xilinx:zynq:mp"));
+/// ```
+fn parse_platform_types_lines(ret_str: &str) -> HashMap<String, String> {
+    ret_str
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.splitn(2, ':');
+            match (parts.next(), parts.next()) {
+                (Some(key), Some(value)) => Some((key.to_string(), value.to_string())),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+/// Returns the first overlay from the list or an error if the list is empty.
+///
+/// # Arguments
+/// * `overlays` - A slice of overlay names.
+///
+/// # Returns: Result<String, zbus::Error>
+/// The first overlay name as a String if the list is not empty, or a zbus::Error if the list is empty.
+///
+/// # Examples
+/// ```rust,no_run
+/// let overlay = first_overlay_or_error(&vec!["overlay0".to_string(), "overlay1".to_string()]).expect("should return first overlay");
+/// assert_eq!(overlay, "overlay0".to_string());
+/// ```
+/// ```rust,no_run
+/// let result = first_overlay_or_error(&vec![]);
+/// assert!(result.is_err());
+/// ```
+fn first_overlay_or_error(overlays: &[String]) -> Result<String, zbus::Error> {
+    let first = overlays.first().ok_or(zbus::Error::Failure(
+        "Could not find an overlay to remove".to_string(),
+    ))?;
+    Ok(first.clone())
+}
+
+/// Returns the first device handle from the platforms map or an error if the map is empty.
+///
+/// # Arguments
+/// * `platforms` - A HashMap where keys are device handles and values are platform strings.
+///
+/// # Returns: Result<String, zbus::Error>
+/// The first device handle as a String if the map is not empty, or a zbus::Error if the map is empty.
+///
+/// # Examples
+/// ```rust,no_run
+/// let device_handle = first_device_handle_or_error(&[("fpga0".to_string(), "xlnx,zynq".to_string())].iter().cloned().collect()).expect("should return first device handle");
+/// assert_eq!(device_handle, "fpga0".to_string());
+/// ```
+/// ```rust,no_run
+/// let result = first_device_handle_or_error(&HashMap::new());
+/// assert!(result.is_err());
+/// ```
+fn first_device_handle_or_error(
+    platforms: &HashMap<String, String>,
+) -> Result<String, zbus::Error> {
+    match platforms.keys().next() {
+        Some(p) => Ok(p.clone()),
+        None => Err(zbus::Error::Failure("Got no platforms.".to_string())),
+    }
+}
+
 /// Retrieve a list of all loaded device tree overlays from the system.
 ///
 /// Sends the DBus command to get a list of overlays and parses the newline-separated
@@ -52,12 +154,13 @@ use zbus::Connection;
 ///     println!("Found overlay: {}", overlay);
 /// }
 /// ```
+// Isolate empty-overlay error mapping so unit tests can validate exact error
+// variant/message without depending on a live D-Bus service.
 pub async fn call_get_overlays() -> Result<Vec<String>, zbus::Error> {
     let connection = Connection::system().await?;
     let proxy = status_proxy::StatusProxy::new(&connection).await?;
     let list_str = proxy.get_overlays().await?;
-    let ret_list: Vec<String> = list_str.lines().map(|line| line.to_string()).collect();
-    Ok(ret_list)
+    Ok(parse_overlay_lines(&list_str))
 }
 
 /// Retrieve the current state of an FPGA device.
@@ -163,17 +266,7 @@ pub async fn call_get_platform_types() -> Result<HashMap<String, String>, zbus::
     let connection = Connection::system().await?;
     let proxy = status_proxy::StatusProxy::new(&connection).await?;
     let ret_str = proxy.get_platform_types().await?;
-    let ret_map = ret_str
-        .lines() // split by '\n'
-        .filter_map(|line| {
-            let mut parts = line.splitn(2, ':');
-            match (parts.next(), parts.next()) {
-                (Some(key), Some(value)) => Some((key.to_string(), value.to_string())),
-                _ => None, // ignore lines without a colon
-            }
-        })
-        .collect();
-    Ok(ret_map)
+    Ok(parse_platform_types_lines(&ret_str))
 }
 
 /// Get the platform string of the first available FPGA device.
@@ -218,10 +311,7 @@ pub async fn get_first_platform() -> Result<String, zbus::Error> {
 /// ```
 pub async fn get_first_overlay() -> Result<String, zbus::Error> {
     let overlays = call_get_overlays().await?;
-    let first = overlays.first().ok_or(zbus::Error::Failure(
-        "Could not find an overlay to remove".to_string(),
-    ))?;
-    Ok(first.clone())
+    first_overlay_or_error(&overlays)
 }
 
 /// Get the device handle of the first available FPGA device.
@@ -242,12 +332,8 @@ pub async fn get_first_overlay() -> Result<String, zbus::Error> {
 /// println!("Using device: {}", device);
 /// ```
 pub async fn get_first_device_handle() -> Result<String, zbus::Error> {
-    let platform = match call_get_platform_types().await?.keys().next() {
-        Some(p) => p.clone(),
-        None => return Err(zbus::Error::Failure("Got no platforms.".to_string())),
-    };
-
-    Ok(platform)
+    let platforms = call_get_platform_types().await?;
+    first_device_handle_or_error(&platforms)
 }
 
 /// Format the FPGA state for a single device as an ASCII table.
@@ -369,4 +455,69 @@ pub async fn status_handler(device_handle: &Option<String>) -> Result<String, zb
         Some(dev) => get_fpga_state_message(dev.as_str()).await?,
     };
     Ok(ret_string)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        first_device_handle_or_error, first_overlay_or_error, parse_overlay_lines,
+        parse_platform_types_lines,
+    };
+    use std::collections::HashMap;
+
+    #[test]
+    fn parse_platform_types_ignores_invalid_lines() {
+        let parsed = parse_platform_types_lines("fpga0:xlnx,zynq\ninvalid_line\nfpga1:intel,foo\n");
+
+        assert_eq!(parsed.get("fpga0").map(String::as_str), Some("xlnx,zynq"));
+        assert_eq!(parsed.get("fpga1").map(String::as_str), Some("intel,foo"));
+        assert!(!parsed.contains_key("invalid_line"));
+    }
+
+    #[test]
+    fn parse_platform_types_keeps_value_with_extra_colons() {
+        let parsed = parse_platform_types_lines("fpga0:xilinx:zynq:mp\n");
+        assert_eq!(
+            parsed.get("fpga0").map(String::as_str),
+            Some("xilinx:zynq:mp")
+        );
+    }
+
+    #[test]
+    fn parse_overlay_lines_keeps_order() {
+        let overlays = parse_overlay_lines("overlay0\noverlay1\n");
+        assert_eq!(
+            overlays,
+            vec!["overlay0".to_string(), "overlay1".to_string()]
+        );
+    }
+
+    #[test]
+    fn first_overlay_returns_failure_error_with_expected_message() {
+        let overlays = Vec::<String>::new();
+        let err = first_overlay_or_error(&overlays).expect_err("empty overlays should fail");
+
+        match &err {
+            zbus::Error::Failure(message) => {
+                assert_eq!(message, "Could not find an overlay to remove")
+            }
+            _ => panic!("expected zbus::Error::Failure, got {err}"),
+        }
+
+        assert_eq!(err.to_string(), "Could not find an overlay to remove");
+    }
+
+    #[test]
+    fn first_device_handle_returns_failure_error_with_expected_message() {
+        let platforms = HashMap::<String, String>::new();
+        let err =
+            first_device_handle_or_error(&platforms).expect_err("empty platforms should fail");
+
+        match &err {
+            zbus::Error::Failure(message) => assert_eq!(message, "Got no platforms."),
+            _ => panic!("expected zbus::Error::Failure, got {err}"),
+        }
+
+        assert_eq!(err.to_string(), "Got no platforms.");
+    }
 }
