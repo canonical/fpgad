@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-if [[ -f ./env_setup.sh ]]; then
-    # shellcheck disable=SC1091
-    . ./env_setup.sh
-fi
-
-SNAP_TEST_SOURCE="${SNAP_TEST_SOURCE:-local}"
-SNAP_CHANNEL="${SNAP_CHANNEL:-${SNAP_TEST_SOURCE}}"
+. ./env_setup.sh
 
 echo "INFO: Preparing device"
 echo "    --- Updating with apt"

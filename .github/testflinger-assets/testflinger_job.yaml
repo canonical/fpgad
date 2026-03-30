@@ -51,7 +51,7 @@ test_data:
 
     # Run the test script, but always retrieve artifacts even if it fails
     set +e
-    _run 'if [ -f /home/ubuntu/env_setup.sh ]; then . /home/ubuntu/env_setup.sh; fi; /home/ubuntu/device_script.sh'
+    _run '/home/ubuntu/env_setup.sh; /home/ubuntu/device_script.sh'
     TEST_SCRIPT_EXIT=$?
     set -e
 

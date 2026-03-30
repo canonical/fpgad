@@ -60,11 +60,12 @@ jobs:
           TF_JOB_QUEUE: ${{ inputs.tf_queue || 'xilinx-kv260-c36973' }}
         shell: bash
         run: |
-          cat > env_setup.sh <<EOF
+          cat > "${ROOT_DIR}/.github/testflinger-assets/env_setup.sh" <<EOF
           #!/usr/bin/env bash
           export SNAP_TEST_SOURCE="${SNAP_TEST_SOURCE}"
+          export SNAP_CHANNEL="${SNAP_CHANNEL:-${SNAP_TEST_SOURCE}}"
           EOF
-          chmod +x env_setup.sh
+          chmod +x "${ROOT_DIR}/.github/testflinger-assets/env_setup.sh"
 
           if [[ "${SNAP_TEST_SOURCE}" == "local" ]]; then
             echo "::group::Preparing fpgad.snap"
@@ -92,7 +93,7 @@ jobs:
             .job_queue = env(TF_JOB_QUEUE) |
             .test_data.attachments = [
               { "agent": "device_script.sh", "local": strenv(ROOT_DIR) + "/.github/testflinger-assets/test_snap_device_script.sh" },
-              { "agent": "env_setup.sh", "local": strenv(ROOT_DIR) + "/env_setup.sh" },
+              { "agent": "env_setup.sh", "local": strenv(ROOT_DIR) + "/.github/testflinger-assets/env_setup.sh" },
               { "agent": "test_data.gz", "local": strenv(ROOT_DIR) + "/test_data.gz" },
               { "agent": "snap_tests.py", "local": strenv(ROOT_DIR) + "/tests/snap_tests.py" }
             ]
