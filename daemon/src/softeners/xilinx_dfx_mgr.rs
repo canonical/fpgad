@@ -62,10 +62,14 @@ use std::sync::OnceLock;
 use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use crate::softeners::error::FpgadSoftenerError;
-use crate::softeners::xilinx_dfx_mgr_fpga::XilinxDfxMgrFPGA;
-use crate::softeners::xilinx_dfx_mgr_overlay_handler::XilinxDfxMgrOverlayHandler;
 use fpgad_macros::platform;
 use log::trace;
+use xilinx_dfx_mgr_fpga::XilinxDfxMgrFPGA;
+use xilinx_dfx_mgr_overlay_handler::XilinxDfxMgrOverlayHandler;
+
+mod xilinx_dfx_mgr_fpga;
+mod xilinx_dfx_mgr_helpers;
+mod xilinx_dfx_mgr_overlay_handler;
 
 /// Xilinx DFX Manager platform implementation for managing Xilinx FPGA devices.
 ///
