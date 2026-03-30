@@ -98,6 +98,10 @@ pub enum FpgadError {
     Softener(crate::softeners::error::FpgadSoftenerError),
 
     /// Any other unexpected internal error occurred.
+    #[error("FpgadError::Feature: Use of disabled feature: {0}")]
+    Feature(String),
+
+    /// Any other unexpected internal error occurred.
     #[error("FpgadError::Internal: An Internal error occurred: {0}")]
     Internal(String),
 }
