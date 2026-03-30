@@ -420,7 +420,6 @@ impl ControlInterface {
         ))
     }
 
-    #[cfg(feature = "xilinx-dfx-mgr")]
     async fn dfx_mgr(&self, cmd_string: &str) -> Result<String, fdo::Error> {
         if cfg!(feature = "xilinx-dfx-mgr") {
             let snap_env = env::var("SNAP").unwrap_or("".to_string());
