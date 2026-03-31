@@ -58,7 +58,7 @@ jobs:
             echo "::endgroup::"
           done
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: llvm-cov-artifacts
           path: artifacts/*
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: canonical/action-build@v1.3.0
         id: snapcraft
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         id: upload-snap
         with:
           name: snap-fpgad-${{ github.event.pull_request != null && github.event.pull_request.head.sha || 'workflow-dispatch' }}
@@ -108,7 +108,7 @@ jobs:
           echo "::endgroup::"
       - name: Download built snap
         id: download-snap
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           artifact-ids: ${{ needs.build.outputs.atifact_id }}
           path: ./
@@ -163,7 +163,7 @@ jobs:
             echo "::endgroup::"
           done
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: snap-testing-artifacts
           path: artifacts/*
