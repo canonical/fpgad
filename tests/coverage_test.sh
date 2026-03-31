@@ -30,6 +30,12 @@ cargo test --no-run --bin fpgad --test universal 2>&1 |\
 )"
 echo "universal test binary: $universal_test"
 
+xilinx_dfx_mgr_test="$(\
+cargo test --no-run --bin fpgad --test xilinx_dfx_mgr 2>&1 |\
+  grep 'tests/xilinx_dfx_mgr.rs' |\
+  awk '{gsub(/[()]/,""); print $3}'\
+)"
+echo "xilinx_dfx_mgr test binary: $xilinx_dfx_mgr_test"
 
 # only run daemon unit tests
 cargo test --bin fpgad
@@ -59,6 +65,10 @@ timeout 5 bash -c '
 # run the universal test binary
 echo "Running universal tests..."
 sudo env LLVM_PROFILE_FILE="${CARGO_LLVM_COV_TARGET_DIR}/test_universal-%p.profraw" "$universal_test" --test-threads=1 --no-capture
+
+# run the xilinx_dfx_mgr test binary
+echo "Running xilinx_dfx_mgr tests..."
+sudo env LLVM_PROFILE_FILE="${CARGO_LLVM_COV_TARGET_DIR}/test_xilinx_dfx_mgr-%p.profraw" "$xilinx_dfx_mgr_test" --test-threads=1 --no-capture
 
 
 # kill the daemon
