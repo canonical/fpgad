@@ -16,6 +16,8 @@ pub mod universal {
     pub mod sequences;
     pub mod status;
 
+    // TODO(Artie) add test for get_status_message
+
     use rstest::*;
     use std::path::Path;
 
