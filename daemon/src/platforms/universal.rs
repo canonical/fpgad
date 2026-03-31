@@ -159,6 +159,12 @@ impl Platform for UniversalPlatform {
         // TODO: replace the return type of UniversalOverlayHandler to Result and use
         // get_or_try_init instead here when stable:
         // https://github.com/rust-lang/rust/issues/121641
+        if overlay_handle.is_empty() {
+            return Err(FpgadError::Argument(
+                "An overlay handle is required. Provided overlay handle is empty.".into(),
+            ));
+        }
+
         let handler = self
             .overlay_handler
             .get_or_init(|| UniversalOverlayHandler::new(overlay_handle));

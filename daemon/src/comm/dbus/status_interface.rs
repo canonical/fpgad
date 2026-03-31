@@ -20,7 +20,6 @@ use crate::platforms::platform::{list_fpga_managers, read_compatible_string};
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 
 use crate::comm::dbus::{fs_read_property, validate_device_handle};
-use crate::error::FpgadError;
 use crate::system_io::fs_read_dir;
 use log::{error, info};
 use zbus::{fdo, interface};
@@ -128,12 +127,6 @@ impl StatusInterface {
             "get_overlay_status called with platform_string: {platform_string} and overlay_handle:\
              {overlay_handle}"
         );
-        if overlay_handle.is_empty() {
-            return Err(FpgadError::Argument(
-                "An overlay handle is required. Provided overlay handle is empty.".into(),
-            )
-            .into());
-        }
         Ok(platform_for_known_platform(platform_string)?
             .overlay_handler(overlay_handle)?
             .status()?)
