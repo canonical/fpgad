@@ -311,7 +311,7 @@ impl ControlInterface {
     ///
     /// # Arguments
     ///
-    /// * `property_path_str`: Full path under [FPGA_MANAGERS_DIR].
+    /// * `property_path_str`: Full path under [crate::config::FPGA_MANAGERS_DIR].
     /// * `data`: String data to write.
     ///
     /// # Returns: `Result<String, Error>`
@@ -321,7 +321,7 @@ impl ControlInterface {
     ///     other reason
     /// **Notes:**
     ///
-    /// * Path must be under [FPGA_MANAGERS_DIR] - determined at compile time.
+    /// * Path must be under [crate::config::FPGA_MANAGERS_DIR] - determined at compile time.
     ///
     /// # Examples
     ///
@@ -349,7 +349,7 @@ impl ControlInterface {
     ///
     /// # Arguments
     ///
-    /// * `property_path_str`: Full path under [FPGA_MANAGERS_DIR].
+    /// * `property_path_str`: Full path under [crate::config::FPGA_MANAGERS_DIR].
     /// * `data`: Byte array to write.
     ///
     /// # Returns: `Result<String, Error>`
@@ -360,7 +360,7 @@ impl ControlInterface {
     ///
     /// **Notes:**
     ///
-    /// * Path must be under [FPGA_MANAGERS_DIR] - determined at compile time.
+    /// * Path must be under [crate::config::FPGA_MANAGERS_DIR] - determined at compile time.
     ///
     /// # Examples
     ///
