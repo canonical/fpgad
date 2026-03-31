@@ -130,12 +130,6 @@ impl StatusInterface {
             "get_overlay_status called with platform_string: {platform_string} and overlay_handle:\
              {overlay_handle}"
         );
-        if overlay_handle.is_empty() {
-            return Err(FpgadError::Argument(
-                "An overlay handle is required. Provided overlay handle is empty.".into(),
-            )
-            .into());
-        }
         Ok(platform_for_known_platform(platform_string)?
             .overlay_handler(overlay_handle)?
             .status()?)
