@@ -34,13 +34,13 @@ use crate::proxies::status_proxy;
 use std::collections::HashMap;
 use zbus::Connection;
 
-/// Parses a newline-separated string of overlays into a Vec<String>
+/// Parses a newline-separated string of overlays into a `Vec<String>`
 ///
 /// # Arguments
 /// * `list_str` - The string containing overlay names separated by newlines.
 ///
-/// # Returns: Vec<String>
-/// A Vec<String> where each element is an overlay name from the input string.
+/// # Returns: `Vec<String>`
+/// A `Vec<String>` where each element is an overlay name from the input string.
 ///
 /// # Examples
 /// ```rust,no_run
@@ -58,7 +58,7 @@ fn parse_overlay_lines(list_str: &str) -> Vec<String> {
 /// # Arguments
 /// * `ret_str` - The string containing device-platform pairs separated by newlines.
 ///
-/// # Returns: HashMap<String, String>
+/// # Returns: `HashMap<String, String>`
 /// A HashMap<String, String> where the key is the device and the value is the platform string.
 ///
 /// # Examples
