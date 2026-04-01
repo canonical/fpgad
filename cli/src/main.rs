@@ -182,7 +182,8 @@ use std::error::Error;
 ///
 /// # Examples
 ///
-/// ```bash
+/// ```shell
+///
 /// # Load a bitstream
 /// fpgad load bitstream /lib/firmware/design.bit.bin
 ///
@@ -191,6 +192,7 @@ use std::error::Error;
 ///
 /// # Load an overlay with a specific handle
 /// fpgad load overlay /lib/firmware/overlay.dtbo --handle=my_overlay
+///
 /// ```
 #[derive(Parser, Debug)]
 #[command(name = "fpga")]
@@ -252,7 +254,14 @@ enum RemoveSubcommand {
         handle: Option<String>,
     },
     /// Remove bitstream loaded in given `HANDLE` to fpga command
-    Bitstream,
+    Bitstream {
+        /// `HANDLE` is the handle that is given during `load` operation
+        /// TODO(Artie): document - for dfxmgr it will be the slot - use "" to allow remove latest
+        /// it is different than device_handle which is being used for platform
+        /// detection logic.
+        #[arg(long = "handle")]
+        handle: Option<String>,
+    },
 }
 
 /// Top-level commands supported by the CLI.
@@ -320,7 +329,7 @@ enum Commands {
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     let cli = Cli::parse();
-    debug!("parsed cli command with {cli:?}");
+    debug!("parsed cli command with {cli:#?}");
     let result = match cli.command {
         Commands::Load { command } => load_handler(&cli.handle, &command).await,
         Commands::Remove { command } => remove_handler(&cli.handle, &command).await,

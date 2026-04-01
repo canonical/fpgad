@@ -34,6 +34,25 @@ use crate::proxies::status_proxy;
 use std::collections::HashMap;
 use zbus::Connection;
 
+/// Retrieve a platform-specific status message from the daemon.
+///
+/// Sends the DBus command to get a comprehensive status message for the specified
+/// platform, which includes device and overlay information formatted for that platform.
+///
+/// # Arguments
+///
+/// * `platform` - Platform compatibility string (e.g., "xlnx,zynqmp-pcap-fpga", "universal")
+///
+/// # Returns: `Result<String, zbus::Error>`
+/// * `Ok(String)` - Formatted status message from the platform
+/// * `Err(zbus::Error)` - DBus communication error or FpgadError.
+///   See [Error Handling](../index.html#error-handling) for details.
+pub async fn call_get_status_message(platform: &str) -> Result<String, zbus::Error> {
+    let connection = Connection::system().await?;
+    let proxy = status_proxy::StatusProxy::new(&connection).await?;
+    proxy.get_status_message(platform).await
+}
+
 /// Parses a newline-separated string of overlays into a `Vec<String>`
 ///
 /// # Arguments
@@ -215,35 +234,6 @@ pub async fn call_get_platform_type(device_handle: &str) -> Result<String, zbus:
     proxy.get_platform_type(device_handle).await
 }
 
-/// Retrieve the status of a specific device tree overlay.
-///
-/// Queries the daemon for the status information of a loaded overlay.
-///
-/// # Arguments
-///
-/// * `platform` - Platform identifier string
-/// * `overlay_handle` - [Overlay handle](../index.html#overlay-handles) of the overlay to query
-///
-/// # Returns: `Result<String, zbus::Error>`
-/// * `String` - Status information for the overlay
-/// * `zbus::Error` - DBus communication error, invalid overlay handle, or FpgadError.
-///   See [Error Handling](../index.html#error-handling) for details.
-///
-/// # Examples
-///
-/// ```rust,ignore
-/// let status = call_get_overlay_status("universal", "overlay0").await?;
-/// println!("Overlay status: {}", status);
-/// ```
-async fn call_get_overlay_status(
-    platform: &str,
-    overlay_handle: &str,
-) -> Result<String, zbus::Error> {
-    let connection = Connection::system().await?;
-    let proxy = status_proxy::StatusProxy::new(&connection).await?;
-    proxy.get_overlay_status(platform, overlay_handle).await
-}
-
 /// Retrieve all FPGA devices and their platform compatibility strings.
 ///
 /// Parses the newline-separated string from the `get_platform_types` DBus interface
@@ -357,13 +347,7 @@ pub async fn get_first_device_handle() -> Result<String, zbus::Error> {
 /// println!("{}", message);
 /// ```
 async fn get_fpga_state_message(device_handle: &str) -> Result<String, zbus::Error> {
-    let state = call_get_fpga_state(device_handle).await?;
-    let platform = call_get_platform_type(device_handle).await?;
-    Ok(format!(
-        "---- DEVICE  ----\n\
-        | dev | platform | state |\n\
-        {device_handle} | {platform} | {state}"
-    ))
+    call_get_fpga_state(device_handle).await
 }
 
 /// Format comprehensive status information for all FPGA devices and overlays.
@@ -387,38 +371,12 @@ async fn get_fpga_state_message(device_handle: &str) -> Result<String, zbus::Err
 /// println!("{}", status);
 /// ```
 async fn get_full_status_message() -> Result<String, zbus::Error> {
-    let mut ret_string = String::from(
-        "---- DEVICES ----\n\
-    | dev | platform | state |\n",
-    );
+    let mut ret_string = String::from("\n");
 
-    for (dev, platform) in call_get_platform_types().await? {
-        let state = call_get_fpga_state(&dev).await?;
-        ret_string += format!("| {dev} | {platform} | {state} |\n").as_str();
-    }
-
-    // If overlayfs not enabled, or interface not connected this will be an error.
-    let overlays = match call_get_overlays().await {
-        Ok(overlays) => {
-            ret_string += "\n---- OVERLAYS ----\n\
-                   | overlay | status |\n";
-            overlays
-        }
-        Err(e) => {
-            ret_string += "\n---- OVERLAYS NOT ACCESSIBLE ----\n\n\
-            errors encountered:\n";
-            ret_string += e.to_string().as_str();
-            Vec::new()
-        }
-    };
-
-    for overlay in overlays {
-        // TODO: overlays do not provide enough information to work out what platform to use.
-        //  so maybe the status command can take a platform type instead or something.
-        //  This is tricky.
-        let p = get_first_platform().await?;
-        let status = call_get_overlay_status(&p, &overlay).await?;
-        ret_string.push_str(format!("| {overlay} | {status} |\n").as_ref());
+    for (device, platform) in call_get_platform_types().await? {
+        ret_string += format!("----- device: {device} | platform: {platform} -----\n").as_str();
+        ret_string += call_get_status_message(&platform).await?.as_str();
+        ret_string += "\n";
     }
     Ok(ret_string)
 }

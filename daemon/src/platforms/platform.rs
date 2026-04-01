@@ -40,7 +40,8 @@
 //! Platforms and softeners are included or not excluded using cargo "features".
 //! See [`softeners`](../../softeners/index.html) for more details.
 //!
-//! TODO(Artie): Add examples of how to use the getters for platforms with and without knowing the platform string? - could be called "# Fetching platforms"
+//! TODO(Artie): Add examples of how to use the getters for platforms with and without knowing the
+//!  platform string? - could be called "# Fetching platforms"
 //! # Examples
 //!
 //! in [main.rs]:
@@ -124,23 +125,41 @@ pub trait Fpga {
     ///
     /// * `flags` - The flags value to set
     ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Flags set successfully
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message including flags value and device handle
     /// * `Err(FpgadError::IOWrite)` - Failed to write flags file
-    fn set_flags(&self, flags: u32) -> Result<(), FpgadError>;
+    fn set_flags(&self, flags: u32) -> Result<String, FpgadError>;
 
     /// Load a bitstream firmware file to the FPGA device.
     ///
     /// # Arguments
     ///
-    /// * `bitstream_path_rel` - Path to the bitstream file relative to whatever path the lookup starts in. For universal, this is the firmware search path
+    /// * `bitstream_path` - Absolute path to the bitstream file
+    /// * `firmware_lookup_path` - Path to resolve firmware or empty path
+    ///   (automatically uses the parent dir of `bitstream_path`)
     ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Bitstream loaded successfully
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message with source and target
     /// * `Err(FpgadError::IOWrite)` - Failed to write firmware file
     /// * `Err(FpgadError::FPGAState)` - FPGA not in correct state for loading
     #[allow(dead_code)]
-    fn load_firmware(&self, bitstream_path_rel: &Path) -> Result<(), FpgadError>;
+    fn load_firmware(
+        &self,
+        bitstream_path: &Path,
+        firmware_lookup_path: &Path,
+    ) -> Result<String, FpgadError>;
+
+    /// Remove a previously loaded firmware/bitstream.
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - Optional handle/slot identifier for the firmware to remove
+    ///
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message including device and firmware details
+    /// * `Err(FpgadError::Internal)` - Operation not supported by this platform
+    /// * `Err(FpgadError)` - Failed to remove firmware
+    fn remove_firmware(&self, handle: Option<&str>) -> Result<String, FpgadError>;
 }
 
 /// Trait for managing device tree overlays.
@@ -150,27 +169,25 @@ pub trait OverlayHandler {
     /// # Arguments
     ///
     /// * `source_path` - Path to the `.dtbo` overlay binary file
+    /// * `lookup_path` - Path to resolve overlay firmware or empty path
+    ///   (automatically uses the parent dir of `source_path`)
     ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Overlay applied successfully
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message with overlay path and firmware prefix
     /// * `Err(FpgadError::IOWrite)` - Failed to write overlay
     /// * `Err(FpgadError::OverlayStatus)` - Overlay application failed
-    fn apply_overlay(&self, source_path: &Path) -> Result<(), FpgadError>;
+    fn apply_overlay(&self, source_path: &Path, lookup_path: &Path) -> Result<String, FpgadError>;
 
     /// Remove a device tree overlay.
     ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Overlay removed successfully
-    /// * `Err(FpgadError::IODelete)` - Failed to remove overlay directory
-    fn remove_overlay(&self) -> Result<(), FpgadError>;
-
-    /// Get the required FPGA flags, however they may be provided.
+    /// # Arguments
     ///
-    /// # Returns: `Result<isize, FpgadError>`
-    /// * `Ok(isize)` - Required flags value
-    /// * `Err(FpgadError)` - Failed to parse overlay or extract flags
-    #[allow(dead_code)]
-    fn required_flags(&self) -> Result<isize, FpgadError>;
+    /// * `handle` - Optional handle/slot identifier for the overlay to remove
+    ///
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message including overlay filesystem path
+    /// * `Err(FpgadError::IODelete)` - Failed to remove overlay directory
+    fn remove_overlay(&self, handle: Option<&str>) -> Result<String, FpgadError>;
 
     /// Get the current status of the overlay.
     ///
@@ -241,6 +258,41 @@ pub trait Platform: Any {
     /// * `Ok(&dyn OverlayHandler)` - Overlay handler instance
     /// * `Err(FpgadError::Argument)` - Invalid overlay handle or configfs not available
     fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError>;
+
+    /// Get a formatted status message for this platform.
+    ///
+    /// Returns a human-readable status message containing information about devices,
+    /// overlays, and platform-specific state. The format and content are platform-specific.
+    ///
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Formatted status message
+    /// * `Err(FpgadError)` - Failed to gather status information
+    ///
+    /// # Examples
+    ///
+    /// For the Universal platform, this returns a table of devices and overlays.
+    /// For Xilinx DFX Manager, this returns the output of `dfx-mgr-client -listPackage`.
+    fn status_message(&self) -> Result<String, FpgadError>;
+
+    /// Get the platform compatibility string.
+    ///
+    /// Returns the compatibility string that this platform implementation is registered
+    /// with. This string matches against device tree compatible properties to determine
+    /// which platform to use for a device.
+    ///
+    /// # Returns: `String`
+    /// * The platform compatibility string (e.g., "universal", "xlnx,zynqmp-pcap-fpga")
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use daemon::platforms::platform::Platform;
+    /// # fn example(platform: &dyn Platform) {
+    /// let compat = platform.platform_compat_string();
+    /// println!("Platform: {}", compat);
+    /// # }
+    /// ```
+    fn platform_compat_string(&self) -> String;
 }
 
 /// Match a platform compatibility string to a registered platform.
@@ -288,6 +340,7 @@ fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, Fpg
         let compat_set: HashSet<&str> = compat_string.split(',').collect();
         let compat_found = platform_string.split(',').all(|x| compat_set.contains(x));
         if compat_found {
+            trace!("found `{compat_found}` for platform with compat string `{platform_string}`");
             return Ok(platform_constructor());
         }
     }
@@ -325,10 +378,16 @@ fn discover_platform(device_handle: &str) -> Result<Box<dyn Platform>, FpgadErro
     let compat_string = read_compatible_string(device_handle)?;
     trace!("Found compatibility string: '{compat_string}'");
 
-    Ok(match_platform_string(&compat_string).unwrap_or({
-        warn!("{compat_string} not supported. Defaulting to Universal platform.");
-        Box::new(UniversalPlatform::new())
-    }))
+    match match_platform_string(&compat_string) {
+        Ok(platform) => {
+            trace!("Matched platform for compatibility string: '{compat_string}'");
+            Ok(platform)
+        }
+        Err(_) => {
+            warn!("{compat_string} not supported. Defaulting to Universal platform.");
+            Ok(Box::new(UniversalPlatform::new()))
+        }
+    }
 }
 
 /// Read the device tree compatible string for an FPGA device.
@@ -512,7 +571,7 @@ pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
     fs_read_dir(config::FPGA_MANAGERS_DIR.as_ref())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "xilinx-dfx-mgr"))]
 mod tests {
     use super::*;
     use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;

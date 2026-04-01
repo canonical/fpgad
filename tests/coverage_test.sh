@@ -20,20 +20,28 @@ eval "$(cargo llvm-cov show-env --sh)"
 export RUSTFLAGS="${RUSTFLAGS:-} -C llvm-args=-runtime-counter-relocation"
 
 # build the daemon only, to avoid getting coverage for cli (no tests written)
-cargo build --bin daemon
-# build the test binaries avoiding cli as well. Also extract the name of the integration test binary
+cargo build --bin fpgad
+
+# build the test binaries avoiding cli as well. Also extract the names of the integration test binaries
 universal_test="$(\
-cargo test --no-run --bin daemon --test universal 2>&1 |\
+cargo test --no-run --bin fpgad --test universal 2>&1 |\
   grep 'tests/universal.rs' |\
   awk '{gsub(/[()]/,""); print $3}'\
 )"
 echo "universal test binary: $universal_test"
 
+xilinx_dfx_mgr_test="$(\
+cargo test --no-run --bin fpgad --test xilinx_dfx_mgr 2>&1 |\
+  grep 'tests/xilinx_dfx_mgr.rs' |\
+  awk '{gsub(/[()]/,""); print $3}'\
+)"
+echo "xilinx_dfx_mgr test binary: $xilinx_dfx_mgr_test"
+
 # only run daemon unit tests
-cargo test --bin daemon
+cargo test --bin fpgad
 
 
-daemon_bin=${CARGO_LLVM_COV_TARGET_DIR}/debug/daemon
+daemon_bin=${CARGO_LLVM_COV_TARGET_DIR}/debug/fpgad
 
 # Kill any leftover processes or other daemon instances (this will not stop the snap version from spawning due to 'activates-on:`
 
@@ -54,8 +62,13 @@ timeout 5 bash -c '
   done
 '
 
-# run the test binary
+# run the universal test binary
+echo "Running universal tests..."
 sudo env LLVM_PROFILE_FILE="${CARGO_LLVM_COV_TARGET_DIR}/test_universal-%p.profraw" "$universal_test" --test-threads=1 --no-capture
+
+# run the xilinx_dfx_mgr test binary
+echo "Running xilinx_dfx_mgr tests..."
+sudo env LLVM_PROFILE_FILE="${CARGO_LLVM_COV_TARGET_DIR}/test_xilinx_dfx_mgr-%p.profraw" "$xilinx_dfx_mgr_test" --test-threads=1 --no-capture
 
 
 # kill the daemon

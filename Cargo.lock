@@ -280,10 +280,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
+name = "fdt"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "784a4df722dc6267a04af36895398f59d21d07dce47232adf31ec0ff2fa45e67"
+
+[[package]]
 name = "fpgad"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "env_logger",
+ "fdt",
  "fpgad_macros",
  "googletest",
  "log",
@@ -295,7 +302,7 @@ dependencies = [
 
 [[package]]
 name = "fpgad_cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
  "env_logger",
@@ -306,7 +313,7 @@ dependencies = [
 
 [[package]]
 name = "fpgad_macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "quote",
  "syn",
