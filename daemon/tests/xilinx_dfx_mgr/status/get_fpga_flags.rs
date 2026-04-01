@@ -1,5 +1,17 @@
 // This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
 //
+// Copyright 2026 Canonical Ltd.
+//
+// SPDX-License-Identifier: GPL-3.0-only
+//
+// fpgad is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 3, as published by the Free Software Foundation.
+//
+// fpgad is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranties of MERCHANTABILITY, SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
+
+// This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
+//
 // Copyright 2025 Canonical Ltd.
 //
 // SPDX-License-Identifier: GPL-3.0-only
@@ -11,7 +23,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::common::proxies::status_proxy;
-use crate::universal::setup;
+use crate::xilinx_dfx_mgr::{PLATFORM_STRING, setup};
 use googletest::prelude::*;
 use rstest::*;
 use zbus::Connection;
@@ -19,32 +31,20 @@ use zbus::Connection;
 #[gtest]
 #[tokio::test]
 #[rstest]
-// TODO: what to do here - this will be dfx-mgr if enabled, or universal if not
-#[case::no_platform("", "fpga0", ok(contains_substring("")))]
-#[case::no_device(
-    "universal",
-    "",
-    err(displays_as(contains_substring("FpgadError::Argument:")))
-)]
-#[case::bad_platform("x", "", err(displays_as(contains_substring("FpgadError::Argument:"))))]
-#[case::bad_device(
-    "universal",
-    "dev0",
-    err(displays_as(contains_substring("FpgadError::Argument:")))
-)]
-#[case::all_good("universal", "fpga0", ok(contains_substring("operating")))]
+#[case::no_device("", err(displays_as(contains_substring("FpgadError::Argument:"))))]
+#[case::bad_device("dev0", err(displays_as(contains_substring("FpgadError::Argument:"))))]
+#[case::all_good("fpga0", ok(anything()))]
 async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
-    #[case] platform_string: &str,
     #[case] device_handle: &str,
     #[case] condition: M,
     _setup: (),
 ) {
     let connection = Connection::system()
         .await
-        .expect("failed to get fpga state");
+        .expect("failed to get fpga flags");
     let proxy = status_proxy::StatusProxy::new(&connection)
         .await
-        .expect("failed to create control proxy");
-    let res = proxy.get_fpga_state(platform_string, device_handle).await;
+        .expect("failed to create status proxy");
+    let res = proxy.get_fpga_flags(PLATFORM_STRING, device_handle).await;
     expect_that!(&res, condition);
 }
