@@ -38,6 +38,7 @@ plugs:
     name: com.canonical.fpgad
   provider-content:
     interface: content
+    content: provider-content
     target: $SNAP_DATA/provider-content
   device-tree-overlays:
     interface: system-files
@@ -47,11 +48,11 @@ plugs:
       - /sys/kernel/config/device-tree/overlays
 apps:
   fpgad:
-    command: bin/cli
+    command: bin/fpgad_cli
     plugs:
       - cli-dbus
   daemon:
-    command: bin/daemon
+    command: bin/fpgad
     daemon: dbus
     restart-condition: always
     start-timeout: 30s

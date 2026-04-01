@@ -166,17 +166,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a822ea5bc7590f9d40f1ba12c0dc3c2760f3482c6984db1573ad11031420831"
 
 [[package]]
-name = "cli"
-version = "0.1.0"
-dependencies = [
- "clap",
- "env_logger",
- "log",
- "tokio",
- "zbus",
-]
-
-[[package]]
 name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -196,20 +185,6 @@ name = "crossbeam-utils"
 version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
-
-[[package]]
-name = "daemon"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "fpgad_macros",
- "googletest",
- "log",
- "rstest",
- "thiserror",
- "tokio",
- "zbus",
-]
 
 [[package]]
 name = "endi"
@@ -303,6 +278,31 @@ name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
+
+[[package]]
+name = "fpgad"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "fpgad_macros",
+ "googletest",
+ "log",
+ "rstest",
+ "thiserror",
+ "tokio",
+ "zbus",
+]
+
+[[package]]
+name = "fpgad_cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "env_logger",
+ "log",
+ "tokio",
+ "zbus",
+]
 
 [[package]]
 name = "fpgad_macros"

@@ -37,3 +37,6 @@ config:
 tests:
   owners:
     - artiepoole
+snapcraft:
+  owners:
+    - artiepoole
