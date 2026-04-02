@@ -124,6 +124,7 @@ async fn call_apply_overlay(
 ///
 /// # Arguments
 ///
+/// * `platform_override` - Optional platform string to bypass platform detection
 /// * `dev_handle` - Optional [device handle](../index.html#device-handles) (e.g., "fpga0")
 /// * `file_path` - Path to the overlay file (.dtbo)
 /// * `overlay_handle` - Optional [overlay handle](../index.html#overlay-handles) for the overlay directory
@@ -133,28 +134,40 @@ async fn call_apply_overlay(
 /// * `Err(zbus::Error)` - DBus communication error, device detection failure, or FpgadError.
 ///   See [Error Handling](../index.html#error-handling) for details.
 async fn apply_overlay(
+    platform_override: &Option<String>,
     dev_handle: &Option<String>,
     file_path: &str,
     overlay_handle: &Option<String>,
 ) -> Result<String, zbus::Error> {
     // Determine platform and overlay handle based on provided parameters
-    let (platform, overlay_handle_to_use) = match (dev_handle, overlay_handle) {
-        // Both are provided
-        (Some(dev), Some(overlay)) => (call_get_platform_type(dev).await?, overlay.clone()),
+    let (platform, overlay_handle_to_use) = match (platform_override, dev_handle, overlay_handle) {
+        // Platform override provided - use it regardless of other params
+        (Some(plat), _, Some(overlay)) => (plat.clone(), overlay.clone()),
+        (Some(plat), Some(dev), None) => (plat.clone(), dev.clone()),
+        (Some(plat), None, None) => {
+            let overlay = get_first_device_handle()
+                .await
+                .unwrap_or("overlay0".to_string());
+            (plat.clone(), overlay)
+        }
+
+        // No platform override - use detection logic
+        // Both device and overlay are provided
+        (None, Some(dev), Some(overlay)) => (call_get_platform_type(dev).await?, overlay.clone()),
 
         // dev_handle provided, overlay_handle not provided so use device name as overlay handle
-        (Some(dev), None) => {
+        (None, Some(dev), None) => {
             let platform = call_get_platform_type(dev).await?;
             (platform, dev.clone())
         }
         // dev_handle not provided, so use first platform
-        (None, Some(overlay)) => {
+        (None, None, Some(overlay)) => {
             let platform = get_first_platform().await?;
             (platform, overlay.clone())
         }
         // neither provided so get first device to and use its platform as platform and its name as
         // overlay_handle
-        (None, None) => {
+        (None, None, None) => {
             // this saves making two dbus calls by getting it all from the hashmap
             let platforms = call_get_platform_types().await?;
             let platform = platforms
@@ -186,6 +199,7 @@ async fn apply_overlay(
 ///
 /// # Arguments
 ///
+/// * `platform_override` - Optional platform string to bypass platform detection
 /// * `device_handle` - Optional [device handle](../index.html#device-handles) (e.g., "fpga0")
 /// * `file_path` - Path to the bitstream file
 ///
@@ -194,6 +208,7 @@ async fn apply_overlay(
 /// * `Err(zbus::Error)` - DBus communication error, device detection failure, or FpgadError.
 ///   See [Error Handling](../index.html#error-handling) for details.
 async fn load_bitstream(
+    platform_override: &Option<String>,
     device_handle: &Option<String>,
     file_path: &str,
 ) -> Result<String, zbus::Error> {
@@ -201,7 +216,11 @@ async fn load_bitstream(
         None => get_first_device_handle().await?,
         Some(dev) => dev.clone(),
     };
-    call_load_bitstream("", &dev, &sanitize_path_str(file_path)?, "").await
+    let platform_str = match platform_override {
+        None => "",
+        Some(plat) => plat.as_str(),
+    };
+    call_load_bitstream(platform_str, &dev, &sanitize_path_str(file_path)?, "").await
 }
 
 /// Main handler for the load command.
@@ -212,6 +231,7 @@ async fn load_bitstream(
 ///
 /// # Arguments
 ///
+/// * `platform_override` - Optional platform string to bypass platform detection
 /// * `dev_handle` - Optional [device handle](../index.html#device-handles)
 /// * `sub_command` - The load subcommand specifying what to load (overlay or bitstream)
 ///
@@ -220,13 +240,16 @@ async fn load_bitstream(
 /// * `Err(zbus::Error)` - DBus communication error, operation failure, or FpgadError.
 ///   See [Error Handling](../index.html#error-handling) for details.
 pub async fn load_handler(
+    platform_override: &Option<String>,
     dev_handle: &Option<String>,
     sub_command: &LoadSubcommand,
 ) -> Result<String, zbus::Error> {
     match sub_command {
-        LoadSubcommand::Overlay { file, handle } => {
-            apply_overlay(dev_handle, file.as_ref(), handle).await
+        LoadSubcommand::Overlay { file, name } => {
+            apply_overlay(platform_override, dev_handle, file.as_ref(), name).await
         }
-        LoadSubcommand::Bitstream { file } => load_bitstream(dev_handle, file.as_ref()).await,
+        LoadSubcommand::Bitstream { file } => {
+            load_bitstream(platform_override, dev_handle, file.as_ref()).await
+        }
     }
 }
