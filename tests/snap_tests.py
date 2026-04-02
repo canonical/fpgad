@@ -625,6 +625,67 @@ class TestFPGAdCLI(unittest.TestCase):
         proc = self.run_fpgad(["help", "load", "overlay"])
         self.assert_proc_succeeds(proc)
 
+    # --------------------------------------------------------
+    # CLI option tests (--device, --platform, --name)
+    # --------------------------------------------------------
+
+    def test_load_bitstream_with_device_option(self):
+        """Test loading bitstream with explicit --device option"""
+        path_str = "./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"
+        proc = self.run_fpgad(["--device", "fpga0", "load", "bitstream", path_str])
+        self.assert_proc_succeeds(proc)
+        self.assertIn("loaded to fpga0 using firmware lookup path", proc.stdout)
+
+    def test_load_overlay_with_name_option(self):
+        """Test loading overlay with explicit --name option"""
+        # Necessary due to bad dtbo content from upstream
+        test_file_paths = self.TestData(
+            source=Path("./fpgad/k26-starter-kits/k26_starter_kits.bit.bin"),
+            target=Path("./fpgad/k26-starter-kits/k26-starter-kits.bit.bin"),
+        )
+
+        try:
+            self.copy_test_data_files(test_file_paths) != 0
+        except Exception as e:
+            print(
+                f"Failed to copy {test_file_paths.source} to {test_file_paths.target}"
+            )
+            raise e
+
+        overlay_path = "./fpgad/k26-starter-kits/k26_starter_kits.dtbo"
+        proc = self.run_fpgad(
+            ["load", "overlay", overlay_path, "--name", "test_overlay"]
+        )
+
+        try:
+            self.cleanup_test_data_files(test_file_paths)
+        except Exception as e:
+            print(f"Failed to clean up {test_file_paths.target}")
+            raise e
+
+        self.assert_proc_succeeds(proc)
+        self.assert_in_proc_out("loaded via", proc)
+
+        # Verify the overlay was created with the specified name
+        overlay_dir = Path("/sys/kernel/config/device-tree/overlays/test_overlay")
+        self.assertTrue(
+            overlay_dir.exists(), f"Overlay directory {overlay_dir} should exist"
+        )
+
+    def test_status_with_device_option(self):
+        """Test status command with explicit --device option"""
+        proc = self.run_fpgad(["--device", "fpga0", "status"])
+        self.assert_proc_succeeds(proc)
+
+    def test_set_with_device_option(self):
+        """Test set command with explicit --device option"""
+        proc = self.run_fpgad(["--device", "fpga0", "set", "flags", "0"])
+        self.assert_proc_succeeds(proc)
+        self.assert_in_proc_out(
+            "0 written to /sys/class/fpga_manager/fpga0/flags", proc
+        )
+        self.check_fpga0_attribute("flags", "0")
+
 
 if __name__ == "__main__":
     unittest.main()
