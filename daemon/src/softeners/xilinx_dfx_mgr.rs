@@ -227,15 +227,17 @@ fn run_dfx_mgr(args: &[&str]) -> Result<String, FpgadSoftenerError> {
         .args(args)
         .output()
         .map_err(|e| {
-            FpgadSoftenerError::DfxMgr(format!("dfx-mgr-client failed to produce output: {e}"))
+            FpgadSoftenerError::DfxMgr(format!("dfx-mgr-client failed to produce output:\n{e}"))
         })?;
-
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
+        // output.status usually looks like `exit status: 255`
         Err(FpgadSoftenerError::DfxMgr(format!(
-            "dfx-mgr-client failed. Exit status: {}\nStdout:\n{:#?}\nStderr:\n{:#?}",
-            output.status, output.status, output.stderr
+            "dfx-mgr-client failed.\n{}\nStdout:\n{:?}\nStderr:\n{:?}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
         )))
     }
 }
