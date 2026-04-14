@@ -275,7 +275,7 @@ pub trait Platform: Any {
 /// ```rust,ignore
 /// let platform = match_platform_string("xlnx,zynqmp-pcap-fpga")?;
 /// ```
-fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
+pub fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
     let registry = PLATFORM_REGISTRY
         .get()
         .ok_or(FpgadError::Internal(String::from(
@@ -321,7 +321,7 @@ fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, Fpg
 /// # Ok(())
 /// # }
 /// ```
-fn discover_platform(device_handle: &str) -> Result<Box<dyn Platform>, FpgadError> {
+pub fn discover_platform(device_handle: &str) -> Result<Box<dyn Platform>, FpgadError> {
     let compat_string = read_compatible_string(device_handle)?;
     trace!("Found compatibility string: '{compat_string}'");
 
