@@ -11,5 +11,5 @@ repository = "https://github.com/canonical/fpgad"
 authors = ["Talha Can Havadar <talha.can.havadar@canonical.com>", "Artie Poole <stuart.poole@canonical.com>"]
 
 [workspace.dependencies]
-fpgad_macros = { path = "fpgad_macros" }
+fpgad_macros = { version = "0.1.1", path = "fpgad_macros" }
 
