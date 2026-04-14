@@ -1,7 +1,19 @@
 [package]
-name = "cli"
-version = "0.1.0"
-edition = "2024"
+name = "fpgad_cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Command-line interface for interacting with the FPGAd daemon"
+readme = "README.md"
+keywords = ["fpga", "cli", "embedded", "hardware", "xilinx"]
+categories = ["command-line-utilities", "hardware-support"]
+
+[[bin]]
+name = "fpgad_cli"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5.41", features = ["derive"] }
