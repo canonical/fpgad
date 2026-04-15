@@ -1,0 +1,118 @@
+name: Publish crates
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to publish (without leading v, for example 0.1.1)'
+        required: true
+        type: string
+      commit_sha:
+        description: 'Commit SHA to publish from'
+        required: true
+        type: string
+      mode:
+        description: 'dry-run validates publish flow, publish uploads to crates.io'
+        required: false
+        default: dry-run
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (without leading v, for example 0.1.1)'
+        required: true
+      commit_sha:
+        description: 'Commit SHA to publish from'
+        required: true
+      mode:
+        description: 'dry-run validates publish flow, publish uploads to crates.io'
+        required: true
+        type: choice
+        options:
+          - dry-run
+          - publish
+        default: dry-run
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  publish:
+    name: Publish crates in dependency order
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.commit_sha }}
+          fetch-depth: 0
+      - name: Validate version and mode
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ inputs.version }}"
+          MODE="${{ inputs.mode }}"
+
+          if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::Version must be semver-like (example: 0.1.1 or 0.1.1-rc.1)."
+            exit 1
+          fi
+
+          WORKSPACE_VERSION="$({
+            awk '
+              /^\[workspace\.package\]/ { in_section=1; next }
+              in_section && /^\[/ { in_section=0 }
+              in_section && /^version[[:space:]]*=/ {
+                gsub(/.*"/, "", $0)
+                gsub(/".*/, "", $0)
+                print $0
+                exit
+              }
+            ' Cargo.toml
+          })"
+
+          if [[ -z "${WORKSPACE_VERSION}" ]]; then
+            echo "::error::Could not read [workspace.package].version from Cargo.toml."
+            exit 1
+          fi
+
+          if [[ "${WORKSPACE_VERSION}" != "${VERSION}" ]]; then
+            echo "::error::Requested version '${VERSION}' does not match Cargo.toml version '${WORKSPACE_VERSION}'."
+            exit 1
+          fi
+
+          if [[ "${MODE}" != "dry-run" && "${MODE}" != "publish" ]]; then
+            echo "::error::Mode must be either 'dry-run' or 'publish'."
+            exit 1
+          fi
+      - name: Authenticate with crates.io trusted publishing
+        if: ${{ inputs.mode == 'publish' }}
+        uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - name: Run cargo publish steps
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          MODE="${{ inputs.mode }}"
+          PUBLISH_FLAG=""
+
+          if [[ "${MODE}" == "dry-run" ]]; then
+            PUBLISH_FLAG="--dry-run"
+          fi
+
+          if [[ "${MODE}" == "publish" && -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
+            echo "::error::Trusted publishing token was not generated. Ensure crates.io trusted publishing is configured for this workflow."
+            exit 1
+          fi
+
+          run_publish() {
+            local manifest_path="$1"
+            echo "::group::cargo publish ${manifest_path} (${MODE})"
+            cargo publish --manifest-path "${manifest_path}" --locked ${PUBLISH_FLAG}
+            echo "::endgroup::"
+          }
+
+          run_publish fpgad_macros/Cargo.toml
+          run_publish daemon/Cargo.toml
+          run_publish cli/Cargo.toml

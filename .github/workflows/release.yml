@@ -1,0 +1,177 @@
+name: Release tagged version
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (without leading v, for example 0.1.1)'
+        required: true
+      commit_sha:
+        description: 'Commit SHA to build and release'
+        required: true
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ github.ref_name || github.event.inputs.version }}
+  cancel-in-progress: false
+jobs:
+  metadata:
+    name: Resolve release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.meta.outputs.tag_name }}
+      version: ${{ steps.meta.outputs.version }}
+      commit_sha: ${{ steps.meta.outputs.commit_sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Resolve and validate release inputs
+        id: meta
+        env:
+          VERSION: ${{ inputs.version || github.ref_name }}
+          COMMIT_SHA: ${{ inputs.commit_sha || github.sha }}
+          TAG_NAME: ${{ inputs.version && format('v{0}', inputs.version) || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::Version must be semver-like (example: 0.1.1 or 0.1.1-rc.1)."
+            exit 1
+          fi
+
+          if ! git cat-file -e "${COMMIT_SHA}^{commit}"; then
+            echo "::error::Commit '${COMMIT_SHA}' does not exist in this repository."
+            exit 1
+          fi
+
+          COMMIT_SHA="$(git rev-parse "${COMMIT_SHA}^{commit}")"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && git rev-parse -q --verify "refs/tags/${TAG_NAME}" >/dev/null; then
+            TAG_COMMIT_SHA="$(git rev-parse "refs/tags/${TAG_NAME}^{commit}")"
+            if [[ "${TAG_COMMIT_SHA}" != "${COMMIT_SHA}" ]]; then
+              echo "::error::Tag '${TAG_NAME}' already exists and points to ${TAG_COMMIT_SHA}, not ${COMMIT_SHA}."
+              exit 1
+            fi
+          fi
+
+          WORKSPACE_VERSION="$({
+            git show "${COMMIT_SHA}:Cargo.toml" | awk '
+              /^\[workspace\.package\]/ { in_section=1; next }
+              in_section && /^\[/ { in_section=0 }
+              in_section && /^version[[:space:]]*=/ {
+                gsub(/.*"/, "", $0)
+                gsub(/".*/, "", $0)
+                print $0
+                exit
+              }
+            '
+          })"
+
+          if [[ -z "${WORKSPACE_VERSION}" ]]; then
+            echo "::error::Could not read [workspace.package].version from Cargo.toml at ${COMMIT_SHA}."
+            exit 1
+          fi
+
+          if [[ "${WORKSPACE_VERSION}" != "${VERSION}" ]]; then
+            echo "::error::Requested version '${VERSION}' does not match Cargo.toml version '${WORKSPACE_VERSION}' at ${COMMIT_SHA}."
+            exit 1
+          fi
+
+          {
+            echo "tag_name=${TAG_NAME}"
+            echo "version=${VERSION}"
+            echo "commit_sha=${COMMIT_SHA}"
+          } >> "${GITHUB_OUTPUT}"
+  build:
+    name: Build release artifacts
+    runs-on: ubuntu-latest
+    needs: metadata
+    outputs:
+      archive_name: ${{ steps.package.outputs.archive_name }}
+      checksum_name: ${{ steps.package.outputs.checksum_name }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.metadata.outputs.commit_sha }}
+      - name: Build all release binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --workspace --release --locked
+      - name: Package artifacts
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          cp target/release/fpgad dist/
+          cp target/release/fpgad_cli dist/
+          chmod +x dist/fpgad dist/fpgad_cli
+
+          ARCHIVE_NAME="fpgad-${{ needs.metadata.outputs.version }}-linux-amd64.tar.gz"
+          CHECKSUM_NAME="${ARCHIVE_NAME}.sha256"
+
+          tar -czf "${ARCHIVE_NAME}" -C dist fpgad fpgad_cli
+          sha256sum "${ARCHIVE_NAME}" > "${CHECKSUM_NAME}"
+
+          {
+            echo "archive_name=${ARCHIVE_NAME}"
+            echo "checksum_name=${CHECKSUM_NAME}"
+          } >> "${GITHUB_OUTPUT}"
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: |
+            ${{ steps.package.outputs.archive_name }}
+            ${{ steps.package.outputs.checksum_name }}
+  cargo-publish:
+    name: Publish crates to crates.io
+    needs: metadata
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/cargo-publish.yml
+    with:
+      version: ${{ needs.metadata.outputs.version }}
+      commit_sha: ${{ needs.metadata.outputs.commit_sha }}
+      mode: publish
+  github-release:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    needs:
+      - metadata
+      - build
+      - cargo-publish
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets
+          path: .
+      - name: Create GitHub release with gh CLI
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          ARCHIVE="${{ needs.build.outputs.archive_name }}"
+          CHECKSUM="${{ needs.build.outputs.checksum_name }}"
+
+          for asset in "${ARCHIVE}" "${CHECKSUM}"; do
+            if [[ ! -f "${asset}" ]]; then
+              echo "::error::Release asset '${asset}' not found."
+              exit 1
+            fi
+          done
+
+          gh release create "${{ needs.metadata.outputs.tag_name }}" \
+            "${ARCHIVE}" \
+            "${CHECKSUM}" \
+            --target "${{ needs.metadata.outputs.commit_sha }}" \
+            --generate-notes
