@@ -32,7 +32,8 @@ jobs:
           echo "::group::creating job.yaml"
             yq '.test_data.attachments = [
             {"agent": "device_script.sh", "local": "'"$(pwd)"'/.github/testflinger-assets/test_binary_device_script.sh"},
-            {"agent": "fpgad.gz", "local": "'"$(pwd)"'/fpgad.gz"}
+            {"agent": "fpgad.gz", "local": "'"$(pwd)"'/fpgad.gz"},
+            {"agent": "env_setup.sh", "local": "'"$(pwd)"'/.github/testflinger-assets/env_setup.sh"}
             ]' .github/testflinger-assets/testflinger_job.yaml | tee job.yaml
           echo "::endgroup::"
 

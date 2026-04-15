@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-. ./env_setup.sh
-
 echo "INFO: Preparing device"
 echo "    --- Updating with apt"
 sudo env DEBIAN_FRONTEND=noninteractive apt update && sudo env DEBIAN_FRONTEND=noninteractive apt install build-essential -y

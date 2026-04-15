@@ -33,6 +33,8 @@ test_data:
       local: ./fpgad.gz
     - agent: device_script.sh
       local: ./device_script.sh
+    - agent: env_setup.sh
+      local: ./env_setup.sh
   test_cmds: |
     set -e
     # get hw-cert-team helper tools
@@ -51,7 +53,7 @@ test_data:
 
     # Run the test script, but always retrieve artifacts even if it fails
     set +e
-    _run '/home/ubuntu/env_setup.sh; /home/ubuntu/device_script.sh'
+    _run 'source /home/ubuntu/env_setup.sh && /home/ubuntu/device_script.sh'
     TEST_SCRIPT_EXIT=$?
     set -e
 
