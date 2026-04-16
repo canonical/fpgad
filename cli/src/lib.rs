@@ -10,10 +10,31 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-//! This is FPGAd's commandline interface (CLI) . Due to strict confinement of the snap, this can
-//! only be used from a terminal or from a script which is not part of another snap.
-//! It is a useful helper for one-off control of the FPGA device or testing, and serves as an
-//! example implementation for the DBus interface.
+//! FPGA CLI (fpgad_cli) - Command-line interface for managing FPGA devices.
+//!
+//! This is FPGAd's command-line interface (CLI) for interacting with the fpgad daemon via DBus.
+//! Due to strict confinement of the snap, this can only be used from a terminal or from a script
+//! which is not part of another snap. It is a useful helper for one-off control of the FPGA
+//! device or testing, and serves as an example implementation for the DBus interface.
+//!
+//! # Application Flow
+//!
+//! When invoked, the CLI:
+//! 1. Initializes logging via `env_logger` (controlled by `RUST_LOG` environment variable)
+//! 2. Parses command-line arguments into the [`Cli`] structure using clap
+//! 3. Dispatches to the appropriate handler based on the command:
+//!    - [`load_handler`](load::load_handler) for loading bitstreams/overlays
+//!    - [`remove_handler`](remove::remove_handler) for removing bitstreams/overlays
+//!    - [`set_handler`](set::set_handler) for setting FPGA attributes
+//!    - [`status_handler`](status::status_handler) for querying device status
+//! 4. Prints success messages or logs errors and exits with appropriate status code
+//!
+//! All operations communicate with the fpgad daemon over DBus and are executed asynchronously
+//! using tokio.
+//!
+//! # Environment Variables
+//!
+//! - `RUST_LOG` - Controls logging level (`trace`, `debug`, `info`, `warn`, `error`, or `off`)
 //!
 //! # Common Concepts
 //!

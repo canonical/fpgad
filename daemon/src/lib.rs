@@ -36,10 +36,11 @@
 //! The daemon uses a platform abstraction approach that allows different FPGA vendors
 //! and platforms to be supported through registered platform implementations. At startup,
 //! the daemon:
-//! 1. Registers all available platform implementations
-//! 2. Creates DBus interface objects
-//! 3. Connects to the system DBus and advertises the service
-//! 4. Waits indefinitely for incoming DBus requests
+//! 1. Initializes logging via `env_logger` (controlled by `RUST_LOG`)
+//! 2. Registers all available platform implementations
+//! 3. Creates DBus interface instances (`StatusInterface` and `ControlInterface`)
+//! 4. Connects to the system DBus and advertises the service name
+//! 5. Serves DBus requests indefinitely until terminated
 //!
 //! # Platform Support
 //!
