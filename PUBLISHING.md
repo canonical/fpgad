@@ -24,6 +24,10 @@ If validation passes, the workflow builds in release mode and uploads these asse
 - `fpgad-<version>-linux-amd64.tar.gz` (contains `fpgad` and `fpgad_cli`)
 - `fpgad-<version>-linux-amd64.tar.gz.sha256`
 
+If the resolved version contains one of these prerelease keywords (`alpha`, `beta`, `rc`, `pre`, `dev`, `exp`, `experimental`, `nightly`), the workflow creates a GitHub prerelease and also uploads:
+
+- `fpgad-<version>-experimental-crates.tar.gz` (workspace `.crate` bundles produced by `cargo package --workspace --locked`)
+
 The same workflow also publishes workspace crates to crates.io by default by invoking `.github/workflows/cargo-publish.yml` in `publish` mode.
 
 It uses a top-level workspace publish command (`cargo publish --manifest-path Cargo.toml --workspace --locked`).

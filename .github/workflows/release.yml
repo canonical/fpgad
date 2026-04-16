@@ -24,6 +24,7 @@ jobs:
       tag_name: ${{ steps.meta.outputs.tag_name }}
       version: ${{ steps.meta.outputs.version }}
       commit_sha: ${{ steps.meta.outputs.commit_sha }}
+      is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -37,6 +38,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          # Normalize version when triggered by tag push (for example, v0.1.1 -> 0.1.1).
+          if [[ "${VERSION}" == v* ]]; then
+            VERSION="${VERSION#v}"
+          fi
+          TAG_NAME="v${VERSION}"
 
           if ! git cat-file -e "${COMMIT_SHA}^{commit}"; then
             echo "::error::Commit '${COMMIT_SHA}' does not exist in this repository."
@@ -54,18 +61,26 @@ jobs:
 
           python scripts/ci/check_version_bump.py validate --expected-version "${VERSION}" --ref "${COMMIT_SHA}"
 
+          LOWER_VERSION="${VERSION,,}"
+          IS_PRERELEASE="false"
+          if [[ "${LOWER_VERSION}" =~ (alpha|beta|rc|pre|dev|exp|experimental|nightly) ]]; then
+            IS_PRERELEASE="true"
+          fi
+
           {
             echo "tag_name=${TAG_NAME}"
             echo "version=${VERSION}"
             echo "commit_sha=${COMMIT_SHA}"
+            echo "is_prerelease=${IS_PRERELEASE}"
           } >> "${GITHUB_OUTPUT}"
   build:
     name: Build release artifacts
-    runs-on: ubuntu-24.04-arm
+    runs-on: [ubuntu-24.04-arm, ubuntu-latest]
     needs: metadata
     outputs:
       archive_name: ${{ steps.package.outputs.archive_name }}
       checksum_name: ${{ steps.package.outputs.checksum_name }}
+      prerelease_crate_bundle: ${{ steps.prerelease_crates.outputs.bundle_name }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -74,7 +89,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo build --workspace --release --locked
+          cargo build --workspace --release --locked --all-features
       - name: Package artifacts
         id: package
         shell: bash
@@ -103,6 +118,24 @@ jobs:
           path: |
             ${{ steps.package.outputs.archive_name }}
             ${{ steps.package.outputs.checksum_name }}
+      - name: Package prerelease crate bundle
+        if: ${{ needs.metadata.outputs.is_prerelease == 'true' }}
+        id: prerelease_crates
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cargo package --workspace --locked
+
+          BUNDLE_NAME="fpgad-${{ needs.metadata.outputs.version }}-experimental-crates.tar.gz"
+          tar -czf "${BUNDLE_NAME}" -C target/package .
+          echo "bundle_name=${BUNDLE_NAME}" >> "${GITHUB_OUTPUT}"
+      - name: Upload prerelease crate bundle
+        if: ${{ needs.metadata.outputs.is_prerelease == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: prerelease-crates
+          path: ${{ steps.prerelease_crates.outputs.bundle_name }}
   cargo-publish:
     name: Publish crates to crates.io
     needs: metadata
@@ -127,6 +160,12 @@ jobs:
         with:
           name: release-assets
           path: .
+      - name: Download prerelease crate bundle
+        if: ${{ needs.metadata.outputs.is_prerelease == 'true' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: prerelease-crates
+          path: .
       - name: Create GitHub release with gh CLI
         shell: bash
         env:
@@ -134,10 +173,26 @@ jobs:
         run: |
           set -euo pipefail
 
+          IS_PRERELEASE="${{ needs.metadata.outputs.is_prerelease }}"
           ARCHIVE="${{ needs.build.outputs.archive_name }}"
           CHECKSUM="${{ needs.build.outputs.checksum_name }}"
+          ASSETS=("${ARCHIVE}" "${CHECKSUM}")
+          RELEASE_ARGS=(
+            --target "${{ needs.metadata.outputs.commit_sha }}"
+            --generate-notes
+          )
 
-          for asset in "${ARCHIVE}" "${CHECKSUM}"; do
+          if [[ "${IS_PRERELEASE}" == "true" ]]; then
+            EXPERIMENTAL_BUNDLE="${{ needs.build.outputs.prerelease_crate_bundle }}"
+            if [[ -z "${EXPERIMENTAL_BUNDLE}" || ! -f "${EXPERIMENTAL_BUNDLE}" ]]; then
+              echo "::error::Prerelease crate bundle '${EXPERIMENTAL_BUNDLE}' not found."
+              exit 1
+            fi
+            ASSETS+=("${EXPERIMENTAL_BUNDLE}")
+            RELEASE_ARGS+=(--prerelease)
+          fi
+
+          for asset in "${ASSETS[@]}"; do
             if [[ ! -f "${asset}" ]]; then
               echo "::error::Release asset '${asset}' not found."
               exit 1
@@ -145,7 +200,5 @@ jobs:
           done
 
           gh release create "${{ needs.metadata.outputs.tag_name }}" \
-            "${ARCHIVE}" \
-            "${CHECKSUM}" \
-            --target "${{ needs.metadata.outputs.commit_sha }}" \
-            --generate-notes
+            "${ASSETS[@]}" \
+            "${RELEASE_ARGS[@]}"
