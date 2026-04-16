@@ -24,11 +24,9 @@ If validation passes, the workflow builds in release mode and uploads these asse
 - `fpgad-<version>-linux-amd64.tar.gz` (contains `fpgad` and `fpgad_cli`)
 - `fpgad-<version>-linux-amd64.tar.gz.sha256`
 
-The same workflow also publishes crates to crates.io by default by invoking `.github/workflows/cargo-publish.yml` in `publish` mode, in dependency order:
+The same workflow also publishes workspace crates to crates.io by default by invoking `.github/workflows/cargo-publish.yml` in `publish` mode.
 
-- `fpgad_macros`
-- `fpgad`
-- `fpgad_cli`
+It uses a top-level workspace publish command (`cargo publish --manifest-path Cargo.toml --workspace --locked`).
 
 Publishing uses crates.io Trusted Publishing (OIDC) instead of a long-lived API token.
 
@@ -82,7 +80,7 @@ Inputs:
 
 Behavior:
 
-- Publishes packages in dependency order: `fpgad_macros` -> `fpgad` -> `fpgad_cli`
+- Publishes all workspace crates using `cargo publish --manifest-path Cargo.toml --workspace --locked`
 - Validates that `Cargo.toml` version matches the requested version
 - For `mode=publish`, requires crates.io Trusted Publishing configuration for this workflow file (`cargo-publish.yml`)
 

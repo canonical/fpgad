@@ -36,7 +36,7 @@ permissions:
   id-token: write
 jobs:
   publish:
-    name: Publish crates in dependency order
+    name: Publish workspace crates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -69,10 +69,10 @@ jobs:
           set -euo pipefail
 
           MODE="${{ inputs.mode }}"
-          PUBLISH_FLAG=""
+          PUBLISH_ARGS=(--manifest-path Cargo.toml --workspace --locked)
 
           if [[ "${MODE}" == "dry-run" ]]; then
-            PUBLISH_FLAG="--dry-run"
+            PUBLISH_ARGS+=(--dry-run)
           fi
 
           if [[ "${MODE}" == "publish" && -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
@@ -80,13 +80,4 @@ jobs:
             exit 1
           fi
 
-          run_publish() {
-            local manifest_path="$1"
-            echo "::group::cargo publish ${manifest_path} (${MODE})"
-            cargo publish --manifest-path "${manifest_path}" --locked ${PUBLISH_FLAG}
-            echo "::endgroup::"
-          }
-
-          run_publish fpgad_macros/Cargo.toml
-          run_publish daemon/Cargo.toml
-          run_publish cli/Cargo.toml
+          cargo publish "${PUBLISH_ARGS[@]}"
