@@ -48,11 +48,8 @@
 //! - `flags` - Programming flags (hexadecimal format: "0x...")
 //! - `firmware` - Trigger bitstream loading by writing filename
 //!
-//! with any other files being controllable using the
-//! [`write_property_bytes`](crate::comm::dbus::control_interface::ControlInterface::write_property_bytes)
-//! and
-//! [`write_property`](crate::comm::dbus::control_interface::ControlInterface::write_property)
-//! DBus methods.
+//! with any other files being controllable using the `write_property_bytes` and
+//! `write_property` DBus methods.
 //! See the [`control_interface`](crate::comm::dbus::control_interface) documentation for more details.
 //!
 //! # Examples
