@@ -197,7 +197,8 @@ use clap::{Parser, Subcommand};
 ///
 /// # Examples
 ///
-/// ```bash
+/// ```shell
+///
 /// # Load a bitstream
 /// fpgad load bitstream /lib/firmware/design.bit.bin
 ///
@@ -206,6 +207,7 @@ use clap::{Parser, Subcommand};
 ///
 /// # Load an overlay with a specific handle
 /// fpgad load overlay /lib/firmware/overlay.dtbo --handle=my_overlay
+///
 /// ```
 #[derive(Parser, Debug)]
 #[command(name = "fpga")]
