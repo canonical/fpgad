@@ -56,11 +56,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     let cli = Cli::parse();
     debug!("parsed cli command with {cli:#?}");
-    let result = match cli.command {
-        Commands::Load { command } => load_handler(&cli.handle, &command).await,
-        Commands::Remove { command } => remove_handler(&cli.handle, &command).await,
-        Commands::Set { attribute, value } => set_handler(&cli.handle, &attribute, &value).await,
-        Commands::Status => status_handler(&cli.handle).await,
+    let result = match cli.command() {
+        Commands::Load { command } => load_handler(cli.platform(), cli.device(), command).await,
+        Commands::Remove { command } => remove_handler(cli.platform(), cli.device(), command).await,
+        Commands::Set { attribute, value } => {
+            set_handler(cli.platform(), cli.device(), attribute, value).await
+        }
+        Commands::Status => status_handler(cli.platform(), cli.device()).await,
     };
     match result {
         Ok(msg) => {

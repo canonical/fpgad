@@ -42,6 +42,7 @@ use zbus::Connection;
 ///
 /// # Arguments
 ///
+/// * `platform_string` - Platform identifier string (empty string for auto-detection)
 /// * `device_handle` - Platform identifier for the [device](../index.html#device-handles)
 /// * `bitstream_handle` - the identifier of the bitstream  (can be slot ID for dfx-mgr) TODO(Artie): update docs
 ///
@@ -50,13 +51,14 @@ use zbus::Connection;
 /// * `Err(zbus::Error)` - DBus communication error, invalid handle(s), or FpgadError.
 ///   See [Error Handling](../index.html#error-handling) for details.
 async fn call_remove_bitstream(
+    platform_string: &str,
     device_handle: &str,
     bitstream_handle: &str,
 ) -> Result<String, zbus::Error> {
     let connection = Connection::system().await?;
     let proxy = control_proxy::ControlProxy::new(&connection).await?;
     proxy
-        .remove_bitstream("", device_handle, bitstream_handle)
+        .remove_bitstream(platform_string, device_handle, bitstream_handle)
         .await
 }
 
@@ -93,6 +95,7 @@ async fn call_remove_overlay(
 ///
 /// # Arguments
 ///
+/// * `platform_override` - Optional platform string to bypass platform detection
 /// * `device_handle` - Optional [device handle](../index.html#device-handles) for platform detection
 /// * `overlay_handle` - Optional [overlay handle](../index.html#overlay-handles) of the specific overlay to remove
 ///
@@ -101,12 +104,16 @@ async fn call_remove_overlay(
 /// * `Err(zbus::Error)` - DBus communication error, detection failure, or FpgadError.
 ///   See [Error Handling](../index.html#error-handling) for details.
 async fn remove_overlay(
+    platform_override: &Option<String>,
     device_handle: &Option<String>,
     overlay_handle: &Option<String>,
 ) -> Result<String, zbus::Error> {
-    let platform_string = match device_handle {
-        None => get_first_platform().await?,
-        Some(dev) => call_get_platform_type(dev).await?,
+    let platform_string = match platform_override {
+        Some(plat) => plat.clone(),
+        None => match device_handle {
+            None => get_first_platform().await?,
+            Some(dev) => call_get_platform_type(dev).await?,
+        },
     };
     let handle = match overlay_handle {
         Some(handle) => handle.clone(),
@@ -123,9 +130,16 @@ async fn remove_overlay(
 /// vendor-specific and depends on platform capabilities that may be added
 /// through softener implementations in the future.
 ///
+/// # Arguments
+///
+/// * `platform_override` - Optional platform string to bypass platform detection
+/// * `device_handle` - Optional [device handle](../index.html#device-handles)
+/// * `bitstream_handle` - Optional bitstream/slot identifier
+///
 /// # Returns: `Result<String, zbus::Error>`
 /// * `Err(zbus::Error)` - Always returns "Not implemented" error
 async fn remove_bitstream(
+    platform_override: &Option<String>,
     device_handle: &Option<String>,
     bitstream_handle: &Option<String>,
 ) -> Result<String, zbus::Error> {
@@ -137,7 +151,11 @@ async fn remove_bitstream(
         Some(handle) => handle,
         None => "",
     };
-    call_remove_bitstream(dev, handle).await
+    let platform_str = match platform_override {
+        None => "",
+        Some(plat) => plat.as_str(),
+    };
+    call_remove_bitstream(platform_str, dev, handle).await
 }
 
 /// Main handler for the remove command.
@@ -148,6 +166,7 @@ async fn remove_bitstream(
 ///
 /// # Arguments
 ///
+/// * `platform_override` - Optional platform string to bypass platform detection
 /// * `dev_handle` - Optional [device handle](../index.html#device-handles)
 /// * `sub_command` - The remove subcommand specifying what to remove (overlay or bitstream)
 ///
@@ -156,11 +175,16 @@ async fn remove_bitstream(
 /// * `Err(zbus::Error)` - DBus communication error, operation failure, or FpgadError.
 ///   See [Error Handling](../index.html#error-handling) for details.
 pub async fn remove_handler(
+    platform_override: &Option<String>,
     dev_handle: &Option<String>,
     sub_command: &RemoveSubcommand,
 ) -> Result<String, zbus::Error> {
     match sub_command {
-        RemoveSubcommand::Overlay { handle } => remove_overlay(dev_handle, handle).await,
-        RemoveSubcommand::Bitstream { handle } => remove_bitstream(dev_handle, handle).await,
+        RemoveSubcommand::Overlay { name } => {
+            remove_overlay(platform_override, dev_handle, name).await
+        }
+        RemoveSubcommand::Bitstream { handle } => {
+            remove_bitstream(platform_override, dev_handle, handle).await
+        }
     }
 }

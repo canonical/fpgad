@@ -384,13 +384,15 @@ async fn get_full_status_message() -> Result<String, zbus::Error> {
 /// Main handler for the status command.
 ///
 /// Dispatches to the appropriate status query function based on whether a specific
-/// device handle is provided. If a device handle is given, returns status for that
-/// device only; otherwise returns comprehensive status for all devices and overlays.
+/// device handle or platform override is provided. If a device handle is given, returns
+/// status for that device only; if a platform override is given, returns status for that
+/// platform; otherwise returns comprehensive status for all devices and overlays.
 /// This is the entry point called by the CLI's main function when a status command
 /// is issued.
 ///
 /// # Arguments
 ///
+/// * `platform_override` - Optional platform string to bypass platform detection
 /// * `device_handle` - Optional [device handle](../index.html#device-handles) for querying a specific device
 ///
 /// # Returns: `Result<String, zbus::Error>`
@@ -402,15 +404,25 @@ async fn get_full_status_message() -> Result<String, zbus::Error> {
 ///
 /// ```rust,ignore
 /// // Get status for all devices
-/// let status = status_handler(&None).await?;
+/// let status = status_handler(&None, &None).await?;
 ///
 /// // Get status for a specific device
-/// let status = status_handler(&Some("fpga0".to_string())).await?;
+/// let status = status_handler(&None, &Some("fpga0".to_string())).await?;
+///
+/// // Get status for a specific platform
+/// let status = status_handler(&Some("xlnx,zynqmp-pcap-fpga".to_string()), &None).await?;
 /// ```
-pub async fn status_handler(device_handle: &Option<String>) -> Result<String, zbus::Error> {
-    let ret_string = match device_handle {
-        None => get_full_status_message().await?,
-        Some(dev) => get_fpga_state_message(dev.as_str()).await?,
+pub async fn status_handler(
+    platform_override: &Option<String>,
+    device_handle: &Option<String>,
+) -> Result<String, zbus::Error> {
+    let ret_string = match (platform_override, device_handle) {
+        // Platform override takes precedence
+        (Some(plat), _) => call_get_status_message(plat).await?,
+        // Then device handle
+        (None, Some(dev)) => get_fpga_state_message(dev.as_str()).await?,
+        // Default to full status
+        (None, None) => get_full_status_message().await?,
     };
     Ok(ret_string)
 }
