@@ -132,12 +132,16 @@ jobs:
             tar -czvf test_data.gz -C daemon/tests/test_data/ .
           echo "::endgroup::"
 
+          echo "::group::Create tests tarball"
+            tar -czvf tests.gz -C tests/ .
+          echo "::endgroup::"
+
           echo "::group::creating job.yaml"
             yq '.test_data.attachments = [
             { "agent": "device_script.sh", "local": "'"$(pwd)"'/.github/testflinger-assets/test_snap_device_script.sh" },
             { "agent": "fpgad.snap",         "local": "'"$(pwd)"'/fpgad.snap" },
             { "agent": "test_data.gz",       "local": "'"$(pwd)"'/test_data.gz" },
-            { "agent": "snap_tests.py",      "local": "'"$(pwd)"'/tests/snap_tests.py" }
+            { "agent": "tests.gz",           "local": "'"$(pwd)"'/tests.gz" }
             ]' .github/testflinger-assets/testflinger_job.yaml | tee job.yaml
           echo "::endgroup::"
 

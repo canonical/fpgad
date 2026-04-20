@@ -29,4 +29,4 @@ set -e
 sudo kill ${JOURNAL_PID} || true
 
 # Exit with the test's exit status
-exit $TEST_EXIT_STATUS
+exit "$TEST_EXIT_STATUS"
