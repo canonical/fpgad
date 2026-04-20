@@ -29,6 +29,20 @@ platforms:
     build-on: [riscv64]
     build-for: [riscv64]
 icon: snap/assets/icon.svg
+environment:
+  # Set path to snap components
+  SNAP_COMPONENTS: /snap/$SNAP_INSTANCE_NAME/components/$SNAP_REVISION
+  # Add dfx-mgr libraries to library path (if component is installed)
+  LD_LIBRARY_PATH: $SNAP_COMPONENTS/dfx-mgr/usr/lib:$SNAP_COMPONENTS/dfx-mgr/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:$LD_LIBRARY_PATH
+components:
+  dfx-mgr:
+    type: standard
+    summary: optional component to include dfx-mgr binaries
+    description: |
+      This component enables dfx-mgr integration for xilinx boards.
+      It provides dfx-mgr-client and dfx-mgrd.
+      FPGAd will run and monitor the dfx-mgrd binary and interface with it to enabled full dfx-mgr functionality \
+      via FPGAd
 slots:
   daemon-dbus:
     interface: dbus
@@ -71,20 +85,11 @@ apps:
       - kernel-firmware-control
       - hardware-observe
       - dfx-mgr-socket
+      - device-tree-overlays
     activates-on:
       - daemon-dbus
     environment:
       RUST_LOG: trace
-  softeners:
-    command: bin/softener_wrapper
-    daemon: simple
-    restart-condition: on-failure
-    plugs:
-      - fpga
-      - kernel-firmware-control
-      - hardware-observe
-      - dfx-mgr-socket
-      - network-bind
 parts:
   version:
     plugin: nil
@@ -117,22 +122,18 @@ parts:
       - dfx-mgr
     override-stage: |
       craftctl default
-      cat << 'EOF' > $SNAPCRAFT_PART_INSTALL/etc/dfx-mgrd/daemon.conf
+      cat << 'EOF' > daemon.conf
       {
         "firmware_location": [
           "/var/snap/fpgad/current/provider-content/"
         ]
       }
       EOF
-  softener_wrapper:
-    plugin: dump
-    source: snap/assets
     organize:
-      softener_wrapper: bin/softener_wrapper
-    stage:
-      - bin/softener_wrapper
-# TODO: the daemon.conf should be copied into $SNAP_COMMON on install hook if - and only if - it doesn't already exist
+      # move everything, including the staged packages
+      "*": (component/dfx-mgr)
+      daemon.conf: (component/dfx-mgr)
 layout:
-  # For configuration files
+  # For dfx-mgr configuration files (when component is installed)
   /etc/dfx-mgrd:
     bind: $SNAP_COMMON/etc/dfx-mgrd

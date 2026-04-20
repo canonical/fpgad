@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+# Component remove hook for dfx-mgr
+# This hook runs when the dfx-mgr component is removed
+
+CONF_DIR="$SNAP_COMMON/etc/dfx-mgrd"
+CONF_FILE="$CONF_DIR/daemon.conf"
+
+if [ -f "$CONF_FILE" ]; then
+    echo "Removing dfx-mgrd daemon.conf"
+    rm -f "$CONF_FILE"
+fi
+
+# Remove directory if empty
+if [ -d "$CONF_DIR" ] && [ -z "$(ls -A "$CONF_DIR")" ]; then
+    echo "Removing empty dfx-mgrd config directory"
+    rmdir "$CONF_DIR"
+fi
+
