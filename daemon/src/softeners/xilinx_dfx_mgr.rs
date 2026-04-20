@@ -213,9 +213,22 @@ pub fn load_overlay(bitstream_path: &Path, dtbo_path: &Path) -> Result<String, F
 
 /// Helper to run the dfx-mgr-client binary with arguments
 fn run_dfx_mgr(args: &[&str]) -> Result<String, FpgadSoftenerError> {
-    let snap_env = env::var("SNAP").unwrap_or("".to_string());
+    let prefix = if let Ok(snap_env) = env::var("SNAP_COMPONENTS") {
+        snap_env + "/dfx-mgr"
+    } else {
+        "".to_string()
+    };
 
-    let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", snap_env);
+    let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", prefix);
+
+    // Check if dfx-mgr-client exists before trying to run it
+    if !Path::new(&dfx_mgr_client_path).exists() {
+        return Err(FpgadSoftenerError::DfxMgr(format!(
+            "dfx-mgr-client not found at '{}'. Install the dfx-mgr component with: snap install fpgad+dfx-mgr.comp",
+            dfx_mgr_client_path
+        )));
+    }
+
     trace!("Calling dfx-mgr with args {:#?}", args);
     let output = std::process::Command::new(&dfx_mgr_client_path)
         .args(args)
