@@ -19,6 +19,7 @@
 use crate::comm::dbus::{validate_device_handle, validate_property_path};
 use crate::error::map_error_io_to_fdo;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
+use crate::softeners::error::FpgadSoftenerError;
 use crate::system_io::{fs_write, fs_write_bytes};
 use log::{info, trace};
 use std::env;
@@ -109,6 +110,7 @@ impl ControlInterface {
         device_handle: &str,
         flags: u32,
     ) -> Result<String, fdo::Error> {
+        // TODO(Artie): consider whether this should be a platform specific function or not.
         info!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
         validate_device_handle(device_handle)?;
         let platform = platform_from_compat_or_device(platform_string, device_handle)?;
@@ -172,6 +174,9 @@ impl ControlInterface {
         bitstream_path_str: &str,
         firmware_lookup_path: &str,
     ) -> Result<String, fdo::Error> {
+        // TODO(Artie): refactor this code to be platform specific. The dfx-mgr implementation does
+        //  the firmware source dir write under the hood. This could instead be in a different #
+        //  interface for dfx-mgr, but then the platform detection becomes useless.
         info!("load_firmware called with name: {device_handle} and path_str: {bitstream_path_str}");
         validate_device_handle(device_handle)?;
         let path = Path::new(bitstream_path_str);
@@ -247,6 +252,8 @@ impl ControlInterface {
         overlay_source_path: &str,
         firmware_lookup_path: &str,
     ) -> Result<String, fdo::Error> {
+        // TODO(Artie): refactor this code to be platform specific. The dfx-mgr implementation does
+        //  the firmware source dir write under the hood.
         info!(
             "apply_overlay called with platform_string: {platform_string}, overlay_handle: \
             {overlay_handle} and overlay_path: {overlay_source_path}",
@@ -364,6 +371,7 @@ impl ControlInterface {
         property_path_str: &str,
         data: &str,
     ) -> Result<String, fdo::Error> {
+        // TODO(Artie): consider whether this should be a platform specific function or not.
         info!("write_property called with property_path_str: {property_path_str} and data: {data}");
         let property_path = validate_property_path(Path::new(property_path_str))?;
         fs_write(&property_path, false, data)?;
@@ -403,6 +411,7 @@ impl ControlInterface {
         property_path_str: &str,
         data: &[u8],
     ) -> Result<String, fdo::Error> {
+        // TODO(Artie): consider whether this should be a platform specific function or not.
         info!(
             "write_property called with property_path_str: {property_path_str} and data: {data:?}"
         );
@@ -418,30 +427,50 @@ impl ControlInterface {
         if cfg!(feature = "xilinx-dfx-mgr") {
             let snap_env = env::var("SNAP").unwrap_or("".to_string());
 
-        let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", snap_env);
+            let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", snap_env);
 
-        let output = Command::new(&dfx_mgr_client_path)
-            .args(cmd_string.split_whitespace())
-            .output()
-            .await
-            .map_err(|e| {
-                map_error_io_to_fdo("dfx-mgr-client call failed to produce any output", e)
-            })?;
+            // Check if dfx-mgr-client exists
+            if !Path::new(&dfx_mgr_client_path).exists() {
+                // TODO(Artie): add tests for this
+                return Err(FpgadSoftenerError::DfxMgr(format!(
+                    "dfx-mgr-client not detected.\n\
+                    If using snap, please install the dfx-mgr component with \n\
+                    `[sudo] snap install fpgad+dfx-mgr [options]` \n\
+                    otherwise ensure that dfx-mgr-client exists at `{dfx_mgr_client_path}`"
+                ))
+                .into());
+            }
 
-        // Exit status
-        if output.status.success() {
-            info!("Command ran successfully!");
+            let output = Command::new(&dfx_mgr_client_path)
+                .args(cmd_string.split_whitespace())
+                .output()
+                .await
+                .map_err(|e| {
+                    map_error_io_to_fdo("dfx-mgr-client call failed to produce any output", e)
+                })?;
+
+            // Exit status
+            if output.status.success() {
+                info!("Command ran successfully!");
+            } else {
+                info!("Command failed with code: {:#?}", output.status.code());
+            }
+
+            Ok(format!(
+                "dfx-mgr called with args {}.\nExit status: {}\nStdout:\n{}\nStderr:\n{}",
+                cmd_string,
+                output.status,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            ))
         } else {
-            info!("Command failed with code: {:#?}", output.status.code());
+            use crate::error::FpgadError;
+            Err(FpgadError::Feature(
+                "Cannot use DfxMgr method - FPGAd was compiled without xilinx-dfx-mgr feature"
+                    .into(),
+            )
+            .into())
         }
-
-        Ok(format!(
-            "dfx-mgr called with args {}.\nExit status: {}\nStdout:\n{}\nStderr:\n{}",
-            cmd_string,
-            output.status,
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr),
-        ))
     }
 }
 

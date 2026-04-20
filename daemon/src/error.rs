@@ -98,6 +98,10 @@ pub enum FpgadError {
     Softener(crate::softeners::error::FpgadSoftenerError),
 
     /// Any other unexpected internal error occurred.
+    #[error("FpgadError::Feature: Use of disabled feature: {0}")]
+    Feature(String),
+
+    /// Any other unexpected internal error occurred.
     #[error("FpgadError::Internal: An Internal error occurred: {0}")]
     Internal(String),
 }
@@ -135,4 +139,3 @@ impl From<FpgadError> for fdo::Error {
 pub(crate) fn map_error_io_to_fdo(custom_msg: &str, err: impl std::fmt::Display) -> fdo::Error {
     fdo::Error::Failed(format!("{custom_msg}:\n{err}"))
 }
-
