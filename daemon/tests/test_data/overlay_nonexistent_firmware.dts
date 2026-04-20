@@ -1,0 +1,20 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "xlnx,zynqmp";
+
+    fragment@0 {
+        target-path = "/";
+        __overlay__ {
+            fpga_region {
+                compatible = "fpga-region";
+                fpga-mgr = <&fpga_full>;
+                #address-cells = <2>;
+                #size-cells = <2>;
+                firmware-name = "overlay_nonexistent_firmware.bit.bin";
+            };
+        };
+    };
+};
+
