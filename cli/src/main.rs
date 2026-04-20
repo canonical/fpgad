@@ -67,58 +67,69 @@
 //! Usage: [snap run] fpgad [OPTIONS] <COMMAND>
 //!
 //! OPTIONS:
-//!   -h, --help            Print help
-//!       --handle <DEVICE_HANDLE>  fpga device `HANDLE` to be used for the operations.
-//!                        Default value for this option is calculated in runtime
-//!                        and the application picks the first available fpga device
-//!                        in the system (under `/sys/class/fpga_manager/`)
+//!   -h, --help                      Print help
+//!   -p, --platform <PLATFORM>       Platform override string (bypasses platform detection logic).
+//!                                   When provided, this platform string is passed directly to the
+//!                                   daemon instead of auto-detecting from the device handle.
+//!                                   Examples: "universal", "xlnx,zynqmp-pcap-fpga"
+//!   -d, --device <DEVICE_HANDLE>    FPGA device handle to be used for the operations.
+//!                                   Default value is calculated at runtime - the application
+//!                                   picks the first available FPGA device in the system
+//!                                   (under `/sys/class/fpga_manager/`).
+//!                                   Examples: "fpga0", "fpga1"
+//!
+//! SUBCOMMAND OPTIONS:
+//!   -n, --name <OVERLAY_NAME>       (Used with load/remove overlay subcommands)
+//!                                   Name for the overlay directory in configfs
+//!                                   (under `/sys/kernel/config/device-tree/overlays/`).
+//!                                   If not provided, defaults to the device handle or "overlay0".
 //!
 //! COMMANDS:
 //! ├── load                Load a bitstream or overlay
-//! │   ├── overlay <FILE> [--handle <OVERLAY_HANDLE>]
+//! │   ├── overlay <FILE> [--name <OVERLAY_HANDLE> --platform <PLATFORM>]
 //! │   │       Load overlay (.dtbo) into the system using the default OVERLAY_HANDLE
 //! │   │           (either the provided DEVICE_HANDLE or "overlay0") or provide
-//! │   │       --handle: to name the overlay directory
-//! │   └── bitstream <FILE>
+//! │   │       --name: to name the overlay directory
+//! │   └── bitstream <FILE> [--platform <PLATFORM>]
 //! │           Load bitstream (e.g. `.bit.bin` file) into the FPGA
 //! │
 //! ├── set <ATTRIBUTE> <VALUE>
 //! │       Set an attribute/flag under `/sys/class/fpga_manager/<DEVICE_HANDLE>/<ATTRIBUTE>`
 //! │
-//! ├── status [--handle <DEVICE_HANDLE>]
+//! ├── status [--device <DEVICE_HANDLE> --platform <PLATFORM>]
 //! │       Show FPGA status (all devices and overlays) or provide
-//! │       --handle: for a specific device status
+//! │       --device: for a specific device status
 //! │
 //! └── remove              Remove an overlay or bitstream
-//!     ├── overlay [--handle <OVERLAY_HANDLE>]
+//!     ├── overlay [--name <OVERLAY_HANDLE> --platform <PLATFORM>]
 //!     │       Removes the first overlay found (call repeatedly to remove all) or provide
-//!     │       --handle: to remove overlay previously loaded with given OVERLAY_HANDLE
-//!     └── bitstream
+//!     │       --name: to remove overlay previously loaded with given OVERLAY_HANDLE
+//!     └── bitstream [--name <BITSTREAM_HANDLE> --platform <PLATFORM>]
 //!             Remove active bitstream from FPGA (bitstream removal is vendor specific)
 //! ```
 //!
 //! ### Loading
 //!
 //! ```shell
-//! fpgad [--handle=<device_handle>] load ( (overlay <file> [--handle=<handle>]) | (bitstream <file>) )
+//! fpgad [--device=<device_handle>] [--platform=<platform>] load ( (overlay <file> [--name=<overlay_name>]) | (bitstream <file>) )
 //! ```
 //!
 //! ### Removing
 //!
 //! ```shell
-//! fpgad [--handle=<device_handle>] remove ( ( overlay <HANDLE> ) | ( bitstream ) )
+//! fpgad [--device=<device_handle>] [--platform=<platform>] remove ( ( overlay [--name=<overlay_name>] ) | ( bitstream ) )
 //! ```
 //!
 //! ### Set
 //!
 //! ```shell
-//! fpgad [--handle=<device_handle>] set ATTRIBUTE VALUE
+//! fpgad [--device=<device_handle>] set ATTRIBUTE VALUE
 //! ```
 //!
 //! ### Status
 //!
 //! ```shell
-//! fpgad [--handle=<device_handle>] status
+//! fpgad [--device=<device_handle>] [--platform=<platform>] status
 //! ```
 //!
 //! ## examples (for testing)
@@ -127,32 +138,36 @@
 //!
 //! ```shell
 //! sudo ./target/debug/cli load bitstream /lib/firmware/k26-starter-kits.bit.bin
-//! sudo ./target/debug/cli --handle=fpga0 load bitstream /lib/firmware/k26-starter-kits.bit.bin
+//! sudo ./target/debug/cli --device=fpga0 load bitstream /lib/firmware/k26-starter-kits.bit.bin
+//! sudo ./target/debug/cli --platform=universal load bitstream /lib/firmware/k26-starter-kits.bit.bin
+//! sudo ./target/debug/cli --platform=xlnx load bitstream /lib/firmware/k26-starter-kits.bit.bin
 //!
 //! sudo ./target/debug/cli load overlay /lib/firmware/k26-starter-kits.dtbo
-//! sudo ./target/debug/cli load overlay /lib/firmware/k26-starter-kits.dtbo --handle=overlay_handle
-//! sudo ./target/debug/cli --handle=fpga0 load overlay /lib/firmware/k26-starter-kits.dtbo --handle=overlay_handle
+//! sudo ./target/debug/cli load overlay /lib/firmware/k26-starter-kits.dtbo --name=overlay_handle
+//! sudo ./target/debug/cli --device=fpga0 load overlay /lib/firmware/k26-starter-kits.dtbo --name=overlay_handle
+//! sudo ./target/debug/cli --platform=universal load overlay /lib/firmware/k26-starter-kits.dtbo --name=overlay_handle
+//! sudo ./target/debug/cli --platform=xlnx --device=fpga0 load overlay /lib/firmware/k26-starter-kits.dtbo --name=overlay_handle
 //! ```
 //!
 //! ### Remove
 //!
 //! ```shell
-//! sudo ./target/debug/cli --handle=fpga0 remove overlay
-//! sudo ./target/debug/cli --handle=fpga0 remove overlay --handle=overlay_handle
+//! sudo ./target/debug/cli --device=fpga0 remove overlay
+//! sudo ./target/debug/cli --device=fpga0 remove overlay --name=overlay_handle
 //! ```
 //!
 //! ### Set
 //!
 //! ```shell
 //! sudo ./target/debug/cli set flags 0
-//! sudo ./target/debug/cli --handle=fpga0 set flags 0
+//! sudo ./target/debug/cli --device=fpga0 set flags 0
 //! ```
 //!
 //! ### Status
 //!
 //! ```shell
 //! ./target/debug/cli status
-//! ./target/debug/cli --handle=fpga0 status
+//! ./target/debug/cli --device=fpga0 status
 //! ```
 
 mod proxies;
@@ -190,19 +205,28 @@ use std::error::Error;
 /// # Check status of all FPGA devices
 /// fpgad status
 ///
-/// # Load an overlay with a specific handle
-/// fpgad load overlay /lib/firmware/overlay.dtbo --handle=my_overlay
+/// # Load an overlay with a specific name
+/// fpgad load overlay /lib/firmware/overlay.dtbo --name=my_overlay
 ///
 /// ```
 #[derive(Parser, Debug)]
 #[command(name = "fpga")]
 #[command(bin_name = "fpga")]
 struct Cli {
-    /// fpga device `HANDLE` to be used for the operations.
-    /// Default value for this option is calculated in runtime and the application
-    /// picks the first available fpga in the system (under /sys/class/fpga_manager)
-    #[arg(long = "handle")]
-    handle: Option<String>,
+    /// Platform override string (bypasses platform detection logic).
+    /// When provided, this platform string is passed directly to the daemon
+    /// instead of auto-detecting from the device handle.
+    /// Examples: "universal", "xlnx,zynqmp-pcap-fpga"
+    #[arg(short = 'p', long = "platform")]
+    platform: Option<String>,
+
+    /// FPGA `device` handle to be used for the operations.
+    /// Default value is calculated at runtime - the application picks the first
+    /// available FPGA device in the system (under /sys/class/fpga_manager/).
+    /// Examples: "fpga0", "fpga1"
+    #[arg(short = 'd', long = "device")]
+    device: Option<String>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -215,6 +239,16 @@ struct Cli {
 ///
 /// Device tree overlays are typically loaded before or after bitstreams to properly configure
 /// the kernel's view of the FPGA's hardware interfaces and peripherals.
+///
+/// # Examples
+///
+/// ```shell
+/// # Load a bitstream
+/// fpgad load bitstream [-d=<DEVICE_HANDLE> -p=<COMPAT_STR>] /lib/firmware/design.bit.bin
+///
+/// # Load an overlay with a custom name
+/// fpgad load overlay [-d=<DEVICE_HANDLE> -p=<COMPAT_STR>] /lib/firmware/overlay.dtbo [-n=my_overlay]
+/// ```
 #[derive(Subcommand, Debug)]
 enum LoadSubcommand {
     /// Load overlay into the system
@@ -222,10 +256,11 @@ enum LoadSubcommand {
         /// Overlay `FILE` to be loaded (typically .dtbo)
         file: String,
 
-        /// `HANDLE` for the overlay directory which will be created
-        /// under "/sys/kernel/config/device-tree/overlays"
-        #[arg(long = "handle")]
-        handle: Option<String>,
+        /// Name for the overlay directory which will be created
+        /// under "/sys/kernel/config/device-tree/overlays/".
+        /// If not provided, defaults to the device handle or "overlay0".
+        #[arg(short = 'n', long = "name")]
+        name: Option<String>,
     },
     /// Load bitstream into the system
     Bitstream {
@@ -237,28 +272,40 @@ enum LoadSubcommand {
 /// Subcommands for removing FPGA components.
 ///
 /// This enum defines the types of components that can be removed from an FPGA device:
-/// - **Overlay**: Removes a device tree overlay by its handle.
+/// - **Overlay**: Removes a device tree overlay by its name.
 /// - **Bitstream**: Intended to remove the currently loaded FPGA bitstream (vendor-specific
-///   operation)
+///   operation that may use slot identifiers on platforms like DFX Manager)
 ///
 /// Removing overlays is important for proper cleanup when reconfiguring the FPGA.
 /// Bitstream removal support depends on the FPGA vendor and platform capabilities.
+///
+/// # Examples
+///
+/// ```shell
+/// # Remove the first overlay found
+/// fpgad remove overlay
+///
+/// # Remove a specific overlay by name
+/// fpgad [-d=<DEVICE_HANDLE>] [-p=<COMPAT_STR>] remove overlay -n=my_overlay
+///
+/// # Remove a bitstream, if supported
+/// fpgad [-d=<DEVICE_HANDLE>] [-p=<COMPAT_STR>] remove bitstream -n=0 # for dfx-mgr slot 0
+/// ```
 #[derive(Subcommand, Debug)]
 enum RemoveSubcommand {
-    /// Remove overlay with the `HANDLE` provided
+    /// Remove overlay with the name provided
     Overlay {
-        /// `HANDLE` is the handle that is given during `load` operation
-        /// it is different than device_handle which is being used for platform
-        /// detection logic.
-        #[arg(long = "handle")]
-        handle: Option<String>,
+        /// Name of the overlay to remove (as given during `load` operation).
+        /// If not provided, removes the first overlay found in the system.
+        /// This is different from device_handle which is used for platform detection.
+        #[arg(short = 'n', long = "name")]
+        name: Option<String>,
     },
-    /// Remove bitstream loaded in given `HANDLE` to fpga command
+    /// Remove bitstream loaded in the given device
     Bitstream {
-        /// `HANDLE` is the handle that is given during `load` operation
-        /// TODO(Artie): document - for dfxmgr it will be the slot - use "" to allow remove latest
-        /// it is different than device_handle which is being used for platform
-        /// detection logic.
+        /// Handle/identifier for the bitstream to remove.
+        /// For DFX Manager platforms, this can be a slot ID.
+        /// Use empty string "" to remove the latest bitstream.
         #[arg(long = "handle")]
         handle: Option<String>,
     },
@@ -274,6 +321,25 @@ enum RemoveSubcommand {
 ///
 /// Each command communicates with the fpgad daemon via DBus to perform privileged
 /// operations on FPGA devices managed through the Linux kernel's FPGA subsystem.
+///
+/// # Examples
+///
+/// ```shell
+/// # Load a bitstream to a specific device
+/// fpgad --device=fpga0 load bitstream /lib/firmware/design.bit.bin
+///
+/// # Load an overlay with platform override
+/// fpgad --platform=universal load overlay /lib/firmware/overlay.dtbo --name=my_overlay
+///
+/// # Set flags for a device
+/// fpgad --device=fpga0 set flags 0
+///
+/// # Get status for all devices
+/// fpgad status
+///
+/// # Remove an overlay by name
+/// fpgad remove overlay --name=my_overlay
+/// ```
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Load a bitstream or an overlay for the given device handle
@@ -331,10 +397,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     debug!("parsed cli command with {cli:#?}");
     let result = match cli.command {
-        Commands::Load { command } => load_handler(&cli.handle, &command).await,
-        Commands::Remove { command } => remove_handler(&cli.handle, &command).await,
-        Commands::Set { attribute, value } => set_handler(&cli.handle, &attribute, &value).await,
-        Commands::Status => status_handler(&cli.handle).await,
+        Commands::Load { command } => load_handler(&cli.platform, &cli.device, &command).await,
+        Commands::Remove { command } => remove_handler(&cli.platform, &cli.device, &command).await,
+        Commands::Set { attribute, value } => {
+            set_handler(&cli.platform, &cli.device, &attribute, &value).await
+        }
+        Commands::Status => status_handler(&cli.platform, &cli.device).await,
     };
     match result {
         Ok(msg) => {

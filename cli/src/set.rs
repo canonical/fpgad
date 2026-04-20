@@ -148,6 +148,7 @@ async fn call_write_property(property: &str, value: &str) -> Result<String, zbus
 ///
 /// # Arguments
 ///
+/// * `platform_override` - Optional platform string (currently unused but kept for API consistency)
 /// * `device_handle` - Optional [device handle](../index.html#device-handles) (e.g., "fpga0")
 /// * `attribute` - Name of the attribute to set (e.g., "flags")
 /// * `value` - Value to write to the attribute
@@ -162,13 +163,15 @@ async fn call_write_property(property: &str, value: &str) -> Result<String, zbus
 /// Setting the flags attribute:
 /// ```bash
 /// fpgad set flags 0
-/// fpgad --handle=fpga0 set flags 0
+/// fpgad --device=fpga0 set flags 0
 /// ```
 pub async fn set_handler(
+    _platform_override: &Option<String>,
     device_handle: &Option<String>,
     attribute: &str,
     value: &str,
 ) -> Result<String, zbus::Error> {
+    // TODO(Artie): read and write property to be platform specific functionalities in daemon.
     let property_path = match device_handle {
         None => build_property_path(&get_first_device_handle().await?, attribute)?,
         Some(dev) => build_property_path(dev, attribute)?,
