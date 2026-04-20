@@ -12,6 +12,7 @@
 
 #![doc = include_str!("universal_components/README.md")]
 
+// all public so that documentation is included on docs.rs
 pub mod universal_fpga;
-mod universal_helpers;
+pub mod universal_helpers;
 pub mod universal_overlay_handler;

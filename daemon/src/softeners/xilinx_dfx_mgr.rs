@@ -67,9 +67,10 @@ use log::trace;
 use xilinx_dfx_mgr_fpga::XilinxDfxMgrFPGA;
 use xilinx_dfx_mgr_overlay_handler::XilinxDfxMgrOverlayHandler;
 
-mod xilinx_dfx_mgr_fpga;
-mod xilinx_dfx_mgr_helpers;
-mod xilinx_dfx_mgr_overlay_handler;
+// Marked as public so that the members are published in docs
+pub mod xilinx_dfx_mgr_fpga;
+pub mod xilinx_dfx_mgr_helpers;
+pub mod xilinx_dfx_mgr_overlay_handler;
 
 /// Xilinx DFX Manager platform implementation for managing Xilinx FPGA devices.
 ///
