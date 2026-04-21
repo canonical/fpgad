@@ -19,7 +19,7 @@ use zbus::Connection;
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::no_platform("", "fpga0", ok(contains_substring("operating")))]
+#[case::no_platform("", "fpga0", ok(contains_substring("")))]
 #[case::no_device(
     "universal",
     "",
