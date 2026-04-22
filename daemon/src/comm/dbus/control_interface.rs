@@ -447,19 +447,29 @@ impl ControlInterface {
                 })?;
 
             // Exit status
-            if output.status.success() {
-                info!("Command ran successfully!");
-            } else {
-                info!("Command failed with code: {:#?}", output.status.code());
+            match output.status.success() {
+                true => {
+                    info!("Command ran successfully!");
+                    Ok(format!(
+                        "dfx-mgr called with args {}.\nExit status: {}\nStdout:\n{}\nStderr:\n{}",
+                        cmd_string,
+                        output.status,
+                        String::from_utf8_lossy(&output.stdout),
+                        String::from_utf8_lossy(&output.stderr),
+                    ))
+                }
+                false => {
+                    info!("Command failed with code: {:#?}", output.status.code());
+                    Err(FpgadSoftenerError::DfxMgr(format!(
+                        "dfx-mgr called with args {}.\nExit status: {}\nStdout:\n{}\nStderr:\n{}",
+                        cmd_string,
+                        output.status,
+                        String::from_utf8_lossy(&output.stdout),
+                        String::from_utf8_lossy(&output.stderr),
+                    ))
+                    .into())
+                }
             }
-
-            Ok(format!(
-                "dfx-mgr called with args {}.\nExit status: {}\nStdout:\n{}\nStderr:\n{}",
-                cmd_string,
-                output.status,
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr),
-            ))
         } else {
             use crate::error::FpgadError;
             Err(FpgadError::Feature(
