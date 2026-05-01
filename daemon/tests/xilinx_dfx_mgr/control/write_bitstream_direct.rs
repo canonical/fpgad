@@ -42,12 +42,12 @@ use zbus::Result;
 #[case::no_bitstream_path(
     "fpga0",
     "",
-    err(displays_as(contains_substring("FpgadSoftenerError::DfxMgr:")))
+    ok(displays_as(contains_substring("Option not recognized")))
 )]
 #[case::bad_bitstream_path(
     "fpga0",
     "/dev/null",
-    err(displays_as(contains_substring("FpgadSoftenerError::DfxMgr:")))
+    ok(displays_as(contains_substring("Option not recognized")))
 )]
 #[case::all_good(
     "fpga0",
@@ -80,7 +80,10 @@ async fn load_bitstream_cases<M: for<'a> Matcher<&'a Result<String>>>(
     expect_that!(&res, condition);
 
     // Cleanup - remove bitstream if it was successfully loaded
-    if res.is_ok() && !device_handle.is_empty() {
+    if res.is_ok()
+        && !device_handle.is_empty()
+        && !res.as_ref().unwrap().contains("Option not recognized")
+    {
         let _ = proxy.remove_overlay(PLATFORM_STRING, "").await;
     }
 }

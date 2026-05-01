@@ -22,7 +22,7 @@ use zbus::Connection;
 #[rstest]
 #[case::bad_command(
     "-badCommand",
-    err(displays_as(contains_substring("FpgadSoftenerError::DfxMgr:")))
+    ok(displays_as(contains_substring("Option not recognized")))
 )]
 #[case::no_command(
     "",

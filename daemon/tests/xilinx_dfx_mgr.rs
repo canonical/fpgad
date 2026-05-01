@@ -88,6 +88,7 @@ pub mod xilinx_dfx_mgr {
                 targets: &[
                     "/lib/firmware/k26-starter-kits.bit.bin",
                     "/lib/firmware/xilinx/k26-starter-kits/k26_starter_kits.bit.bin",
+                    "/lib/firmware/xilinx/k26-starter-kits/k26-starter-kits.bit.bin",
                 ],
             },
             TestData {
@@ -95,6 +96,7 @@ pub mod xilinx_dfx_mgr {
                 targets: &[
                     "/lib/firmware/k24-starter-kits.bit.bin",
                     "/lib/firmware/xilinx/k24-starter-kits/k24_starter_kits.bit.bin",
+                    "/lib/firmware/xilinx/k24-starter-kits/k24-starter-kits.bit.bin",
                 ],
             },
             TestData {
