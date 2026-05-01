@@ -16,12 +16,45 @@ while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|
 done
 echo "    --- Disabling auto-refresh for 24 hours"
 sudo snap refresh --hold=24h
-echo "    --- Installing fpgad.snap"
-  while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+echo "    --- Extracting snap package"
+if [[ ! -f ./fpgad-snap-package.tar.gz ]]; then
+    echo "ERROR: Snap package tarball not found"
+    exit 1
+fi
+tar -xzvf fpgad-snap-package.tar.gz
+echo "    --- Listing extracted snap and component files"
+echo "Snap files:"
+find . -maxdepth 1 -name "*.snap" -type f
+echo ""
+echo "Component files:"
+find . -maxdepth 1 -name "*.comp" -type f
+echo ""
+echo "    --- Installing fpgad snap"
+SNAP_FILE=$(find . -maxdepth 1 -name "*.snap" -type f | head -n 1)
+if [[ -z "$SNAP_FILE" || ! -f "$SNAP_FILE" ]]; then
+    echo "ERROR: Snap file not found in tarball"
+    exit 1
+fi
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
     echo "    --- snapd internal tasks still running... waiting..."
     sleep 10
 done
-sudo snap install ./fpgad.snap --dangerous
+sudo snap install "$SNAP_FILE" --dangerous
+echo "    --- Installing snap components"
+COMP_FILES=$(find . -maxdepth 1 -name "*.comp" -type f)
+if [[ -z "$COMP_FILES" ]]; then
+    echo "ERROR: No component files found in tarball - build may have failed"
+    exit 1
+fi
+for COMP_FILE in $COMP_FILES; do
+    echo "    --- Installing component: $COMP_FILE"
+    while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+        echo "    --- snapd internal tasks still running... waiting..."
+        sleep 10
+    done
+    sudo snap install --dangerous "$COMP_FILE"
+    echo "    --- Component installed successfully: $COMP_FILE"
+done
 echo "    --- Installing provider snap(s)"
 echo "INFO: Done preparing device"
 
@@ -50,6 +83,12 @@ while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|
     sleep 10
 done
 sudo snap connect fpgad:device-tree-overlays
+echo "    --- connecting dfx-mgr-socket interface"
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+    echo "    --- snapd internal tasks still running... waiting..."
+    sleep 10
+done
+sudo snap connect fpgad:dfx-mgr-socket
 echo "    --- connecting dbus interfaces"
 while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
     echo "    --- snapd internal tasks still running... waiting..."
@@ -60,11 +99,18 @@ sudo snap connect fpgad:cli-dbus fpgad:daemon-dbus
 echo "INFO: Done making necessary connections"
 
 echo "INFO: Running snap test script"
-# NOTE: tarball contains "k24-starter-kits/..." and "k26-starter-kits/..." at tarball root from daemon/tests/test_data
+# NOTE: test_data.gz contains "k24-starter-kits/..." and "k26-starter-kits/..." at tarball root from daemon/tests/test_data
+# NOTE: tests.gz contains the test structure (common/, test_universal/, test_xlnx/, test_default/, etc.)
 mkdir -p fpgad/artifacts
+echo "    --- Extracting test data"
 tar -xzvf test_data.gz -C fpgad
-sudo journalctl -f -n1 > fpgad/artifacts/journal.log 2>&1 &
-JOURNAL_PID=$!
-sudo python3 -u -m unittest ./snap_tests.py -v 2>&1 | tee fpgad/artifacts/snap_test.log
-sudo kill ${JOURNAL_PID}  || true
+echo "    --- Extracting tests"
+mkdir -p tests
+tar -xzvf tests.gz -C tests
+echo "    --- Saving timestamp for journal log retrieval"
+TEST_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+echo "    --- Running tests with unittest discovery"
+sudo tests/snap_testing/test_snap.sh 2>&1 | tee fpgad/artifacts/snap_test.log
+echo "    --- Collecting journal logs since test start"
+sudo journalctl --since "$TEST_START_TIME" -u "snap.fpgad*" > fpgad/artifacts/journal.log 2>&1 || true
 echo "INFO: Done running snap test script"

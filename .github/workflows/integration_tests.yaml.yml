@@ -86,11 +86,38 @@ jobs:
       - uses: actions/checkout@v6
       - uses: canonical/action-build@v1.3.0
         id: snapcraft
+      - name: Package snap and components
+        id: package-snap
+        run: |
+          echo "::group::Listing snap and component files"
+          echo "Snap files:"
+          find . -maxdepth 1 -name "*.snap" -type f
+          echo ""
+          echo "Component files:"
+          find . -maxdepth 1 -name "*.comp" -type f
+          echo "::endgroup::"
+
+          echo "::group::Packaging snap and component files"
+          # Collect snap file
+          SNAP_FILE="${{ steps.snapcraft.outputs.snap }}"
+
+          # Find component files - must exist
+          COMP_FILES=$(find . -maxdepth 1 -name "*.comp" -type f)
+          if [ -z "$COMP_FILES" ]; then
+            echo "::error::No component files found - build may have failed"
+            exit 1
+          fi
+
+          # Create tarball with snap and components
+          tar -czvf fpgad-snap-package.tar.gz "$SNAP_FILE" $COMP_FILES
+          echo "Created tarball: fpgad-snap-package.tar.gz"
+          echo "package_path=$(pwd)/fpgad-snap-package.tar.gz" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
       - uses: actions/upload-artifact@v7
         id: upload-snap
         with:
           name: snap-fpgad-${{ github.event.pull_request != null && github.event.pull_request.head.sha || 'workflow-dispatch' }}
-          path: ${{ steps.snapcraft.outputs.snap }}
+          path: ${{ steps.package-snap.outputs.package_path }}
   snap-integration-tests:
     name: Install and Test the Snap Package on DUT
     runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-medium]
@@ -115,17 +142,12 @@ jobs:
       - name: Prepare Testflinger Job
         id: prepare-tf-job
         run: |
-          echo "::group::Preparing fpgad.snap"
-            SRC=$(find "${{ steps.download-snap.outputs.download-path }}" -maxdepth 1 -name "*.snap" | head -n 1)
-            DEST="$(pwd)/fpgad.snap"
-            # Check that the source file exists
-            if [[ -z "$SRC" || ! -f "$SRC" ]]; then
-            echo "::error::Snap file not found at: $SRC"
+          echo "::group::Locating snap package tarball"
+            SNAP_TARBALL=$(find "${{ steps.download-snap.outputs.download-path }}" -maxdepth 1 -name "*.tar.gz" | head -n 1)
+            if [[ -z "$SNAP_TARBALL" || ! -f "$SNAP_TARBALL" ]]; then
+              echo "::error::Snap package tarball not found"
               exit 1
             fi
-            # Move file
-            mv "$SRC" "$DEST"
-            echo "Snap moved successfully"
           echo "::endgroup::"
 
           echo "::group::Create test_data tarball"
@@ -138,9 +160,9 @@ jobs:
 
           echo "::group::creating job.yaml"
             yq '.test_data.attachments = [
-            { "agent": "device_script.sh", "local": "'"$(pwd)"'/.github/testflinger-assets/test_snap_device_script.sh" },
-            { "agent": "fpgad.snap",         "local": "'"$(pwd)"'/fpgad.snap" },
-            { "agent": "test_data.gz",       "local": "'"$(pwd)"'/test_data.gz" },
+            { "agent": "device_script.sh",        "local": "'"$(pwd)"'/.github/testflinger-assets/test_snap_device_script.sh" },
+            { "agent": "fpgad-snap-package.tar.gz", "local": "'"$(pwd)"'/fpgad-snap-package.tar.gz" },
+            { "agent": "test_data.gz",            "local": "'"$(pwd)"'/test_data.gz" },
             { "agent": "tests.gz",           "local": "'"$(pwd)"'/tests.gz" }
             ]' .github/testflinger-assets/testflinger_job.yaml | tee job.yaml
           echo "::endgroup::"
