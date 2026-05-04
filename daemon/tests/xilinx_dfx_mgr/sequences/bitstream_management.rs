@@ -80,16 +80,19 @@ async fn load_bitstream_via_dfx_mgr(
         .write_bitstream_direct(PLATFORM_STRING, device_handle, bitstream_file, fw_lookup)
         .await;
 
-    expect_that!(&result, ok(anything()));
+    expect_that!(
+        &result,
+        ok(displays_as(contains_substring("Loaded with slot_handle")))
+    );
 
     // Check state - for dfx-mgr this returns package listing
     let state = status_proxy
         .get_fpga_state(PLATFORM_STRING, device_handle)
-        .await
-        .expect("failed to get fpga state");
+        .await;
 
     println!("DFX-MGR state after load: {:#?}", state);
-    expect_that!(state, anything());
+    // TODO: set substr
+    expect_that!(state, ok(displays_as(contains_substring("#  Accel_type"))));
 
     // Cleanup - remove the loaded bitstream
     let cleanup_result = control_proxy
@@ -118,7 +121,11 @@ async fn remove_bitstream_via_dfx_mgr(_setup: ()) {
         .await;
 
     // Should succeed or gracefully handle no loaded overlays
-    expect_that!(&result, ok(anything()).or(err(anything())));
+    expect_that!(
+        &result,
+        ok(displays_as(contains_substring("returns: 0 (Ok)")))
+            .or(err(displays_as(contains_substring("returns: -1 (Error)"))))
+    );
 
     if let Ok(output) = result {
         println!("Remove output: {:#?}", output);

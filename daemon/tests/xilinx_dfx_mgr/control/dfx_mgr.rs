@@ -21,12 +21,12 @@ use zbus::Connection;
 #[tokio::test]
 #[rstest]
 #[case::bad_command(
-    "-badCommand",
-    ok(displays_as(contains_substring("Option not recognized")))
+    "badCommand",
+    err(displays_as(contains_substring("Option not recognized")))
 )]
 #[case::no_command(
     "",
-    err(displays_as(contains_substring("FpgadSoftenerError::DfxMgr:")))
+    err(displays_as(contains_substring("Expects an argument. Use -h to see options")))
 )]
 #[case::all_good("-listPackage", ok(displays_as(contains_substring("Accel_type"))))]
 async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(

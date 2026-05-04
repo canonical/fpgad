@@ -39,15 +39,11 @@ use zbus::Result;
     "dev0",
     err(displays_as(contains_substring("FpgadError::Argument:")))
 )]
-#[case::no_bitstream_path(
-    "fpga0",
-    "",
-    ok(displays_as(contains_substring("Option not recognized")))
-)]
+#[case::no_bitstream_path("fpga0", "", err(displays_as(contains_substring("Load Error: -1"))))]
 #[case::bad_bitstream_path(
     "fpga0",
     "/dev/null",
-    ok(displays_as(contains_substring("Option not recognized")))
+    err(displays_as(contains_substring("Load Error: -1")))
 )]
 #[case::all_good(
     "fpga0",

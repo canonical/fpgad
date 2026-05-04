@@ -56,7 +56,10 @@ async fn apply_overlay_via_dfx_mgr(_setup: ()) {
         .apply_overlay(PLATFORM_STRING, overlay_handle, overlay_file, "")
         .await;
 
-    expect_that!(&result, ok(anything()));
+    expect_that!(
+        &result,
+        ok(displays_as(contains_substring("Loaded with slot_handle")))
+    );
 
     if let Ok(output) = &result {
         println!("Apply overlay output: {:#?}", output);
@@ -73,8 +76,10 @@ async fn apply_overlay_via_dfx_mgr(_setup: ()) {
 
     // Remove overlay
     let remove_result = control_proxy.remove_overlay(PLATFORM_STRING, "").await;
-
-    expect_that!(&remove_result, ok(anything()));
+    expect_that!(
+        &remove_result,
+        ok(displays_as(contains_substring("returns: 0 (Ok)")))
+    );
 }
 
 #[tokio::test]
