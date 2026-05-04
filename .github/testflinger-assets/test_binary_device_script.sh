@@ -4,6 +4,7 @@ set -euxo pipefail
 
 echo "INFO: Installing dependencies"
 sudo env DEBIAN_FRONTEND=noninteractive apt update && sudo env DEBIAN_FRONTEND=noninteractive apt install build-essential -y
+sudo env DEBIAN_FRONTEND=noninteractive apt install dfx-mgr -y
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 . "$HOME/.cargo/env"
 rustup component add llvm-tools-preview
