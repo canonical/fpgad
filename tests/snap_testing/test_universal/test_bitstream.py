@@ -152,6 +152,3 @@ class TestBitstreamUniversal(FPGATestBase):
         )
         self.assert_proc_fails(proc)
         self.assert_in_proc_err("FpgadError::IOWrite:", proc)
-
-
-# TODO(Artie): These tests seem to be doing all I want, should copy logic into test_overlay
