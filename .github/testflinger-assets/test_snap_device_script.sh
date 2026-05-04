@@ -109,8 +109,19 @@ mkdir -p tests
 tar -xzvf tests.gz -C tests
 echo "    --- Saving timestamp for journal log retrieval"
 TEST_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+
+# Disable exit-on-error temporarily to capture logs even on test failure
+set +e
 echo "    --- Running tests with unittest discovery"
 sudo tests/snap_testing/test_snap.sh 2>&1 | tee fpgad/artifacts/snap_test.log
+TEST_EXIT_CODE=$?
+# Re-enable exit-on-error
+set -e
+
 echo "    --- Collecting journal logs since test start"
-sudo journalctl --since "$TEST_START_TIME" -u "snap.fpgad*" > fpgad/artifacts/journal.log 2>&1 || true
+sudo journalctl --since "$TEST_START_TIME" -u "snap.fpgad*" 2>&1 | tee fpgad/artifacts/journal.log || true
 echo "INFO: Done running snap test script"
+
+# Exit with the test exit code to signal success/failure
+exit $TEST_EXIT_CODE
+
