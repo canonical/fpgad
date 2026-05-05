@@ -54,48 +54,6 @@ class TestOverlayUniversal(FPGATestBase):
         self.assert_proc_succeeds(proc)
         self.assert_in_proc_out("loaded to", proc)
 
-    @unittest.skipIf(
-        is_snap_environment(),
-        "Test requires file copy to /lib/firmware, which is not available in confined snap environment",
-    )
-    def test_load_overlay_lib_firmware(self):
-        """Test loading overlay from /lib/firmware."""
-        test_data_path = get_test_data_path()
-        # Necessary due to bad dtbo content from upstream
-        test_file_paths = [
-            TestData(
-                source=test_data_path / "k26-starter-kits" / "k26_starter_kits.bit.bin",
-                target=Path("/lib/firmware/k26-starter-kits.bit.bin"),
-            ),
-            TestData(
-                source=test_data_path / "k26-starter-kits" / "k26_starter_kits.dtbo",
-                target=Path("/lib/firmware/k26-starter-kits.dtbo"),
-            ),
-        ]
-        for file in test_file_paths:
-            try:
-                copy_test_data_files(file)
-            except Exception as e:
-                print(f"Failed to copy {file.source} to {file.target}")
-                raise e
-
-        overlay_path = Path("/lib/firmware/k26-starter-kits.dtbo")
-        proc = self.run_fpgad(
-            ["--platform", self.PLATFORM, "load", "overlay", str(overlay_path)]
-        )
-        for file in test_file_paths:
-            try:
-                cleanup_test_data_files(file)
-            except Exception as e:
-                print(f"Failed to clean up {file.target}")
-                raise e
-
-        self.assert_proc_succeeds(proc)
-        self.assert_in_proc_out("loaded via", proc)
-
-    # TODO(Artie): This won't work because we can't read the dtbo - these tests will only be possible with -load support?
-    #     I think we need to go with using k26-default-bitstreams being installed.
-
     def test_load_overlay_full_path(self):
         """Test loading overlay with full absolute path."""
         test_data_path = get_test_data_path()

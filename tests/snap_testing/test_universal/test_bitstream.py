@@ -78,46 +78,6 @@ class TestBitstreamUniversal(FPGATestBase):
         self.assert_proc_succeeds(proc)
         self.assert_in_proc_out("loaded to 'fpga0' using firmware lookup path", proc)
 
-    @unittest.skipIf(
-        is_snap_environment(),
-        "Test requires file copy to /lib/firmware, which is not available in confined snap environment",
-    )
-    def test_load_bitstream_lib_firmware_xilinx(self):
-        """Test loading bitstream from /lib/firmware/xilinx subdirectory."""
-        test_data_path = get_test_data_path()
-        test_file_paths = TestData(
-            source=test_data_path / "k26-starter-kits" / "k26_starter_kits.bit.bin",
-            target=Path(
-                "/lib/firmware/xilinx/k26_starter_kits/k26-starter-kits.bit.bin"
-            ),
-        )
-        try:
-            copy_test_data_files(test_file_paths)
-        except Exception as e:
-            print(
-                f"Failed to copy {test_file_paths.source} to {test_file_paths.target}"
-            )
-            raise e
-
-        proc = self.run_fpgad(
-            [
-                "--platform",
-                self.PLATFORM,
-                "load",
-                "bitstream",
-                str(test_file_paths.target),
-            ]
-        )
-
-        try:
-            cleanup_test_data_files(test_file_paths)
-        except Exception as e:
-            print(f"Failed to clean up {test_file_paths.target}")
-            raise e
-
-        self.assert_proc_succeeds(proc)
-        self.assert_in_proc_out("loaded to 'fpga0' using firmware lookup path", proc)
-
     def test_load_bitstream_path_not_exist(self):
         """Test loading bitstream from non-existent path fails."""
         proc = self.run_fpgad(

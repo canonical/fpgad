@@ -30,19 +30,10 @@ def is_dfx_mgr_available() -> bool:
     snap_components = os.getenv("SNAP_COMPONENTS")
     if snap_components:
         dfx_mgr_client_path = f"{snap_components}/dfx-mgr/usr/bin/dfx-mgr-client"
-        exists = os.path.exists(dfx_mgr_client_path)
-        if not exists:
-            print(f"[DEBUG] dfx-mgr-client not found at: {dfx_mgr_client_path}")
-            print(f"[DEBUG] SNAP_COMPONENTS={snap_components}")
-        return exists
+        return os.path.exists(dfx_mgr_client_path)
     else:
         # Not in snap environment, check system path
-        import shutil
-
-        result = shutil.which("dfx-mgr-client") is not None
-        if not result:
-            print("[DEBUG] SNAP_COMPONENTS not set, dfx-mgr-client not in PATH")
-        return result
+        return shutil.which("dfx-mgr-client") is not None
 
 
 def get_test_data_path() -> Path:
