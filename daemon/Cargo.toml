@@ -20,8 +20,8 @@ xilinx-dfx-mgr = ["softeners"]
 [dependencies]
 fpgad_macros = { workspace = true }
 log = "0.4.27"
-env_logger = "0.11.8"
-tokio = { version = "1.47.0", features = ["full"] }
+env_logger = { version = "0.11.8", default-features = false }
+tokio = { version = "1.47.0", default-features = false, features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util"] }
 zbus = { version = "5.9.0", default-features = false, features = ["tokio"] }
 thiserror = "2.0.12"
 
