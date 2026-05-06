@@ -11,25 +11,25 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::common::proxies::status_proxy;
-use crate::universal::setup;
+use crate::xilinx_dfx_mgr::setup;
 use googletest::prelude::*;
 use rstest::*;
+use std::fs;
 use zbus::Connection;
+use zbus::Result;
 
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::bad_platform("x", err(displays_as(contains_substring("FpgadError::Argument:"))))]
-#[case::all_good("universal", ok(all!(
-    contains_substring("DEVICES"),
-    contains_substring("dev"),
-    contains_substring("platform"),
-    contains_substring("state"),
-    contains_substring("fpga0"),
-    contains_substring("universal")
-)))]
-async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
-    #[case] platform_string: &str,
+#[case::no_path("", err(displays_as(contains_substring("FpgadError::Argument:"))))]
+#[case::bad_path("key", err(displays_as(contains_substring("FpgadError::Argument:"))))]
+#[case::path_traversal(
+    "/sys/class/fpga_manager/../../../usr/bin/evil_file.sh",
+    err(displays_as(contains_substring("path traversal")))
+)]
+#[case::all_good("/sys/class/fpga_manager/fpga0/name", ok(anything()))]
+async fn read_property_cases<M: for<'a> Matcher<&'a Result<String>>>(
+    #[case] property_path: &str,
     #[case] condition: M,
     _setup: (),
 ) {
@@ -39,6 +39,15 @@ async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
     let proxy = status_proxy::StatusProxy::new(&connection)
         .await
         .expect("failed to create status proxy");
-    let res = proxy.get_status_message(platform_string).await;
+    let res = proxy.read_property(property_path).await;
     expect_that!(&res, condition);
+
+    // Verify result matches direct file read
+    if res.is_ok() && property_path.starts_with("/sys/") {
+        let direct_read = fs::read_to_string(property_path)
+            .expect("failed to read file directly")
+            .to_string();
+        let result = res.unwrap();
+        expect_that!(result.as_str(), eq(direct_read.as_str()));
+    }
 }

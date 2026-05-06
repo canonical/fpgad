@@ -10,35 +10,56 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::common::proxies::status_proxy;
-use crate::universal::setup;
+use crate::common::proxies::control_proxy::ControlProxy;
+use crate::xilinx_dfx_mgr::{PLATFORM_STRING, setup};
 use googletest::prelude::*;
 use rstest::*;
+use tokio;
 use zbus::Connection;
+use zbus::Result;
 
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::bad_platform("x", err(displays_as(contains_substring("FpgadError::Argument:"))))]
-#[case::all_good("universal", ok(all!(
-    contains_substring("DEVICES"),
-    contains_substring("dev"),
-    contains_substring("platform"),
-    contains_substring("state"),
-    contains_substring("fpga0"),
-    contains_substring("universal")
-)))]
-async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
-    #[case] platform_string: &str,
+#[case::bad_device(
+    "dev0",
+    0u32,
+    err(displays_as(contains_substring("FpgadError::Argument:")))
+)]
+#[case::no_device(
+    "",
+    0u32,
+    err(displays_as(contains_substring("FpgadError::Argument:")))
+)]
+#[case::all_good(
+    "fpga0",
+    0u32,
+    ok(contains_substring("Flags set to '0x0' for 'fpga0'"))
+)]
+#[case::all_good_0x1(
+    "fpga0",
+    1u32,
+    ok(contains_substring("Flags set to '0x1' for 'fpga0'"))
+)]
+#[case::all_good_0x10(
+    "fpga0",
+    16u32,
+    ok(contains_substring("Flags set to '0x10' for 'fpga0'"))
+)]
+async fn set_flags_cases<M: for<'a> Matcher<&'a Result<String>>>(
+    #[case] device_handle: &str,
+    #[case] flags: u32,
     #[case] condition: M,
     _setup: (),
 ) {
     let connection = Connection::system()
         .await
         .expect("failed to create connection");
-    let proxy = status_proxy::StatusProxy::new(&connection)
+    let proxy = ControlProxy::new(&connection)
         .await
-        .expect("failed to create status proxy");
-    let res = proxy.get_status_message(platform_string).await;
+        .expect("failed to create control proxy");
+    let res = proxy
+        .set_fpga_flags(PLATFORM_STRING, device_handle, flags)
+        .await;
     expect_that!(&res, condition);
 }

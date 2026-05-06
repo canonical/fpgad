@@ -1,6 +1,6 @@
 // This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
 //
-// Copyright 2025 Canonical Ltd.
+// Copyright 2026 Canonical Ltd.
 //
 // SPDX-License-Identifier: GPL-3.0-only
 //
@@ -10,8 +10,11 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-pub mod remove_bitstream;
-pub mod set_bytes;
-pub mod set_fpga_flags;
-pub mod write_bitstream_direct;
-pub mod write_property;
+mod get_fpga_flags;
+mod get_fpga_state;
+mod get_overlay_status;
+mod get_overlays;
+mod get_platform_type;
+mod get_platform_types;
+mod get_status_message;
+mod read_property;

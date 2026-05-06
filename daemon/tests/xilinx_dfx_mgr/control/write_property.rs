@@ -10,35 +10,49 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::common::proxies::status_proxy;
-use crate::universal::setup;
+use crate::common::proxies::control_proxy::ControlProxy;
+use crate::xilinx_dfx_mgr::setup;
 use googletest::prelude::*;
 use rstest::*;
+use std::fs;
+use tokio;
 use zbus::Connection;
-
+use zbus::Result;
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::bad_platform("x", err(displays_as(contains_substring("FpgadError::Argument:"))))]
-#[case::all_good("universal", ok(all!(
-    contains_substring("DEVICES"),
-    contains_substring("dev"),
-    contains_substring("platform"),
-    contains_substring("state"),
-    contains_substring("fpga0"),
-    contains_substring("universal")
-)))]
-async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
+#[case::no_path("", "", err(displays_as(contains_substring("FpgadError::Argument:"))))]
+#[case::bad_path(
+    "key",
+    "",
+    err(displays_as(contains_substring("FpgadError::Argument:")))
+)]
+#[case::path_traversal(
+    "/sys/class/fpga_manager/../../../usr/bin/evil_file.sh",
+    "",
+    err(displays_as(contains_substring("path traversal")))
+)]
+async fn write_property_cases<M: for<'a> Matcher<&'a Result<String>>>(
     #[case] platform_string: &str,
+    #[case] data: &str,
     #[case] condition: M,
     _setup: (),
 ) {
     let connection = Connection::system()
         .await
         .expect("failed to create connection");
-    let proxy = status_proxy::StatusProxy::new(&connection)
+    let proxy = ControlProxy::new(&connection)
         .await
-        .expect("failed to create status proxy");
-    let res = proxy.get_status_message(platform_string).await;
+        .expect("failed to create control proxy");
+    let res = proxy.write_property(platform_string, data).await;
     expect_that!(&res, condition);
+    if res.is_ok() && platform_string.starts_with("/sys/") {
+        println!("{res:?}");
+        let file_data = fs::read_to_string(platform_string).expect("failed to read back file");
+        let trimmed_data = file_data.trim();
+        assert_eq!(
+            trimmed_data, data,
+            "file contents do not match expected data"
+        );
+    }
 }

@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::common::proxies::status_proxy;
-use crate::universal::setup;
+use crate::xilinx_dfx_mgr::{PLATFORM_STRING, setup};
 use googletest::prelude::*;
 use rstest::*;
 use zbus::Connection;
@@ -19,17 +19,10 @@ use zbus::Connection;
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::bad_platform("x", err(displays_as(contains_substring("FpgadError::Argument:"))))]
-#[case::all_good("universal", ok(all!(
-    contains_substring("DEVICES"),
-    contains_substring("dev"),
-    contains_substring("platform"),
-    contains_substring("state"),
-    contains_substring("fpga0"),
-    contains_substring("universal")
-)))]
+#[case::no_overlay("", ok(anything()))]
+#[case::with_overlay("fpga0", ok(anything()))]
 async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
-    #[case] platform_string: &str,
+    #[case] overlay_handle: &str,
     #[case] condition: M,
     _setup: (),
 ) {
@@ -39,6 +32,13 @@ async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
     let proxy = status_proxy::StatusProxy::new(&connection)
         .await
         .expect("failed to create status proxy");
-    let res = proxy.get_status_message(platform_string).await;
+    let res = proxy
+        .get_overlay_status(PLATFORM_STRING, overlay_handle)
+        .await;
     expect_that!(&res, condition);
+
+    // For xilinx-dfx-mgr, overlay status returns dfx-mgr package listing
+    if res.is_ok() {
+        println!("Overlay status (dfx-mgr listing): {:#?}", res);
+    }
 }

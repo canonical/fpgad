@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use crate::common::proxies::status_proxy;
-use crate::universal::setup;
+use crate::xilinx_dfx_mgr::setup;
 use googletest::prelude::*;
 use rstest::*;
 use zbus::Connection;
@@ -19,26 +19,19 @@ use zbus::Connection;
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::bad_platform("x", err(displays_as(contains_substring("FpgadError::Argument:"))))]
-#[case::all_good("universal", ok(all!(
-    contains_substring("DEVICES"),
-    contains_substring("dev"),
-    contains_substring("platform"),
-    contains_substring("state"),
-    contains_substring("fpga0"),
-    contains_substring("universal")
-)))]
-async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
-    #[case] platform_string: &str,
-    #[case] condition: M,
-    _setup: (),
-) {
+async fn get_overlays_test(_setup: ()) {
     let connection = Connection::system()
         .await
         .expect("failed to create connection");
     let proxy = status_proxy::StatusProxy::new(&connection)
         .await
         .expect("failed to create status proxy");
-    let res = proxy.get_status_message(platform_string).await;
-    expect_that!(&res, condition);
+    let res = proxy.get_overlays().await;
+
+    expect_that!(&res, ok(anything()));
+
+    // For xilinx-dfx-mgr, this may return slot information
+    if let Ok(overlays) = res {
+        println!("Overlays/Slots: {:#?}", overlays);
+    }
 }

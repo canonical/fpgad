@@ -43,6 +43,10 @@ components:
       It provides dfx-mgr-client and dfx-mgrd.
       FPGAd will run and monitor the dfx-mgrd binary and interface with it to enabled full dfx-mgr functionality \
       via FPGAd
+  test:
+    type: standard
+    summary: python integration and end-to-end tests to test cli
+    description: python integration and end-to-end tests to test cli
 slots:
   daemon-dbus:
     interface: dbus
@@ -90,6 +94,12 @@ apps:
       - daemon-dbus
     environment:
       RUST_LOG: trace
+  test:
+    command: bin/test_wrapper.sh
+    plugs:
+      - cli-dbus
+      - fpga
+      - device-tree-overlays
 parts:
   version:
     plugin: nil
@@ -133,6 +143,48 @@ parts:
       # move everything, including the staged packages
       "*": (component/dfx-mgr)
       daemon.conf: (component/dfx-mgr)
+  test:
+    plugin: dump
+    source: tests
+    organize:
+      "snap_testing": (component/test)
+  test-bitstream-data:
+    plugin: dump
+    source: https://github.com/Xilinx/kria-base-firmware
+    source-type: git
+    build-packages:
+      - xilinx-bootgen
+      - device-tree-compiler
+    override-build: |
+      # build bitstreams and device tree overlays
+      cd k26_starter_kits
+      bootgen -image k26_starter_kits.bif -arch zynqmp -o k26_starter_kits.bit.bin -w
+      dtc -I dts -O dtb -@ -o k26_starter_kits.dtbo k26_starter_kits.dtsi
+      cd ../
+      cd k24_starter_kits
+      bootgen -image k24_starter_kits.bif -arch zynqmp -o k24_starter_kits.bit.bin -w
+      dtc -I dts -O dtb -@ -o k24_starter_kits.dtbo k24_starter_kits.dtsi
+      cd ../
+
+      # install the files
+      mkdir -p $SNAPCRAFT_PART_INSTALL/data/k26-starter-kits
+      cp k26_starter_kits/*.dtbo $SNAPCRAFT_PART_INSTALL/data/k26-starter-kits/
+      cp k26_starter_kits/*.bit.bin $SNAPCRAFT_PART_INSTALL/data/k26-starter-kits/
+      cp k26_starter_kits/shell.json $SNAPCRAFT_PART_INSTALL/data/k26-starter-kits/
+      cp LICENSE-BINARIES $SNAPCRAFT_PART_INSTALL/data/k26-starter-kits/
+
+      mkdir -p $SNAPCRAFT_PART_INSTALL/data/k24-starter-kits
+      cp k24_starter_kits/*.dtbo $SNAPCRAFT_PART_INSTALL/data/k24-starter-kits/
+      cp k24_starter_kits/*.bit.bin $SNAPCRAFT_PART_INSTALL/data/k24-starter-kits/
+      cp k24_starter_kits/shell.json $SNAPCRAFT_PART_INSTALL/data/k24-starter-kits/
+      cp LICENSE-BINARIES $SNAPCRAFT_PART_INSTALL/data/k24-starter-kits/
+    organize:
+      "data": (component/test)/data
+  test-wrapper:
+    plugin: dump
+    source: scripts
+    organize:
+      "test_wrapper.sh": bin/test_wrapper.sh
 layout:
   # For dfx-mgr configuration files (when component is installed)
   /etc/dfx-mgrd:
