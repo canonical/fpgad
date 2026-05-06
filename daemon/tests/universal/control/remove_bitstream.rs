@@ -1,6 +1,6 @@
 // This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
 //
-// Copyright 2025 Canonical Ltd.
+// Copyright 2026 Canonical Ltd.
 //
 // SPDX-License-Identifier: GPL-3.0-only
 //
@@ -10,8 +10,28 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-pub mod remove_bitstream;
-pub mod set_bytes;
-pub mod set_fpga_flags;
-pub mod write_bitstream_direct;
-pub mod write_property;
+use crate::common::proxies::control_proxy;
+use crate::universal::{PLATFORM_STRING, setup};
+use googletest::prelude::*;
+use rstest::*;
+use zbus::Connection;
+
+#[gtest]
+#[tokio::test]
+#[rstest]
+async fn remove_bitstream(_setup: ()) {
+    let connection = Connection::system()
+        .await
+        .expect("failed to create connection");
+    let proxy = control_proxy::ControlProxy::new(&connection)
+        .await
+        .expect("failed to create status proxy");
+    let res = proxy.remove_bitstream(PLATFORM_STRING, "fpga0", "").await;
+
+    expect_that!(
+        &res,
+        err(displays_as(contains_substring(
+            "UniversalPlatform does not support removing bitstreams"
+        )))
+    );
+}

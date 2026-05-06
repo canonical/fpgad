@@ -21,7 +21,7 @@ cmd2='sudo busctl call --system com.canonical.fpgad /com/canonical/fpgad/control
             '
 
 # Spawn
-for i in $(seq 1 $NUM_WORKERS); do
+for _ in $(seq 1 "$NUM_WORKERS"); do
     eval "$cmd1" &
     eval "$cmd2" &
 done
