@@ -141,7 +141,42 @@ jobs:
           path: ./snap-download
       - name: Prepare Testflinger Job
         id: prepare-tf-job
-        run: "echo \"::group::Locating snap package tarball\"\n  # actions/download-artifact@v8 creates a subdirectory named after the artifact\n  # Look for the tarball in any subdirectory (artifact name may vary based on commit SHA)\n  echo \"Contents of snap-download directory:\"\n  ls -lR ./snap-download || true\n  \n  SNAP_TARBALL=$(find ./snap-download -name \"fpgad-snap-package.tar.gz\" -type f | head -n 1)\n  if [[ -z \"$SNAP_TARBALL\" || ! -f \"$SNAP_TARBALL\" ]]; then\n    echo \"::error::Snap package tarball 'fpgad-snap-package.tar.gz' not found in download directory\"\n    exit 1\n  fi\n  echo \"Found snap package at: $SNAP_TARBALL\"\n  # Copy to current directory for use in job.yaml\n  cp \"$SNAP_TARBALL\" ./fpgad-snap-package.tar.gz\n  echo \"Copied to: $(pwd)/fpgad-snap-package.tar.gz\"\necho \"::endgroup::\"\n\necho \"::group::Create test_data tarball\"\n  tar -czvf test_data.gz -C daemon/tests/test_data/ .\necho \"::endgroup::\"\n\necho \"::group::Create tests tarball\"\n  tar -czvf tests.gz -C tests/ .\necho \"::endgroup::\"\n\necho \"::group::creating job.yaml\"\n  yq '.test_data.attachments = [\n  { \"agent\": \"device_script.sh\",        \"local\": \"'\"$(pwd)\"'/.github/testflinger-assets/test_snap_device_script.sh\" },\n  { \"agent\": \"fpgad-snap-package.tar.gz\", \"local\": \"'\"$(pwd)\"'/fpgad-snap-package.tar.gz\" },\n  { \"agent\": \"test_data.gz\",            \"local\": \"'\"$(pwd)\"'/test_data.gz\" },\n  { \"agent\": \"tests.gz\",           \"local\": \"'\"$(pwd)\"'/tests.gz\" }\n  ]' .github/testflinger-assets/testflinger_job.yaml | tee job.yaml\necho \"::endgroup::\"\n\necho \"test_path=job.yaml\" >> $GITHUB_OUTPUT\n"
+        run: |
+          echo "::group::Locating snap package tarball"
+            # actions/download-artifact@v8 creates a subdirectory named after the artifact
+            # Look for the tarball in any subdirectory (artifact name may vary based on commit SHA)
+            echo "Contents of snap-download directory:"
+            ls -lR ./snap-download || true
+
+            SNAP_TARBALL=$(find ./snap-download -name "fpgad-snap-package.tar.gz" -type f | head -n 1)
+            if [[ -z "$SNAP_TARBALL" || ! -f "$SNAP_TARBALL" ]]; then
+              echo "::error::Snap package tarball 'fpgad-snap-package.tar.gz' not found in download directory"
+              exit 1
+            fi
+            echo "Found snap package at: $SNAP_TARBALL"
+            # Copy to current directory for use in job.yaml
+            cp "$SNAP_TARBALL" ./fpgad-snap-package.tar.gz
+            echo "Copied to: $(pwd)/fpgad-snap-package.tar.gz"
+          echo "::endgroup::"
+
+          echo "::group::Create test_data tarball"
+            tar -czvf test_data.gz -C daemon/tests/test_data/ .
+          echo "::endgroup::"
+
+          echo "::group::Create tests tarball"
+            tar -czvf tests.gz -C tests/ .
+          echo "::endgroup::"
+
+          echo "::group::creating job.yaml"
+            yq '.test_data.attachments = [
+            { "agent": "device_script.sh",        "local": "'"$(pwd)"'/.github/testflinger-assets/test_snap_device_script.sh" },
+            { "agent": "fpgad-snap-package.tar.gz", "local": "'"$(pwd)"'/fpgad-snap-package.tar.gz" },
+            { "agent": "test_data.gz",            "local": "'"$(pwd)"'/test_data.gz" },
+            { "agent": "tests.gz",           "local": "'"$(pwd)"'/tests.gz" }
+            ]' .github/testflinger-assets/testflinger_job.yaml | tee job.yaml
+          echo "::endgroup::"
+
+          echo "test_path=job.yaml" >> $GITHUB_OUTPUT
       - name: Submit TF job
         id: submit
         uses: canonical/testflinger/.github/actions/submit@rev263
