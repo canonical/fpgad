@@ -73,19 +73,22 @@ cleanup_daemon() {
     fi
 }
 
-# Set trap to cleanup daemon on exit (success, failure, or interrupt)
-trap cleanup_daemon EXIT INT TERM
-
 # Run the daemon with continuous log tracing
 sudo -E env RUST_LOG=trace LLVM_PROFILE_FILE="${CARGO_LLVM_COV_TARGET_DIR}/daemon-%p%c.profraw" "$daemon_bin" &
 DAEMON_PID=$!
 
 # Wait up to 5 seconds for the daemon to be ready (check via dbus)
-timeout 5 bash -c '
+if ! timeout 5 bash -c '
   while ! busctl status com.canonical.fpgad &>/dev/null; do
     sleep 0.1
   done
-'
+'; then
+    echo "ERROR: Daemon failed to start within 5 seconds"
+    cleanup_daemon
+    exit 1
+fi
+
+echo "Daemon started successfully (PID: $DAEMON_PID)"
 
 # Temporarily disable exit-on-error to capture test results even on failure
 set +e
@@ -105,9 +108,6 @@ set -e
 
 # Cleanup will be called by trap, but we call it explicitly here to ensure it happens before generating reports
 cleanup_daemon
-
-# Clear the trap since we've already cleaned up
-trap - EXIT INT TERM
 
 # create a summary and full log
 cargo llvm-cov report &> artifacts/summary.txt
