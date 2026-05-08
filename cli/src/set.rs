@@ -166,8 +166,8 @@ async fn call_write_property(property: &str, value: &str) -> Result<String, zbus
 /// fpgad --device=fpga0 set flags 0
 /// ```
 pub async fn set_handler(
-    _platform_override: &Option<String>,
-    device_handle: &Option<String>,
+    _platform_override: Option<&String>,
+    device_handle: Option<&String>,
     attribute: &str,
     value: &str,
 ) -> Result<String, zbus::Error> {

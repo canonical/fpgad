@@ -104,8 +104,8 @@ async fn call_remove_overlay(
 /// * `Err(zbus::Error)` - DBus communication error, detection failure, or FpgadError.
 ///   See [Error Handling](../index.html#error-handling) for details.
 async fn remove_overlay(
-    platform_override: &Option<String>,
-    device_handle: &Option<String>,
+    platform_override: Option<&String>,
+    device_handle: Option<&String>,
     overlay_handle: &Option<String>,
 ) -> Result<String, zbus::Error> {
     let platform_string = match platform_override {
@@ -139,23 +139,17 @@ async fn remove_overlay(
 /// # Returns: `Result<String, zbus::Error>`
 /// * `Err(zbus::Error)` - Always returns "Not implemented" error
 async fn remove_bitstream(
-    platform_override: &Option<String>,
-    device_handle: &Option<String>,
+    platform_override: Option<&String>,
+    device_handle: Option<&String>,
     bitstream_handle: &Option<String>,
 ) -> Result<String, zbus::Error> {
     let dev = match device_handle {
-        None => &get_first_device_handle().await?,
-        Some(dev) => dev,
+        None => get_first_device_handle().await?,
+        Some(dev) => dev.to_string(),
     };
-    let handle = match bitstream_handle {
-        Some(handle) => handle,
-        None => "",
-    };
-    let platform_str = match platform_override {
-        None => "",
-        Some(plat) => plat.as_str(),
-    };
-    call_remove_bitstream(platform_str, dev, handle).await
+    let handle = bitstream_handle.as_deref().unwrap_or("");
+    let platform_str = platform_override.map_or("", |s| s.as_str());
+    call_remove_bitstream(platform_str, &dev, handle).await
 }
 
 /// Main handler for the remove command.
@@ -175,8 +169,8 @@ async fn remove_bitstream(
 /// * `Err(zbus::Error)` - DBus communication error, operation failure, or FpgadError.
 ///   See [Error Handling](../index.html#error-handling) for details.
 pub async fn remove_handler(
-    platform_override: &Option<String>,
-    dev_handle: &Option<String>,
+    platform_override: Option<&String>,
+    dev_handle: Option<&String>,
     sub_command: &RemoveSubcommand,
 ) -> Result<String, zbus::Error> {
     match sub_command {

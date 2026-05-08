@@ -229,13 +229,13 @@ pub struct Cli {
 
 impl Cli {
     /// Returns the platform override string, if provided.
-    pub fn platform(&self) -> &Option<String> {
-        &self.platform
+    pub fn platform(&self) -> Option<&String> {
+        self.platform.as_ref()
     }
 
     /// Returns the device handle, if provided.
-    pub fn device(&self) -> &Option<String> {
-        &self.device
+    pub fn device(&self) -> Option<&String> {
+        self.device.as_ref()
     }
 
     /// Returns a reference to the command.

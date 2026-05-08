@@ -134,8 +134,8 @@ async fn call_apply_overlay(
 /// * `Err(zbus::Error)` - DBus communication error, device detection failure, or FpgadError.
 ///   See [Error Handling](../index.html#error-handling) for details.
 async fn apply_overlay(
-    platform_override: &Option<String>,
-    dev_handle: &Option<String>,
+    platform_override: Option<&String>,
+    dev_handle: Option<&String>,
     file_path: &str,
     overlay_handle: &Option<String>,
 ) -> Result<String, zbus::Error> {
@@ -208,8 +208,8 @@ async fn apply_overlay(
 /// * `Err(zbus::Error)` - DBus communication error, device detection failure, or FpgadError.
 ///   See [Error Handling](../index.html#error-handling) for details.
 async fn load_bitstream(
-    platform_override: &Option<String>,
-    device_handle: &Option<String>,
+    platform_override: Option<&String>,
+    device_handle: Option<&String>,
     file_path: &str,
 ) -> Result<String, zbus::Error> {
     let dev = match device_handle {
@@ -240,8 +240,8 @@ async fn load_bitstream(
 /// * `Err(zbus::Error)` - DBus communication error, operation failure, or FpgadError.
 ///   See [Error Handling](../index.html#error-handling) for details.
 pub async fn load_handler(
-    platform_override: &Option<String>,
-    dev_handle: &Option<String>,
+    platform_override: Option<&String>,
+    dev_handle: Option<&String>,
     sub_command: &LoadSubcommand,
 ) -> Result<String, zbus::Error> {
     match sub_command {

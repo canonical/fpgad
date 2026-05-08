@@ -413,8 +413,8 @@ async fn get_full_status_message() -> Result<String, zbus::Error> {
 /// let status = status_handler(&Some("xlnx,zynqmp-pcap-fpga".to_string()), &None).await?;
 /// ```
 pub async fn status_handler(
-    platform_override: &Option<String>,
-    device_handle: &Option<String>,
+    platform_override: Option<&String>,
+    device_handle: Option<&String>,
 ) -> Result<String, zbus::Error> {
     let ret_string = match (platform_override, device_handle) {
         // Platform override takes precedence
