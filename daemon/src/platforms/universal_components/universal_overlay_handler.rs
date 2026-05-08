@@ -225,7 +225,6 @@ impl OverlayHandler for UniversalOverlayHandler {
 
         let overlay_path_file = overlay_fs_path.join("path");
         if !overlay_path_file.exists() {
-            // TODO: consider different error type?
             return Err(FpgadError::Internal(format!(
                 "Overlay at '{overlay_fs_path:?}' did not initialise a new overlay: \
                 the `path` virtual file did not get created by the kernel. \
