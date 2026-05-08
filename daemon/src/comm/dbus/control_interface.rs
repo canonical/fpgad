@@ -426,7 +426,6 @@ impl ControlInterface {
 
             // Check if dfx-mgr-client exists
             if !Path::new(&dfx_mgr_client_path).exists() {
-                // TODO(Artie): add tests for this
                 return Err(FpgadSoftenerError::DfxMgr(format!(
                     "dfx-mgr-client not detected.\n\
                     If using snap, please install the dfx-mgr component with \n\
