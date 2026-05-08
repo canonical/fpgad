@@ -288,16 +288,27 @@ impl DaemonManager {
             std::thread::sleep(Duration::from_secs(1));
         }
 
-        // Timeout reached
-        if !daemon.socket_path.exists() {
-            // TODO(Artie): what to do here? kill it instead of warn?
-            warn!(
-                "Socket didn't appear after {}s, but {} is still running",
-                daemon.start_timeout, daemon.name
-            );
+        // Timeout reached - socket didn't appear, daemon startup failed
+        error!(
+            "Socket didn't appear after {}s. {} startup failed, terminating process",
+            daemon.start_timeout, daemon.name
+        );
+        error!("Check logs at: {}", log_file_path.display());
+
+        // Kill the process since it's not functioning properly
+        if let Some(mut process) = self.processes.remove(&daemon.name) {
+            if let Err(e) = process.kill() {
+                error!("Failed to kill {} process: {}", daemon.name, e);
+            } else {
+                let _ = process.wait();
+                info!("{} process terminated", daemon.name);
+            }
         }
 
-        Ok(())
+        Err(FpgadError::Softener((daemon.error_constructor)(format!(
+            "{} socket did not appear within {}s timeout",
+            daemon.name, daemon.start_timeout
+        ))))
     }
 
     /// Start all detected daemons.
