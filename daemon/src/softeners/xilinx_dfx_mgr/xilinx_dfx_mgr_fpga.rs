@@ -160,7 +160,7 @@ impl Fpga for XilinxDfxMgrFPGA {
             error!("Failed to read state.");
             return Err(e);
         }
-        //  TODO(Artie): how to check success when doing -listPackage
+        //  TODO(Artie): https://github.com/canonical/fpgad/issues/187
 
         match self.flags() {
             Ok(returned_flags) if returned_flags == flags => Ok(format!(
