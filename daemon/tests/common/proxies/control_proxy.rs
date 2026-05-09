@@ -41,6 +41,13 @@ pub trait Control {
     ) -> Result<String>;
 
     async fn remove_overlay(&self, platform_str: &str, overlay_handle: &str) -> Result<String>;
+    async fn remove_bitstream(
+        &self,
+        platform_string: &str,
+        device_handle: &str,
+        bitstream_handle: &str,
+    ) -> Result<String>;
     async fn write_property(&self, property_path_str: &str, data: &str) -> Result<String>;
     async fn write_property_bytes(&self, property_path_str: &str, data: &[u8]) -> Result<String>;
+    async fn dfx_mgr(&self, cmd_string: &str) -> Result<String>;
 }

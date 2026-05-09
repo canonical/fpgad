@@ -25,11 +25,16 @@
 //! Softener errors implement conversion traits to both `fdo::Error` (for DBus responses)
 //! and `FpgadError` (for internal error handling). All errors are logged when converted.
 
+use crate::error::FpgadError;
+use log::error;
+use zbus::fdo;
+
 /// Errors specific to FPGA softener implementations.
 ///
 /// This enum represents errors that occur in vendor-specific softener code,
 /// such as failures in communication with external tools or daemons (e.g., dfx-mgr-client).
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum FpgadSoftenerError {
     /// Error from Xilinx DFX Manager operations.
     ///
@@ -37,5 +42,23 @@ pub enum FpgadSoftenerError {
     /// dfx-mgrd is not available or returns an error. The string contains
     /// detailed error information from the dfx-mgr tooling.
     #[error("FpgadSoftenerError::DfxMgr: {0}")]
-    DfxMgr(std::io::Error),
+    DfxMgr(String),
+}
+
+impl From<FpgadSoftenerError> for fdo::Error {
+    fn from(err: FpgadSoftenerError) -> Self {
+        error!("{err}");
+        match err {
+            FpgadSoftenerError::DfxMgr(..) => fdo::Error::Failed(err.to_string()),
+        }
+    }
+}
+
+impl From<FpgadSoftenerError> for FpgadError {
+    fn from(err: FpgadSoftenerError) -> Self {
+        error!("{err}");
+        match err {
+            FpgadSoftenerError::DfxMgr(..) => FpgadError::Softener(err),
+        }
+    }
 }

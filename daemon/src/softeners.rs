@@ -13,5 +13,6 @@
 
 pub mod error;
 
+pub mod softeners_thread;
 #[cfg(feature = "xilinx-dfx-mgr")]
 pub mod xilinx_dfx_mgr;

@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+# Component install hook for dfx-mgr
+# This hook runs when the dfx-mgr component is installed
+
+CONF_DIR="$SNAP_COMMON/etc/dfx-mgrd"
+CONF_FILE="$CONF_DIR/daemon.conf"
+DEFAULT_CONF="$SNAP_COMPONENTS/dfx-mgr/daemon.conf"
+
+mkdir -p "$CONF_DIR"
+
+# Only copy the default config if the user hasn't created/modified one
+if [ ! -f "$CONF_FILE" ]; then
+    echo "Installing default dfx-mgrd daemon.conf"
+    cp "$DEFAULT_CONF" "$CONF_FILE"
+else
+    echo "Preserving existing dfx-mgrd daemon.conf"
+    echo "Default config available at: $DEFAULT_CONF"
+fi
+

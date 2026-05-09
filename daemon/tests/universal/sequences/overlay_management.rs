@@ -24,7 +24,7 @@ async fn expected_good_overlay_process(_setup: ()) {
     let device_handle: &str = "fpga0";
     let overlay_handle: &str = "fpga0";
     let platform_handle: &str = "universal";
-    let overlay_file: &str = "/lib/firmware/k26-starter-kits.dtbo";
+    let overlay_file: &str = "/lib/firmware/xilinx/k26-starter-kits/k26-starter-kits.dtbo";
 
     let connection = Connection::system()
         .await
@@ -107,7 +107,7 @@ async fn overlay_already_applied(_setup: ()) {
     let device_handle: &str = "fpga0";
     let overlay_handle: &str = "fpga0";
     let platform_handle: &str = "universal";
-    let overlay_file: &str = "/lib/firmware/k26-starter-kits.dtbo";
+    let overlay_file: &str = "/lib/firmware/xilinx/k26-starter-kits/k26-starter-kits.dtbo";
 
     let connection = Connection::system()
         .await

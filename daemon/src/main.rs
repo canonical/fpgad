@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use fpgad::comm::dbus::{control_interface::ControlInterface, status_interface::StatusInterface};
-use fpgad::register_platforms;
+use fpgad::{register_platforms, softeners};
 use log::info;
 use std::error::Error;
 use std::future::pending;
@@ -48,6 +48,17 @@ use zbus::connection;
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     register_platforms();
+
+    // If running in a snap environment, try to start the softener daemon wrapper
+    #[cfg(feature = "softeners")]
+    {
+        if std::env::var("SNAP").is_ok() {
+            info!("SNAP environment detected, starting softener daemon wrapper");
+            tokio::spawn(async {
+                softeners::softeners_thread::run_softener_daemons().await;
+            });
+        }
+    }
 
     // Upon load, the daemon will search each fpga device and determine what platform it is
     // based on its name in /sys/class/fpga_manager/{device}/name
