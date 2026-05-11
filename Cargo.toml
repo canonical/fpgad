@@ -13,3 +13,16 @@ authors = ["Talha Can Havadar <talha.can.havadar@canonical.com>", "Artie Poole <
 [workspace.dependencies]
 fpgad_macros = { version = "0.2.0", path = "fpgad_macros" }
 
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+debug = 0
+incremental = false
+overflow-checks = false
+
+[profile.release.package."*"]
+opt-level = "z"
+codegen-units = 1
