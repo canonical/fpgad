@@ -418,6 +418,33 @@ impl ControlInterface {
         ))
     }
 
+    /// Entrypoint for dfx-mgr specific operations
+    ///
+    /// Allows the user to pass a command string directly to the `dfx-mgr-client` binary for
+    /// otherwise unsupported actions
+    ///
+    /// This is a thin passthrough to the Xilinx DFX Manager client. The `cmd_string` is
+    /// split on whitespace and forwarded as arguments to `dfx-mgr-client`.
+    ///
+    /// # Arguments
+    ///
+    /// * `cmd_string` - Space-separated arguments to pass to `dfx-mgr-client`
+    ///   (e.g. `"-listPackage"` or `"-b my_bitstream.bit.bin -o my_overlay.dtbo"`)
+    ///
+    /// # Returns: `Result<String, fdo::Error>`
+    /// * `Ok(String)` – Exit status, stdout, and stderr from `dfx-mgr-client` on success
+    /// * `Err(fdo::Error)` – If `dfx-mgr-client` is not found, the process fails, or
+    ///   the `xilinx-dfx-mgr` feature was not compiled in
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// // List available DFX packages
+    /// let result = control_interface.dfx_mgr("-listPackage").await?;
+    ///
+    /// // Load a bitstream into slot 0
+    /// let result = control_interface.dfx_mgr("-load 0 my_design").await?;
+    /// ```
     async fn dfx_mgr(&self, cmd_string: &str) -> Result<String, fdo::Error> {
         if cfg!(feature = "xilinx-dfx-mgr") {
             let snap_env = env::var("SNAP").unwrap_or("".to_string());
