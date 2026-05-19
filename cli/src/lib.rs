@@ -182,6 +182,10 @@ pub mod status;
 
 pub mod set;
 
+pub mod universal;
+
+pub mod dfx_mgr;
+
 use clap::{Parser, Subcommand};
 
 /// Command-line interface structure for FPGA management operations.
@@ -324,6 +328,40 @@ pub enum RemoveSubcommand {
     },
 }
 
+/// Subcommands for the universal platform interface.
+///
+/// Provides direct access to the daemon's `universal` read/write DBus methods,
+/// allowing low-level control of FPGA manager sysfs properties and flags.
+///
+/// # Examples
+///
+/// ```shell
+/// fpgad universal read read_flags fpga0
+/// fpgad universal read read_property /sys/class/fpga_manager/fpga0/name
+/// fpgad universal write write_flags fpga0 0x20
+/// fpgad universal write write_property /sys/class/fpga_manager/fpga0/key VALUE
+/// fpgad universal write write_property_bytes /sys/class/fpga_manager/fpga0/key BYTES
+/// ```
+#[derive(Subcommand, Debug)]
+pub enum UniversalSubcommand {
+    /// Read an FPGA property using the universal interface
+    Read {
+        /// Subcommand: `read_property` (sysfs path) or `read_flags` (device handle)
+        sub_cmd: String,
+        /// Sysfs property path for `read_property`, or device handle for `read_flags`
+        path: String,
+    },
+    /// Write an FPGA property using the universal interface
+    Write {
+        /// Subcommand: `write_flags` (device handle), `write_property`, or `write_property_bytes`
+        sub_cmd: String,
+        /// Device handle for `write_flags`, or sysfs property path for property writes
+        path: String,
+        /// Value to write
+        value: String,
+    },
+}
+
 /// Top-level commands supported by the CLI.
 ///
 /// This enum represents all the primary operations available through the fpgad CLI:
@@ -331,6 +369,8 @@ pub enum RemoveSubcommand {
 /// - **Set**: Configure FPGA attributes and flags (e.g., programming flags)
 /// - **Status**: Query the current state of FPGA devices and loaded overlays
 /// - **Remove**: Unload bitstreams or device tree overlays from the FPGA
+/// - **Universal**: Low-level read/write access to FPGA manager properties via the universal interface
+/// - **DfxMgr**: Pass commands directly to `dfx-mgr-client` (requires dfx-mgr component)
 ///
 /// Each command communicates with the fpgad daemon via DBus to perform privileged
 /// operations on FPGA devices managed through the Linux kernel's FPGA subsystem.
@@ -352,6 +392,15 @@ pub enum RemoveSubcommand {
 ///
 /// # Remove an overlay by name
 /// fpgad remove overlay --name=my_overlay
+///
+/// # Read FPGA flags via universal interface
+/// fpgad universal read read_flags fpga0
+///
+/// # Write flags via universal interface
+/// fpgad universal write write_flags fpga0 0x20
+///
+/// # Invoke dfx-mgr-client
+/// fpgad dfx-mgr "-listPackage"
 /// ```
 #[derive(Subcommand, Debug)]
 pub enum Commands {
@@ -368,5 +417,15 @@ pub enum Commands {
     Remove {
         #[command(subcommand)]
         command: RemoveSubcommand,
+    },
+    /// Low-level read/write access to FPGA manager properties (universal platform interface)
+    Universal {
+        #[command(subcommand)]
+        command: UniversalSubcommand,
+    },
+    /// Pass a command directly to dfx-mgr-client (requires dfx-mgr snap component)
+    DfxMgr {
+        /// Space-separated arguments to pass to dfx-mgr-client (e.g. "-listPackage")
+        cmd: String,
     },
 }

@@ -17,8 +17,8 @@
 //! - Loading FPGA bitstreams
 //! - Applying device tree overlays
 //! - Removing overlays
-//! - Writing to FPGA manager properties
-//! - Setting FPGA flags
+//! - Writing to FPGA manager properties via the `universal` method
+//! - Invoking dfx-mgr-client via the `dfx_mgr` method
 //!
 //! The proxy is generated using the `zbus` crate's `#[proxy]` macro and provides
 //! type-safe, asynchronous access to the daemon's control interface.
@@ -66,25 +66,6 @@ use zbus::{Result, proxy};
     default_path = "/com/canonical/fpgad/control"
 )]
 pub trait Control {
-    /// Set FPGA programming flags for a device.
-    ///
-    /// # Arguments
-    ///
-    /// * `platform_string` - Platform identifier (can be empty for auto-detection)
-    /// * `device_handle` - [Device handle](../../index.html#device-handles) (e.g., "fpga0")
-    /// * `flags` - Programming flags as a 32-bit unsigned integer
-    ///
-    /// # Returns: `Result<String>`
-    /// * `Ok(String)` - Success message with confirmation of flags set
-    /// * `Err(zbus::Error)` - DBus error or FpgadError.
-    ///   See [Error Handling](../../index.html#error-handling)
-    async fn set_fpga_flags(
-        &self,
-        platform_string: &str,
-        device_handle: &str,
-        flags: u32,
-    ) -> Result<String>;
-
     /// Write a bitstream directly to an FPGA device.
     ///
     /// # Arguments
@@ -140,32 +121,6 @@ pub trait Control {
     ///   See [Error Handling](../../index.html#error-handling)
     async fn remove_overlay(&self, platform_str: &str, overlay_handle: &str) -> Result<String>;
 
-    /// Write a string value to an FPGA manager property.
-    ///
-    /// # Arguments
-    ///
-    /// * `property_path_str` - Full sysfs path to the property (must be under `/sys/class/fpga_manager/`)
-    /// * `data` - String data to write
-    ///
-    /// # Returns: `Result<String>`
-    /// * `Ok(String)` - Success message confirming write
-    /// * `Err(zbus::Error)` - DBus error or FpgadError.
-    ///   See [Error Handling](../../index.html#error-handling)
-    async fn write_property(&self, property_path_str: &str, data: &str) -> Result<String>;
-
-    /// Write binary data to an FPGA manager property.
-    ///
-    /// # Arguments
-    ///
-    /// * `property_path_str` - Full sysfs path to the property (must be under `/sys/class/fpga_manager/`)
-    /// * `data` - Binary data to write as a byte slice
-    ///
-    /// # Returns: `Result<String>`
-    /// * `Ok(String)` - Success message confirming write
-    /// * `Err(zbus::Error)` - DBus error or FpgadError.
-    ///   See [Error Handling](../../index.html#error-handling)
-    async fn write_property_bytes(&self, property_path_str: &str, data: &[u8]) -> Result<String>;
-
     /// Remove a previously loaded bitstream, identifiable by its `bitstream_handle` or `slot`.
     ///
     /// # Arguments
@@ -188,4 +143,33 @@ pub trait Control {
         device_handle: &str,
         bitstream_handle: &str,
     ) -> Result<String>;
+
+    /// Write to an FPGA property using the universal write interface.
+    ///
+    /// # Arguments
+    ///
+    /// * `sub_cmd` - One of `write_flags`, `write_property`, `write_property_bytes`
+    /// * `path_str` - Device handle for `write_flags`, or sysfs property path for property writes
+    /// * `value_str` - Value to write (flags value, string payload, or raw byte string)
+    ///
+    /// # Returns: `Result<String>`
+    /// * `Ok(String)` - Success message from the daemon
+    /// * `Err(zbus::Error)` - DBus error or FpgadError.
+    ///   See [Error Handling](../../index.html#error-handling)
+    async fn universal(&self, sub_cmd: &str, path_str: &str, value_str: &str) -> Result<String>;
+
+    /// Pass a command string directly to the `dfx-mgr-client` binary.
+    ///
+    /// Requires the `dfx-mgr` snap component to be installed.
+    ///
+    /// # Arguments
+    ///
+    /// * `cmd_string` - Space-separated arguments to pass to `dfx-mgr-client`
+    ///   (e.g. `"-listPackage"` or `"-load 0 my_design"`)
+    ///
+    /// # Returns: `Result<String>`
+    /// * `Ok(String)` - Exit status, stdout, and stderr from `dfx-mgr-client`
+    /// * `Err(zbus::Error)` - DBus error, missing component, daemon method mismatch, or FpgadError.
+    ///   See [Error Handling](../../index.html#error-handling)
+    async fn dfx_mgr(&self, cmd_string: &str) -> Result<String>;
 }
