@@ -10,11 +10,9 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-mod get_fpga_flags;
 mod get_fpga_state;
 mod get_overlay_status;
 mod get_overlays;
 mod get_platform_type;
 mod get_platform_types;
 mod get_status_message;
-mod read_property;

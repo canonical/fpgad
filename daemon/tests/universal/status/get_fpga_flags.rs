@@ -33,7 +33,7 @@ use zbus::Connection;
 )]
 #[case::all_good("universal", "fpga0", ok(eq("0")))]
 async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
-    #[case] platform_string: &str,
+    #[case] _platform_string: &str,
     #[case] device_handle: &str,
     #[case] condition: M,
     _setup: (),
@@ -44,6 +44,6 @@ async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
     let proxy = status_proxy::StatusProxy::new(&connection)
         .await
         .expect("failed to create control proxy");
-    let res = proxy.get_fpga_flags(platform_string, device_handle).await;
+    let res = proxy.universal("read_flags", device_handle).await;
     expect_that!(&res, condition);
 }

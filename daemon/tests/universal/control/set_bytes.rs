@@ -55,7 +55,7 @@ fn trim_trailing_vals(mut data: Vec<u8>, val: u8) -> Vec<u8> {
     ok(contains_substring(""))
 )]
 async fn set_key_cases<M: for<'a> Matcher<&'a Result<String>>>(
-    #[case] platform_string: &str,
+    #[case] path_str: &str,
     #[case] data: Vec<u8>,
     #[case] condition: M,
     _setup: (),
@@ -66,12 +66,19 @@ async fn set_key_cases<M: for<'a> Matcher<&'a Result<String>>>(
     let proxy = ControlProxy::new(&connection)
         .await
         .expect("failed to create control proxy");
-    let res = proxy.write_property_bytes(platform_string, &data).await;
+    // Convert bytes to hex string for universal method
+    let hex_str = data
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
+    let res = proxy
+        .universal("write_property_bytes", path_str, &hex_str)
+        .await;
     expect_that!(&res, condition);
 
     if res.is_ok() {
         println!("{res:?}");
-        let file_data = fs::read(platform_string).expect("failed to read back file");
+        let file_data = fs::read(path_str).expect("failed to read back file");
         // trim newlines from file read and trailing nulls from input because of
         // how of the xilinx kernel fpga_mgr.c driver formats key data
         assert_eq!(

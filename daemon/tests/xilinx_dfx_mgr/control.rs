@@ -12,6 +12,4 @@
 
 mod apply_overlay;
 pub mod dfx_mgr;
-pub mod set_fpga_flags;
 pub mod write_bitstream_direct;
-pub mod write_property;

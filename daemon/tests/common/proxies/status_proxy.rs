@@ -19,7 +19,6 @@ use zbus::{Result, proxy};
 pub trait Status {
     async fn get_status_message(&self, platform_string: &str) -> Result<String>;
     async fn get_fpga_state(&self, platform_string: &str, device_handle: &str) -> Result<String>;
-    async fn get_fpga_flags(&self, platform_string: &str, device_handle: &str) -> Result<String>;
     async fn get_overlay_status(
         &self,
         platform_string: &str,
@@ -28,5 +27,5 @@ pub trait Status {
     async fn get_overlays(&self) -> Result<String>;
     async fn get_platform_type(&self, device_handle: &str) -> Result<String>;
     async fn get_platform_types(&self) -> Result<String>;
-    async fn read_property(&self, property_path_str: &str) -> Result<String>;
+    async fn universal(&self, sub_cmd: &str, path_str: &str) -> Result<String>;
 }
