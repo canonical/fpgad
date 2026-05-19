@@ -15,11 +15,12 @@
 //! All methods return a `Result<String, fdo::Error>` and are designed for DBus usage.
 //! If FPGAd raises the error, then the `fdo::Error` strings are prepended with the relevant FPGAd error type e.g. `FpgadError::Argument: <error text>`. See [crate::comm::dbus] for a summary of this interface's methods.
 //!
-use crate::comm::dbus::{fs_read_property, validate_device_handle};
+use crate::comm::dbus::validate_device_handle;
 use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::{list_fpga_managers, read_compatible_string};
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
+use crate::platforms::universal::universal_read_handler;
 use crate::system_io::fs_read_dir;
 use log::{error, info};
 use zbus::{fdo, interface};
@@ -68,39 +69,6 @@ impl StatusInterface {
         Ok(platform.fpga(device_handle)?.state()?)
     }
 
-    /// Retrieve the current flags set for a specified FPGA device as a hexadecimal ascii string
-    /// (missing `0x` prefix).
-    ///
-    /// # Arguments
-    ///
-    /// * `platform_string`: Platform compatibility string.
-    /// * `device_handle`: The device handle (e.g., `fpga0`) of the FPGA.
-    ///
-    /// # Returns: `Result<String, fdo::Error>`
-    /// * `Ok(String)` – hexadecimal representation of flags without `0x` hex prefix (e.g. "20"
-    /// for decimal value of 32)
-    /// * `Err(fdo::Error)` on invalid handle or platform error.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// let flags = status_interface.get_fpga_flags("xlnx,zynqmp-pcap-fpga", "fpga0").await?;
-    /// assert_eq!(flags, "20");
-    /// ```
-    async fn get_fpga_flags(
-        &self,
-        platform_string: &str,
-        device_handle: &str,
-    ) -> Result<String, fdo::Error> {
-        info!("get_fpga_flags called with name: {device_handle}");
-        validate_device_handle(device_handle)?;
-        let platform = platform_from_compat_or_device(platform_string, device_handle)?;
-        Ok(platform
-            .fpga(device_handle)?
-            .flags()
-            .map(|flags| flags.to_string())?)
-    }
-
     /// Retrieve the status of a specific device-tree overlay.
     ///
     /// # Arguments
@@ -126,7 +94,6 @@ impl StatusInterface {
         platform_string: &str,
         overlay_handle: &str,
     ) -> Result<String, fdo::Error> {
-        // TODO(artie): https://github.com/canonical/fpgad/issues/187
         info!(
             "get_overlay_status called with platform_string: {platform_string} and overlay_handle:\
              {overlay_handle}"
@@ -165,7 +132,6 @@ impl StatusInterface {
     /// ```
     ///
     async fn get_overlays(&self) -> Result<String, fdo::Error> {
-        // TODO(artie): https://github.com/canonical/fpgad/issues/187
         info!("get_overlays called");
         let overlay_handles = fs_read_dir(config::OVERLAY_CONTROL_DIR.as_ref())?;
         Ok(overlay_handles.join("\n"))
@@ -233,28 +199,14 @@ impl StatusInterface {
         }
         Ok(ret_string)
     }
-
-    /// Read an arbitrary FPGA device property from `/sys/class/fpga_manager/<device>/`.
+    /// Unified read entrypoint for universal platform operations.
     ///
     /// # Arguments
     ///
-    /// * `property_path_str`: Full path to the property file.
-    ///
-    /// # Returns: `Result<String, Error>`
-    /// * `Ok(String)` – Contents of the property file.
-    /// * `Err(fdo::Error)` If the property cannot be read.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// let name = status_interface.
-    ///     read_property("/sys/class/fpga_manager/fpga0/name")
-    ///     .await?;
-    /// assert_eq!(name, "Xilinx ZynqMP FPGA Manager\n");
-    /// ```
-    ///
-    async fn read_property(&self, property_path_str: &str) -> Result<String, fdo::Error> {
-        info!("read_property called with property_path_str: {property_path_str}");
-        Ok(fs_read_property(property_path_str)?)
+    /// * `sub_cmd` - One of `read_property` or `read_flags`
+    /// * `path_str` - Sysfs property path for `read_property`, or device handle for `read_flags`
+    async fn universal(&self, sub_cmd: &str, path_str: &str) -> Result<String, fdo::Error> {
+        info!("universal (read) called with sub_cmd: {sub_cmd}, path_str: {path_str}");
+        universal_read_handler(sub_cmd, path_str)
     }
 }

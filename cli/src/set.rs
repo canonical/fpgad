@@ -171,7 +171,6 @@ pub async fn set_handler(
     attribute: &str,
     value: &str,
 ) -> Result<String, zbus::Error> {
-    // TODO(Artie): https://github.com/canonical/fpgad/issues/187
     let property_path = match device_handle {
         None => build_property_path(&get_first_device_handle().await?, attribute)?,
         Some(dev) => build_property_path(dev, attribute)?,
