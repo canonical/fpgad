@@ -16,11 +16,11 @@
 //! If FPGAd raises the error, then the fdo::Error strings are prepended with the relevant FPGAd error type e.g. `FpgadError::Argument: <error text>`. See [crate::comm::dbus] for a summary of this interface's methods.
 //!
 
-use crate::comm::dbus::{validate_device_handle, validate_property_path};
+use crate::comm::dbus::validate_device_handle;
 use crate::error::map_error_io_to_fdo;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
+use crate::platforms::universal::universal_write_handler;
 use crate::softeners::error::FpgadSoftenerError;
-use crate::system_io::{fs_write, fs_write_bytes};
 use log::{info, trace};
 use std::env;
 use std::path::Path;
@@ -75,48 +75,6 @@ pub struct ControlInterface {}
 /// [crate::comm::dbus::control_interface] for a summary of this interface in general.
 #[interface(name = "com.canonical.fpgad.control")]
 impl ControlInterface {
-    /// Set the flags for a specific FPGA device.
-    ///
-    /// # Arguments
-    ///
-    /// * `platform_string`: Platform compatibility string.
-    /// * `device_handle`: FPGA device handle (e.g., `fpga0`).
-    /// * `flags`: Bitmask flags to apply to the device.
-    ///
-    /// # Returns: `Result<String, fdo::Error>`
-    /// * `Ok(String)` – Confirmation message, including the new flags in hex.
-    /// * `Err(fdo::Error)` if device validation or flag setting fails.
-    ///
-    /// # Examples
-    ///
-    /// Specify device
-    /// ```
-    /// let result = control_interface
-    ///     .set_fpga_flags("xlnx,zynqmp-pcap-fpga", "fpga0", 0x20)
-    ///     .await?;
-    /// assert_eq!(result, "Flags set to 0x20 for fpga0");
-    /// ```
-    ///
-    /// Don't specify compat string (fetches compat string based on `device_handle`)
-    /// ```rust
-    /// let result = control_interface
-    ///     .set_fpga_flags("", "fpga0", 0b100000)
-    ///     .await?;
-    /// assert_eq!(result, "Flags set to 0x20 for fpga0");
-    /// ```
-    async fn set_fpga_flags(
-        &self,
-        platform_string: &str,
-        device_handle: &str,
-        flags: u32,
-    ) -> Result<String, fdo::Error> {
-        // TODO(Artie): https://github.com/canonical/fpgad/issues/187
-        info!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
-        validate_device_handle(device_handle)?;
-        let platform = platform_from_compat_or_device(platform_string, device_handle)?;
-        Ok(platform.fpga(device_handle)?.set_flags(flags)?)
-    }
-
     /// Trigger a bitstream-only load of a bitstream to a given FPGA device (i.e. no device-tree changes or driver installation).
     ///
     /// # Arguments
@@ -335,87 +293,22 @@ impl ControlInterface {
         Ok(fpga.remove_firmware(handle)?)
     }
 
-    /// Write a string value to an arbitrary FPGA device property.
+    /// Entrypoint for universal platform specific operations.
     ///
     /// # Arguments
     ///
-    /// * `property_path_str`: Full path under [crate::config::FPGA_MANAGERS_DIR].
-    /// * `data`: String data to write.
-    ///
-    /// # Returns: `Result<String, Error>`
-    ///
-    /// * `Ok(String)` – Confirmation of written data.
-    /// * `Err(fdo::Error)` if path is outside FPGA managers, or if the writing failed for any
-    ///     other reason
-    /// **Notes:**
-    ///
-    /// * Path must be under [crate::config::FPGA_MANAGERS_DIR] - determined at compile time.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let result = control_interface
-    ///     .write_property(
-    ///         "xlnx,zynqmp-pcap-fpga",
-    ///         "/sys/class/fpga_manager/fpga0/key",
-    ///         "BADBADBADBAD")
-    ///     .await?;
-    /// assert_eq!(result, "BADBADBADBAD written to /sys/class/fpga_manager/fpga0/key");
-    /// ```
-    async fn write_property(
+    /// * `sub_cmd` - One of `write_flags`, `write_property`, `write_property_bytes`
+    /// * `path_str` - Device handle for `write_flags`, or sysfs property path for property writes
+    /// * `value_str` - Value to write (flags value, string payload for `write_property`,
+    ///   or raw byte string for `write_property_bytes`)
+    async fn universal(
         &self,
-        property_path_str: &str,
-        data: &str,
+        sub_cmd: &str,
+        path_str: &str,
+        value_str: &str,
     ) -> Result<String, fdo::Error> {
-        // TODO(Artie): https://github.com/canonical/fpgad/issues/187
-        info!("write_property called with property_path_str: {property_path_str} and data: {data}");
-        let property_path = validate_property_path(Path::new(property_path_str))?;
-        fs_write(&property_path, false, data)?;
-        Ok(format!("{data} written to {property_path_str}"))
-    }
-
-    /// Write raw bytes to an arbitrary FPGA device property.
-    ///
-    /// # Arguments
-    ///
-    /// * `property_path_str`: Full path under [crate::config::FPGA_MANAGERS_DIR].
-    /// * `data`: Byte array to write.
-    ///
-    /// # Returns: `Result<String, Error>`
-    ///
-    /// * `Ok(String)` – Confirmation of written data.
-    /// * `Err(fdo::Error)` if path is outside FPGA managers, or if the writing failed for any
-    ///     other reason
-    ///
-    /// **Notes:**
-    ///
-    /// * Path must be under [crate::config::FPGA_MANAGERS_DIR] - determined at compile time.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let result = control_interface
-    ///     .write_property_bytes(
-    ///         "xlnx,zynqmp-pcap-fpga",
-    ///         "/sys/class/fpga_manager/fpga0/key",
-    ///         &[0xBA, 0xDB, 0xAD, 0xBA, 0xDB, 0xAD])
-    ///     .await?;
-    /// assert_eq!(result, "Byte string successfully written to /sys/class/fpga_manager/fpga0/key");
-    /// ```
-    async fn write_property_bytes(
-        &self,
-        property_path_str: &str,
-        data: &[u8],
-    ) -> Result<String, fdo::Error> {
-        // TODO(Artie): https://github.com/canonical/fpgad/issues/187
-        info!(
-            "write_property called with property_path_str: {property_path_str} and data: {data:?}"
-        );
-        let property_path = validate_property_path(Path::new(property_path_str))?;
-        fs_write_bytes(&property_path, false, data)?;
-        Ok(format!(
-            "Byte string successfully written to {property_path_str}"
-        ))
+        info!("universal (write) called with sub_cmd: {sub_cmd}, path_str: {path_str}");
+        universal_write_handler(sub_cmd, path_str, value_str)
     }
 
     /// Entrypoint for dfx-mgr specific operations

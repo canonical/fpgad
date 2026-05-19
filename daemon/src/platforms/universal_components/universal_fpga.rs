@@ -48,8 +48,9 @@
 //! - `flags` - Programming flags (hexadecimal format: "0x...")
 //! - `firmware` - Trigger bitstream loading by writing filename
 //!
-//! with any other files being controllable using the `write_property_bytes` and
-//! `write_property` DBus methods.
+//! with any other files being controllable using the `universal` DBus control method
+//! (`write_property` / `write_property_bytes` subcommands), and readable using
+//! the `universal` DBus status method (`read_property` subcommand).
 //! See the [`control_interface`](crate::comm::dbus::control_interface) documentation for more details.
 //!
 //! # Examples
@@ -73,7 +74,7 @@ use crate::platforms::platform::Fpga;
 use crate::platforms::universal_components::universal_helpers;
 use crate::system_io::{fs_read, fs_write};
 use crate::{config, system_io};
-use log::{error, info, trace, warn};
+use log::{info, trace};
 use std::path::Path;
 
 /// Universal FPGA device implementation using standard Linux FPGA subsystem.
@@ -178,85 +179,6 @@ impl Fpga for UniversalFPGA {
             .join("state");
         trace!("reading '{state_path:?}'");
         fs_read(&state_path).map(|s| s.trim_end_matches('\n').to_string())
-    }
-
-    /// Read the current programming flags from sysfs.
-    ///
-    /// Reads `/sys/class/fpga_manager/<device>/flags`, parses the hexadecimal string
-    /// (format: "0x...", or undecorated), and returns the flags as u32.
-    ///
-    /// # Returns: `Result<u32, FpgadError>`
-    /// * `Ok(u32)` - Current flags value
-    /// * `Err(FpgadError::IORead)` - Failed to read flags file
-    /// * `Err(FpgadError::Flag)` - Failed to parse hexadecimal value
-    fn flags(&self) -> Result<u32, FpgadError> {
-        let flag_path = Path::new(config::FPGA_MANAGERS_DIR)
-            .join(self.device_handle.clone())
-            .join("flags");
-        let contents = fs_read(&flag_path)?;
-        let trimmed = contents.trim().trim_start_matches("0x");
-        u32::from_str_radix(trimmed, 16)
-            .map_err(|_| FpgadError::Flag("Parsing flags failed".into()))
-    }
-
-    /// Set the programming flags in sysfs.
-    ///
-    /// Writes the flags to `/sys/class/fpga_manager/<device>/flags` in undecorated
-    /// hexadecimal (decimal `32` -> undecorated hex `20`) and verifies that the write
-    /// succeeded by reading the value back.
-    /// Also checks and logs the FPGA state after setting flags.
-    ///
-    /// # Arguments
-    ///
-    /// * `flags` - The flags value to set
-    ///
-    /// # Returns: `Result<(), FpgadError>`
-    /// * `Ok(())` - Flags set and verified successfully
-    /// * `Err(FpgadError::IOWrite)` - Failed to write flags file
-    /// * `Err(FpgadError::IORead)` - Failed to read back flags or state
-    /// * `Err(FpgadError::Flag)` - Read-back value doesn't match written value
-    fn set_flags(&self, flags: u32) -> Result<String, FpgadError> {
-        let flag_path = Path::new(config::FPGA_MANAGERS_DIR)
-            .join(self.device_handle.clone())
-            .join("flags");
-        trace!("Writing '0x{flags:X}' to '{flag_path:?}'");
-        if let Err(e) = fs_write(&flag_path, false, format!("0x{flags:X}")) {
-            error!("Failed to read state.");
-            return Err(e);
-        }
-
-        match self.state() {
-            Ok(state) => match state.as_str() {
-                "operating" => {
-                    info!(
-                        "{}'s state is 'operating' after writing flags.",
-                        self.device_handle
-                    )
-                }
-                _ => {
-                    warn!(
-                        "{}'s state is '{}' after writing flags.",
-                        self.device_handle, state
-                    );
-                }
-            },
-            Err(e) => return Err(e),
-        };
-
-        match self.flags() {
-            Ok(returned_flags) if returned_flags == flags => Ok(format!(
-                "Flags set to '0x{:X}' for '{}'",
-                flags, self.device_handle
-            )),
-            Ok(returned_flags) => Err(FpgadError::Flag(format!(
-                "Setting  flags of '{}' to '{}' failed. Resulting flag was '{}'",
-                self.device_handle, flags, returned_flags
-            ))),
-            Err(e) => Err(FpgadError::Flag(format!(
-                "Failed to read device '{}' flags after setting to '{}': {}",
-                self.device_handle, flags, e
-            ))),
-        }
     }
 
     /// Load a bitstream firmware file directly to the FPGA.
