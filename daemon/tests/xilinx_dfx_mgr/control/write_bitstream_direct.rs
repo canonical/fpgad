@@ -53,9 +53,7 @@ async fn load_bitstream_cases<M: for<'a> Matcher<&'a Result<String>>>(
 
     // Reset flags before test
     if !device_handle.is_empty() {
-        let _ = proxy
-            .set_fpga_flags(PLATFORM_STRING, device_handle, 0)
-            .await;
+        let _ = proxy.universal("write_flags", device_handle, "0").await;
     }
 
     let res = proxy

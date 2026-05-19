@@ -38,19 +38,19 @@ async fn load_from_lib_firmware(
         .expect("failed to create status proxy");
 
     control_proxy
-        .set_fpga_flags(platform_handle, device_handle, 0)
+        .universal("write_flags", device_handle, "0")
         .await
         .expect("failed to set fpga flags");
     expect_that!(
         status_proxy
-            .get_fpga_flags(platform_handle, device_handle)
+            .universal("read_flags", device_handle)
             .await
             .expect("failed to get fpga flags"),
         eq("0")
     );
 
     control_proxy
-        .write_property("/sys/class/fpga_manager/fpga0/key", "")
+        .universal("write_property", "/sys/class/fpga_manager/fpga0/key", "")
         .await
         .expect("failed to reset the encryption key");
     control_proxy
@@ -86,20 +86,20 @@ async fn bad_flags(
         .expect("failed to create status proxy");
 
     control_proxy
-        .set_fpga_flags(platform_handle, device_handle, 127)
+        .universal("write_flags", device_handle, "0x7F")
         .await
         .expect("failed to set fpga flags");
     expect_that!(
         status_proxy
-            .get_fpga_flags(platform_handle, device_handle)
+            .universal("read_flags", device_handle)
             .await
             .expect("failed to get fpga flags"),
         eq("127"),
-        "flags not 127 after setting to 127"
+        "flags not 127 (0x7F) after setting to 0x7F"
     );
 
     control_proxy
-        .write_property("/sys/class/fpga_manager/fpga0/key", "")
+        .universal("write_property", "/sys/class/fpga_manager/fpga0/key", "")
         .await
         .expect("failed to reset the encryption key");
     let r = control_proxy
@@ -117,12 +117,12 @@ async fn bad_flags(
 
     // reset flags
     control_proxy
-        .set_fpga_flags(platform_handle, device_handle, 0)
+        .universal("write_flags", device_handle, "0")
         .await
         .expect("failed to set fpga flags");
     expect_that!(
         status_proxy
-            .get_fpga_flags(platform_handle, device_handle)
+            .universal("read_flags", device_handle)
             .await
             .expect("failed to get fpga flags"),
         eq("0")

@@ -42,6 +42,6 @@ async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
     let proxy = status_proxy::StatusProxy::new(&connection)
         .await
         .expect("failed to create control proxy");
-    let res = proxy.read_property(property_path).await;
+    let res = proxy.universal("read_property", property_path).await;
     expect_that!(&res, condition);
 }
