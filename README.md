@@ -85,7 +85,7 @@ cargo build --release [opts]
 ### run
 
 Using default build settings, the resulting binaries will be in `./target/debug/`
-such as `./target/debug/fpgad` for the daemon and `./target/debug/cli` for the
+such as `./target/debug/fpgad` for the daemon and `./target/debug/fpgad_cli` for the
 command line application. If using release, then the directory is  `./target/release/`.
 
 If running as a standalone binary (not snap) then dbus needs to be configured to know about
