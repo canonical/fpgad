@@ -16,45 +16,23 @@ while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|
 done
 echo "    --- Disabling auto-refresh for 24 hours"
 sudo snap refresh --hold=24h
-echo "    --- Extracting snap package"
-if [[ ! -f ./fpgad-snap-package.tar.gz ]]; then
-    echo "ERROR: Snap package tarball not found"
-    exit 1
-fi
-tar -xzvf fpgad-snap-package.tar.gz
-echo "    --- Listing extracted snap and component files"
-echo "Snap files:"
-find . -maxdepth 1 -name "*.snap" -type f
-echo ""
-echo "Component files:"
-find . -maxdepth 1 -name "*.comp" -type f
-echo ""
-echo "    --- Installing fpgad snap"
-SNAP_FILE=$(find . -maxdepth 1 -name "*.snap" -type f | head -n 1)
-if [[ -z "$SNAP_FILE" || ! -f "$SNAP_FILE" ]]; then
-    echo "ERROR: Snap file not found in tarball"
-    exit 1
-fi
+echo "    --- Installing fpgad"
 while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
     echo "    --- snapd internal tasks still running... waiting..."
     sleep 10
 done
-sudo snap install "$SNAP_FILE" --dangerous
-echo "    --- Installing snap components"
-COMP_FILES=$(find . -maxdepth 1 -name "*.comp" -type f)
-if [[ -z "$COMP_FILES" ]]; then
-    echo "ERROR: No component files found in tarball - build may have failed"
-    exit 1
+
+if [[ "${SNAP_TEST_SOURCE}" == "local" ]]; then
+    if [[ ! -f ./fpgad.snap ]]; then
+        echo "ERROR: SNAP_TEST_SOURCE=local but ./fpgad.snap is not present"
+        exit 1
+    fi
+    echo "    --- SNAP_TEST_SOURCE=local, installing ./fpgad.snap --dangerous"
+    sudo snap install ./fpgad.snap --dangerous
+else
+    echo "    --- SNAP_TEST_SOURCE=${SNAP_TEST_SOURCE}, installing from store channel: ${SNAP_TEST_SOURCE}"
+    sudo snap install fpgad --channel="${SNAP_TEST_SOURCE}"
 fi
-for COMP_FILE in $COMP_FILES; do
-    echo "    --- Installing component: $COMP_FILE"
-    while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
-        echo "    --- snapd internal tasks still running... waiting..."
-        sleep 10
-    done
-    sudo snap install --dangerous "$COMP_FILE"
-    echo "    --- Component installed successfully: $COMP_FILE"
-done
 echo "    --- Installing provider snap(s)"
 echo "INFO: Done preparing device"
 
