@@ -1,11 +1,23 @@
 [package]
-name = "cli"
-version = "0.1.0"
-edition = "2024"
+name = "fpgad_cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Command-line interface for interacting with the FPGAd daemon"
+readme = "README.md"
+keywords = ["fpga", "cli", "embedded", "hardware", "xilinx"]
+categories = ["command-line-utilities", "hardware-support"]
+
+[[bin]]
+name = "fpgad_cli"
+path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4.5.41", features = ["derive"] }
-env_logger = "0.11.8"
+clap = { version = "4.5.41", default-features = false, features = ["std", "derive", "help", "usage", "error-context"] }
+env_logger = { version = "0.11.8", default-features = false }
 log = "0.4.27"
-tokio = { version = "1.47.0", features = ["full"] }
+tokio = { version = "1.47.0", default-features = false, features = ["rt-multi-thread", "macros", "sync"] }
 zbus = { version = "5.9.0", default-features = false, features = ["tokio"] }

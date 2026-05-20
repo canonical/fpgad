@@ -62,6 +62,35 @@ use zbus::{Result, proxy};
     default_path = "/com/canonical/fpgad/status"
 )]
 pub trait Status {
+    /// Get a comprehensive status message for the platform.
+    ///
+    /// Returns a formatted status message containing platform-specific information.
+    /// For the universal platform, this includes a table of all FPGA devices with their
+    /// platform types and states. For xilinx-dfx-mgr, this returns the result of -listPackage
+    ///
+    /// # Arguments
+    ///
+    /// * `platform_string` - Platform identifier (can be empty for auto-detection)
+    ///
+    /// # Returns: `Result<String>`
+    /// * `Ok(String)` - Platform-specific status message
+    /// * `Err(zbus::Error)` - DBus error or FpgadError. See [Error Handling](../../index.html#error-handling)
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use zbus::Connection;
+    /// # use crate::proxies::status_proxy::StatusProxy;
+    /// let connection = Connection::system().await?;
+    /// let proxy = StatusProxy::new(&connection).await?;
+    /// let status = proxy.get_status_message("universal").await?;
+    /// println!("{}", status);
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn get_status_message(&self, platform_string: &str) -> Result<String>;
+
     /// Get the current state of an FPGA device.
     ///
     /// Returns the device state such as "operating", "unknown", "write init", "write",

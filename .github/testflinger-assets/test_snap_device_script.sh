@@ -61,6 +61,12 @@ while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|
     sleep 10
 done
 sudo snap connect fpgad:device-tree-overlays
+echo "    --- connecting dfx-mgr-socket interface"
+while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
+    echo "    --- snapd internal tasks still running... waiting..."
+    sleep 10
+done
+sudo snap connect fpgad:dfx-mgr-socket
 echo "    --- connecting dbus interfaces"
 while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
     echo "    --- snapd internal tasks still running... waiting..."
@@ -71,11 +77,29 @@ sudo snap connect fpgad:cli-dbus fpgad:daemon-dbus
 echo "INFO: Done making necessary connections"
 
 echo "INFO: Running snap test script"
-# NOTE: tarball contains "k24-starter-kits/..." and "k26-starter-kits/..." at tarball root from daemon/tests/test_data
+# NOTE: test_data.gz contains "k24-starter-kits/..." and "k26-starter-kits/..." at tarball root from daemon/tests/test_data
+# NOTE: tests.gz contains the test structure (common/, test_universal/, test_xlnx/, test_default/, etc.)
 mkdir -p fpgad/artifacts
+echo "    --- Extracting test data"
 tar -xzvf test_data.gz -C fpgad
-sudo journalctl -f -n1 > fpgad/artifacts/journal.log 2>&1 &
-JOURNAL_PID=$!
-sudo python3 -u -m unittest ./snap_tests.py -v 2>&1 | tee fpgad/artifacts/snap_test.log
-sudo kill ${JOURNAL_PID}  || true
+echo "    --- Extracting tests"
+mkdir -p tests
+tar -xzvf tests.gz -C tests
+echo "    --- Saving timestamp for journal log retrieval"
+TEST_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+
+# Disable exit-on-error temporarily to capture logs even on test failure
+set +e
+echo "    --- Running tests with unittest discovery"
+sudo tests/snap_testing/test_snap.sh 2>&1 | tee fpgad/artifacts/snap_test.log
+TEST_EXIT_CODE=$?
+# Re-enable exit-on-error
+set -e
+
+echo "    --- Collecting journal logs since test start"
+sudo journalctl --since "$TEST_START_TIME" -u "snap.fpgad*" 2>&1 | tee fpgad/artifacts/journal.log || true
 echo "INFO: Done running snap test script"
+
+# Exit with the test exit code to signal success/failure
+exit $TEST_EXIT_CODE
+

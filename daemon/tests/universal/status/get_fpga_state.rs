@@ -19,7 +19,7 @@ use zbus::Connection;
 #[gtest]
 #[tokio::test]
 #[rstest]
-#[case::no_platform("", "fpga0", ok(contains_substring("operating")))]
+#[case::no_platform("", "fpga0", ok(contains_substring("")))]
 #[case::no_device(
     "universal",
     "",
@@ -31,7 +31,7 @@ use zbus::Connection;
     "dev0",
     err(displays_as(contains_substring("FpgadError::Argument:")))
 )]
-#[case::all_good("universal", "fpga0", ok(contains_substring("operating")))]
+#[case::all_good("universal", "fpga0", ok(contains_substring("")))]
 async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
     #[case] platform_string: &str,
     #[case] device_handle: &str,

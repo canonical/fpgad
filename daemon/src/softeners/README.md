@@ -69,11 +69,14 @@ your-new-softener = ["softeners"]  # Add this line
 
 ### Step 2: Create the Softener Module Structure
 
-Create your softener module files. You'll need at least:
+Create your softener module directory and files:
 
-- `your_softener_name.rs` - Main platform struct
-- `your_softener_name_fpga.rs` - Custom FPGA implementation
-- `your_softener_name_overlay_handler.rs` - Custom overlay handler implementation
+1. Create directory: `daemon/src/softeners/your_softener_name/`
+2. Create these files in that directory:
+   - `your_softener_name_fpga.rs` - Custom FPGA implementation
+   - `your_softener_name_overlay_handler.rs` - Custom overlay handler implementation
+   - `your_softener_name_helpers.rs` (optional) - Helper functions
+3. Create the main platform file: `daemon/src/softeners/your_softener_name.rs`
 
 **Important**: While you *could* reuse the Universal platform's components, softeners exist to provide vendor-specific
 functionality, so you should implement your own FPGA and OverlayHandler types that wrap or integrate with your vendor's
@@ -86,9 +89,14 @@ use std::sync::OnceLock;
 
 use crate::platforms::platform::Platform;
 use crate::softeners::error::FpgadSoftenerError;
-use crate::softeners::your_softener_name_fpga::YourSoftenerFPGA;
-use crate::softeners::your_softener_name_overlay_handler::YourSoftenerOverlayHandler;
 use fpgad_macros::platform;
+use your_softener_name_fpga::YourSoftenerFPGA;
+use your_softener_name_overlay_handler::YourSoftenerOverlayHandler;
+
+// Declare your sub-modules here (marked as public so they appear in documentation)
+pub mod your_softener_name_fpga;
+pub mod your_softener_name_overlay_handler;
+pub mod your_softener_name_helpers;  // Optional
 
 /// Your softener platform implementation.
 ///
@@ -144,7 +152,7 @@ pub fn do_vendor_thing(param: &str) -> Result<String, FpgadSoftenerError> {
 }
 ```
 
-#### FPGA Implementation: `daemon/src/softeners/your_softener_name_fpga.rs`
+#### FPGA Implementation: `daemon/src/softeners/your_softener_name/your_softener_name_fpga.rs`
 
 ```rust
 use crate::platforms::platform::Fpga;
@@ -234,7 +242,7 @@ impl Fpga for YourSoftenerFPGA {
 }
 ```
 
-#### Overlay Handler: `daemon/src/softeners/your_softener_name_overlay_handler.rs`
+#### Overlay Handler: `daemon/src/softeners/your_softener_name/your_softener_name_overlay_handler.rs`
 
 ```rust
 use crate::platforms::platform::OverlayHandler;
@@ -327,10 +335,10 @@ Edit `daemon/src/softeners/error.rs` and add your error variant:
 #[derive(Debug, thiserror::Error)]
 pub enum FpgadSoftenerError {
     #[error("FpgadSoftenerError::DfxMgr: {0}")]
-    DfxMgr(std::io::Error),
+    DfxMgr(String),
 
     #[error("FpgadSoftenerError::YourSoftenerName: {0}")]
-    YourSoftenerName(std::io::Error),  // Add your error variant
+    YourSoftenerName(String),  // Add your error variant
 }
 ```
 
@@ -338,45 +346,64 @@ pub enum FpgadSoftenerError {
 
 **Error Message Format**: Follow the pattern `FpgadSoftenerError::VariantName: {0}` to maintain consistency.
 
+**Error Type**: Use `String` to contain detailed error messages from your vendor tools.
+
+You'll also need to update the `From<FpgadSoftenerError>` implementations to handle your new variant:
+
+```rust
+impl From<FpgadSoftenerError> for fdo::Error {
+    fn from(err: FpgadSoftenerError) -> Self {
+        error!("{err}");
+        match err {
+            FpgadSoftenerError::DfxMgr(..) => fdo::Error::Failed(err.to_string()),
+            FpgadSoftenerError::YourSoftenerName(..) => fdo::Error::Failed(err.to_string()),
+        }
+    }
+}
+
+impl From<FpgadSoftenerError> for FpgadError {
+    fn from(err: FpgadSoftenerError) -> Self {
+        error!("{err}");
+        match err {
+            FpgadSoftenerError::DfxMgr(..) => FpgadError::Softener(err),
+            FpgadSoftenerError::YourSoftenerName(..) => FpgadError::Softener(err),
+        }
+    }
+}
+```
+
 This error type will be used throughout your softener implementation when vendor tool operations fail.
 
-### Step 4: Register the Modules
+### Step 4: Register the Module
 
-Edit `daemon/src/softeners.rs` to include your new softener modules:
+Edit `daemon/src/softeners.rs` to include your new softener module:
 
 ```rust
 pub mod error;
 
+pub mod softeners_thread;
 #[cfg(feature = "xilinx-dfx-mgr")]
 pub mod xilinx_dfx_mgr;
-#[cfg(feature = "xilinx-dfx-mgr")]
-mod xilinx_dfx_mgr_fpga;
-#[cfg(feature = "xilinx-dfx-mgr")]
-mod xilinx_dfx_mgr_overlay_handler;
 
 #[cfg(feature = "your-new-softener")]
-pub mod your_softener_name;  // Main module (public)
-#[cfg(feature = "your-new-softener")]
-mod your_softener_name_fpga;  // FPGA implementation (private)
-#[cfg(feature = "your-new-softener")]
-mod your_softener_name_overlay_handler;  // Overlay handler (private)
+pub mod your_softener_name;  // Add this line
 ```
 
-**Note**: Only the main platform module needs to be `pub` - the FPGA and overlay handler modules are internal
-implementation details.
+**Note**: Only register the main platform module here. The sub-modules (FPGA, overlay handler, helpers) are declared
+within `your_softener_name.rs` itself and don't need to be listed in this file.
 
 ### Step 5: Register the Platform at Startup
 
-Edit `daemon/src/main.rs` to register your platform:
+Edit `daemon/src/lib.rs` to import and register your platform in the `register_platforms()` function:
 
 ```rust
 #[cfg(feature = "xilinx-dfx-mgr")]
-use softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
+use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
 
 #[cfg(feature = "your-new-softener")]
-use softeners::your_softener_name::YourSoftenerPlatform;  // Add this
+use crate::softeners::your_softener_name::YourSoftenerPlatform;  // Add this
 
-fn register_platforms() {
+pub fn register_platforms() {
     #[cfg(feature = "xilinx-dfx-mgr")]
     XilinxDfxMgrPlatform::register_platform();
 
@@ -389,7 +416,7 @@ fn register_platforms() {
 
 **Important**: The Universal platform should always be registered last as it serves as the fallback.
 
-### Step 6: Implement Vendor-Specific Functions
+### Step 6: Implement Vendor-Specific Functions (optional)
 
 Add functions that wrap your vendor's tools or APIs.
 These might use `std::process::Command` to call external binaries.
@@ -405,14 +432,20 @@ use crate::softeners::error::FpgadSoftenerError;
 /// Brief description of what this does
 pub fn vendor_operation(arg: &str) -> Result<String, FpgadSoftenerError> {
     // This example assumes an external binary `vendor-tool` is used
-    // The requirement of mapping the error is the key point made here
-    let output = Command::new("vendor-tool").arg("--option").arg(arg).output().map_err(FpgadSoftenerError::YourSoftenerName)?;
+    let output = Command::new("vendor-tool")
+        .arg("--option")
+        .arg(arg)
+        .output()
+        .map_err(|e| FpgadSoftenerError::YourSoftenerName(format!("vendor-tool failed to execute: {}", e)))?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
-        Err(FpgadSoftenerError::YourSoftenerName(std::io::Error::other(
-            String::from_utf8_lossy(&output.stderr).to_string(),
+        Err(FpgadSoftenerError::YourSoftenerName(format!(
+            "vendor-tool failed.\n{}\nStdout:\n{}\nStderr:\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
         )))
     }
 }

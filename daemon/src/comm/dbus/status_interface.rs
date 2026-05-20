@@ -15,12 +15,11 @@
 //! All methods return a `Result<String, fdo::Error>` and are designed for DBus usage.
 //! If FPGAd raises the error, then the `fdo::Error` strings are prepended with the relevant FPGAd error type e.g. `FpgadError::Argument: <error text>`. See [crate::comm::dbus] for a summary of this interface's methods.
 //!
+use crate::comm::dbus::{fs_read_property, validate_device_handle};
 use crate::config;
+use crate::error::FpgadError;
 use crate::platforms::platform::{list_fpga_managers, read_compatible_string};
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
-
-use crate::comm::dbus::{fs_read_property, validate_device_handle};
-use crate::error::FpgadError;
 use crate::system_io::fs_read_dir;
 use log::{error, info};
 use zbus::{fdo, interface};
@@ -32,6 +31,15 @@ pub struct StatusInterface {}
 /// [crate::comm::dbus::status_interface] for a summary of this interface in general.
 #[interface(name = "com.canonical.fpgad.status")]
 impl StatusInterface {
+    async fn get_status_message(&self, platform_string: &str) -> Result<String, fdo::Error> {
+        info!("get_fpga_state called with platform_string: {platform_string}");
+        if platform_string.is_empty() {
+            return Err(FpgadError::Argument("Empty platform string - cannot determine how to get status message becuase cannot determine platform to use without platform string".to_string()).into());
+        }
+        let platform = platform_from_compat_or_device(platform_string, "")?;
+        Ok(platform.status_message()?)
+    }
+
     /// The device handle (e.g., `fpga0`) of the FPGA.
     ///
     /// # Arguments
@@ -118,16 +126,11 @@ impl StatusInterface {
         platform_string: &str,
         overlay_handle: &str,
     ) -> Result<String, fdo::Error> {
+        // TODO(artie): https://github.com/canonical/fpgad/issues/187
         info!(
             "get_overlay_status called with platform_string: {platform_string} and overlay_handle:\
              {overlay_handle}"
         );
-        if overlay_handle.is_empty() {
-            return Err(FpgadError::Argument(
-                "An overlay handle is required. Provided overlay handle is empty.".into(),
-            )
-            .into());
-        }
         Ok(platform_for_known_platform(platform_string)?
             .overlay_handler(overlay_handle)?
             .status()?)
@@ -162,6 +165,7 @@ impl StatusInterface {
     /// ```
     ///
     async fn get_overlays(&self) -> Result<String, fdo::Error> {
+        // TODO(artie): https://github.com/canonical/fpgad/issues/187
         info!("get_overlays called");
         let overlay_handles = fs_read_dir(config::OVERLAY_CONTROL_DIR.as_ref())?;
         Ok(overlay_handles.join("\n"))
@@ -197,7 +201,7 @@ impl StatusInterface {
     /// * `Ok(String)` – Each line formatted as `<device_handle>:<platform_string>\n`.
     ///    Devices without a valid string appear as
     ///   `<device_handle>:\n`.
-    /// * `Err(fdo::Error)` if device validation or reading the compatible string fails.
+    /// * `Err(fdo::Error)` if reading FPGA managers directory or compatible strings fails.
     ///
     /// # Examples
     ///
