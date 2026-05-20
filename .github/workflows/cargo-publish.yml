@@ -38,6 +38,7 @@ jobs:
   publish:
     name: Publish workspace crates
     runs-on: ubuntu-latest
+    environment: cargo-publish
     steps:
       - uses: actions/checkout@v6
         with:
