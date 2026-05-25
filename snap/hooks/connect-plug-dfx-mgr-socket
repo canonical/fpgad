@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+# Log the connection event
+echo "dfx-mgr-socket plug connected, restarting fpgad daemon..."
+
+# Restart the fpgad daemon to pick up the dfx-mgr socket
+snapctl restart "$SNAP_INSTANCE_NAME.daemon"
+
+echo "fpgad daemon restart triggered successfully"
