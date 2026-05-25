@@ -172,6 +172,8 @@
 //! ./target/debug/cli --device=fpga0 status
 //! ```
 
+// (universal and dfx-mgr subcommands are documented on their respective enum variants below)
+// TODO: move this line of docs somewhere useful
 mod proxies;
 
 pub mod load;
@@ -333,6 +335,23 @@ pub enum RemoveSubcommand {
 /// Provides direct access to the daemon's `universal` read/write DBus methods,
 /// allowing low-level control of FPGA manager sysfs properties and flags.
 ///
+/// # Valid `sub_cmd` values
+///
+/// **Read** (`fpgad universal read <sub_cmd> <path>`):
+///
+/// | `sub_cmd` | `path` | Description |
+/// |-----------|--------|-------------|
+/// | `read_flags` | Device handle or full sysfs path to flags, e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags` | Read the current programming flags |
+/// | `read_property` | Full sysfs path e.g. `/sys/class/fpga_manager/fpga0/name` | Read a sysfs property string |
+///
+/// **Write** (`fpgad universal write <sub_cmd> <path> <value>`):
+///
+/// | `sub_cmd` | `path` | `value` | Description |
+/// |-----------|--------|---------|-------------|
+/// | `write_flags` | Device handle or full sysfs path to flags, e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags` | Hex `u32` with or without `0x` prefix (e.g. `0x20` or `20`, both = 32) | Set FPGA programming flags |
+/// | `write_property` | Full sysfs path | String payload | Write a string to a sysfs property |
+/// | `write_property_bytes` | Full sysfs path | Hex byte string | Write raw bytes to a sysfs property |
+///
 /// # Examples
 ///
 /// ```shell
@@ -340,24 +359,50 @@ pub enum RemoveSubcommand {
 /// fpgad universal read read_property /sys/class/fpga_manager/fpga0/name
 /// fpgad universal write write_flags fpga0 0x20
 /// fpgad universal write write_property /sys/class/fpga_manager/fpga0/key VALUE
-/// fpgad universal write write_property_bytes /sys/class/fpga_manager/fpga0/key BYTES
+/// fpgad universal write write_property_bytes /sys/class/fpga_manager/fpga0/key deadbeef
 /// ```
 #[derive(Subcommand, Debug)]
 pub enum UniversalSubcommand {
     /// Read an FPGA property using the universal interface
     Read {
-        /// Subcommand: `read_property` (sysfs path) or `read_flags` (device handle)
+        /// Read operation to perform: `read_flags` or `read_property`.
+        ///
+        /// * `read_flags` — `path` is a device handle or full sysfs path to flags, e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags`.
+        ///
+        /// * `read_property` — `path` is the full sysfs path, e.g. `/sys/class/fpga_manager/fpga0/name`.
+        ///
+        /// See: <https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.ReadSubCommand.html>
         sub_cmd: String,
-        /// Sysfs property path for `read_property`, or device handle for `read_flags`
+        /// For `read_flags`: device handle or full sysfs path, e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags`.
+        ///
+        /// For `read_property`: full sysfs path, e.g. `/sys/class/fpga_manager/fpga0/name`.
         path: String,
     },
     /// Write an FPGA property using the universal interface
     Write {
-        /// Subcommand: `write_flags` (device handle), `write_property`, or `write_property_bytes`
+        /// Write operation to perform: `write_flags`, `write_property`, or `write_property_bytes`.
+        ///
+        /// * `write_flags` — `path` is a device handle or full sysfs path to flags, e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags`; `value` is a hex `u32` with or without `0x` prefix
+        ///   (e.g. `0x20` or `20`, both = decimal 32).
+        ///
+        /// * `write_property` — `path` is a full sysfs path; `value` is a string payload.
+        ///
+        /// * `write_property_bytes` — `path` is a full sysfs path; `value` is a hex byte string, e.g. `deadbeef`.
+        ///
+        /// See: <https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.WriteSubCommand.html>
         sub_cmd: String,
-        /// Device handle for `write_flags`, or sysfs property path for property writes
+        /// For `write_flags`: device handle or full sysfs path to flags, e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags`.
+        ///
+        /// For `write_property` / `write_property_bytes`: full sysfs path under
+        /// `/sys/class/fpga_manager/`.
         path: String,
-        /// Value to write
+        /// Value to write.
+        ///
+        /// For `write_flags`: hex `u32` with or without `0x` prefix (e.g. `0x20` or `20`, both = 32).
+        ///
+        /// For `write_property`: string payload.
+        ///
+        /// For `write_property_bytes`: hex-encoded byte string, e.g. `deadbeef`.
         value: String,
     },
 }
@@ -423,9 +468,45 @@ pub enum Commands {
         #[command(subcommand)]
         command: UniversalSubcommand,
     },
-    /// Pass a command directly to dfx-mgr-client (requires dfx-mgr snap component)
+    /// Pass a command directly to `dfx-mgr-client` (requires the `dfx-mgr` snap component).
+    ///
+    /// This is a thin passthrough to the Xilinx DFX Manager client binary.  The arguments are
+    /// forwarded verbatim to `dfx-mgr-client`, so any flag or option that the tool accepts can be
+    /// used here.
+    ///
+    /// The `dfx-mgr` component must be installed:
+    /// ```shell
+    /// sudo snap install fpgad+dfx-mgr
+    /// ```
+    ///
+    /// For a full list of `dfx-mgr-client` commands and options, see the upstream project:
+    /// <https://github.com/Xilinx/dfx-mgr>
+    ///
+    /// # Common commands
+    ///
+    /// | Example | Description |
+    /// |---------|-------------|
+    /// | `fpgad dfx-mgr -listPackage` | List all available acceleration packages |
+    /// | `fpgad dfx-mgr -listSlot`    | List all FPGA slots and their current state |
+    /// | `fpgad dfx-mgr -load 0 <package_name>` | Load a package into slot 0 |
+    /// | `fpgad dfx-mgr -remove 0`   | Remove the package loaded in slot 0 |
+    ///
+    /// # Notes
+    ///
+    /// * Arguments that begin with `-` (such as `-listPackage`) are supported directly — no `--`
+    ///   separator is required.
+    /// * Multiple tokens are accepted: `fpgad dfx-mgr -load 0 my_design`
     DfxMgr {
-        /// Space-separated arguments to pass to dfx-mgr-client (e.g. "-listPackage")
-        cmd: String,
+        /// One or more arguments to pass to `dfx-mgr-client`.
+        ///
+        /// Tokens beginning with `-` are accepted without needing a `--` separator, so commands
+        /// like `-listPackage` or `-load 0 my_design` work naturally:
+        ///
+        /// ```shell
+        /// fpgad dfx-mgr -listPackage
+        /// fpgad dfx-mgr -load 0 my_design
+        /// ```
+        #[arg(allow_hyphen_values = true, num_args = 1.., value_name = "CMD")]
+        cmd: Vec<String>,
     },
 }

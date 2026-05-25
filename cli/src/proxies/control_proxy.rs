@@ -148,8 +148,9 @@ pub trait Control {
     ///
     /// # Arguments
     ///
-    /// * `sub_cmd` - One of `write_flags`, `write_property`, `write_property_bytes`
-    /// * `path_str` - Device handle for `write_flags`, or sysfs property path for property writes
+    /// * `sub_cmd` - One of `write_flags`, `write_property`, `write_property_bytes` — see
+    ///   [`WriteSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.WriteSubCommand.html)
+    /// * `path_str` - Device handle or sysfs path to flags property for `write_flags`, or sysfs property path for property writes
     /// * `value_str` - Value to write (flags value, string payload, or raw byte string)
     ///
     /// # Returns: `Result<String>`
@@ -168,7 +169,7 @@ pub trait Control {
     ///   (e.g. `"-listPackage"` or `"-load 0 my_design"`)
     ///
     /// # Returns: `Result<String>`
-    /// * `Ok(String)` - Exit status, stdout, and stderr from `dfx-mgr-client`
+    /// * `Ok(String)` - stdout from `dfx-mgr-client`
     /// * `Err(zbus::Error)` - DBus error, missing component, daemon method mismatch, or FpgadError.
     ///   See [Error Handling](../../index.html#error-handling)
     async fn dfx_mgr(&self, cmd_string: &str) -> Result<String>;

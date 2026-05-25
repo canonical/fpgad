@@ -113,8 +113,9 @@ pub trait Status {
     ///
     /// # Arguments
     ///
-    /// * `sub_cmd` - One of `read_property` or `read_flags`
-    /// * `path_str` - Sysfs property path for `read_property`, or device handle for `read_flags`
+    /// * `sub_cmd` - One of `read_property` or `read_flags` — see
+    ///   [`ReadSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.ReadSubCommand.html)
+    /// * `path_str` - device handle or sysfs path to flags property for `read_flags`, or sysfs property path for `read_property`,
     ///
     /// # Returns: `Result<String>`
     /// * `Ok(String)` - Property value or flags in hexadecimal format

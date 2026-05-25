@@ -19,13 +19,16 @@
 //! # Subcommands
 //!
 //! ## Read
-//!
+//! One of `read_property` or `read_flags` — see
+//!   [`ReadSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.ReadSubCommand.html)
 //! ```shell
 //! fpgad universal read read_property /sys/class/fpga_manager/fpga0/name
 //! fpgad universal read read_flags fpga0
 //! ```
 //!
 //! ## Write
+//! One of `write_flags`, `write_property`, `write_property_bytes` — see
+//!   [`WriteSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.WriteSubCommand.html)
 //!
 //! ```shell
 //! fpgad universal write write_flags fpga0 0x20
@@ -41,7 +44,8 @@ use zbus::Connection;
 ///
 /// # Arguments
 ///
-/// * `sub_cmd` - One of `read_property` or `read_flags`
+/// * `sub_cmd` - One of `read_property` or `read_flags` — see
+///   [`ReadSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.ReadSubCommand.html)
 /// * `path` - Sysfs property path for `read_property`, or device handle for `read_flags`
 ///
 /// # Returns: `Result<String, zbus::Error>`
@@ -58,7 +62,8 @@ async fn call_universal_read(sub_cmd: &str, path: &str) -> Result<String, zbus::
 ///
 /// # Arguments
 ///
-/// * `sub_cmd` - One of `write_flags`, `write_property`, `write_property_bytes`
+/// * `sub_cmd` - One of `write_flags`, `write_property`, `write_property_bytes` — see
+///   [`WriteSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.WriteSubCommand.html)
 /// * `path` - Device handle for `write_flags`, or sysfs property path for property writes
 /// * `value` - Value to write
 ///

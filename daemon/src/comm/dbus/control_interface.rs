@@ -10,11 +10,34 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+//! D-Bus control interface (`com.canonical.fpgad.control`) for modifying FPGA state.
 //!
-//! The `ControlInterface` provides asynchronous methods to modify FPGA state, load bitstreams, and manage device tree overlays.
-//! All methods return a `Result<String, fdo::Error>` and are designed for D-Bus usage.
-//! If FPGAd raises the error, then the fdo::Error strings are prepended with the relevant FPGAd error type e.g. `FpgadError::Argument: <error text>`. See [crate::comm::dbus] for a summary of this interface's methods.
+//! The [`ControlInterface`] provides asynchronous methods to load bitstreams, apply and remove
+//! device-tree overlays, and interact with vendor-specific FPGA managers.
+//! All methods return `Result<String, fdo::Error>` and communicate with the daemon over D-Bus.
+//! Error strings are prefixed with the relevant `FpgadError` type, e.g.
+//! `FpgadError::Argument: <message>`. See [`crate::comm::dbus`] for a higher-level overview.
 //!
+//! # Methods
+//!
+//! | Method | D-Bus signature summary | Description |
+//! |--------|------------------------|-------------|
+//! | `write_bitstream_direct` | `(platform_string, device_handle, bitstream_path, firmware_lookup_path)` | Load a bitstream directly to an FPGA (no device-tree changes) |
+//! | `apply_overlay` | `(platform_string, overlay_handle, overlay_source_path, firmware_lookup_path)` | Apply a device-tree overlay to trigger a bitstream load and driver probe |
+//! | `remove_overlay` | `(platform_string, overlay_handle)` | Remove a previously applied device-tree overlay |
+//! | `remove_bitstream` | `(platform_string, device_handle, bitstream_handle)` | Remove the currently loaded bitstream from an FPGA device |
+//! | `universal` | `(sub_cmd, path_str, value_str)` | Low-level write to FPGA manager sysfs properties — see [`WriteSubCommand`](crate::platforms::universal::WriteSubCommand) |
+//! | `dfx_mgr` | `(cmd_string)` | Passthrough to `dfx-mgr-client` (requires `dfx-mgr` snap component) |
+//!
+//! ## `universal` control sub-commands
+//!
+//! The `universal` method dispatches on `sub_cmd`; see [`WriteSubCommand`](crate::platforms::universal::WriteSubCommand) for the full enum available via this (control) interface.
+//!
+//! | `sub_cmd` | `path_str` | `value_str` |
+//! |-----------|-----------|-------------|
+//! | `"write_flags"` | Device handle or full sysfs path to flags, e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags` | Hex `u32` with or without `0x` prefix (e.g. `0x20` or `20`, both = decimal 32) |
+//! | `"write_property"` | Full sysfs path under `/sys/class/fpga_manager/` | String payload |
+//! | `"write_property_bytes"` | Full sysfs path under `/sys/class/fpga_manager/` | Hex byte string, e.g. `deadbeef` |
 
 use crate::comm::dbus::validate_device_handle;
 use crate::error::map_error_io_to_fdo;
@@ -296,10 +319,36 @@ impl ControlInterface {
     ///
     /// # Arguments
     ///
-    /// * `sub_cmd` - One of `write_flags`, `write_property`, `write_property_bytes`
+    /// * `sub_cmd` - The write operation to perform - see [`crate::platforms::universal::WriteSubCommand`]
     /// * `path_str` - Device handle for `write_flags`, or sysfs property path for property writes
     /// * `value_str` - Value to write (flags value, string payload for `write_property`,
     ///   or raw byte string for `write_property_bytes`)
+    ///
+    /// # Returns: `Result<String, fdo::Error>`
+    /// * `Ok(String)` – Confirmation message.
+    /// * `Err(fdo::Error)` – If the `sub_cmd` is unrecognised, the path is invalid / outside the
+    ///   allowed directory, or the write fails.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// // Write programming flags
+    /// control_interface.universal("write_flags", "fpga0", "0x20").await?;
+    ///
+    /// // Write a string property
+    /// control_interface.universal(
+    ///     "write_property",
+    ///     "/sys/class/fpga_manager/fpga0/key",
+    ///     "BADBADBADBAD",
+    /// ).await?;
+    ///
+    /// // Write raw bytes
+    /// control_interface.universal(
+    ///     "write_property_bytes",
+    ///     "/sys/class/fpga_manager/fpga0/key",
+    ///     "deadbeef",
+    /// ).await?;
+    /// ```
     async fn universal(
         &self,
         sub_cmd: &str,
