@@ -60,6 +60,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    // TODO(Artie): try and add a wait for softeners to be ready before starting dbus
+
     // Upon load, the daemon will search each fpga device and determine what platform it is
     // based on its name in /sys/class/fpga_manager/{device}/name
     let status_interface = StatusInterface {};
