@@ -201,6 +201,8 @@ impl StatusInterface {
         }
         Ok(ret_string)
     }
+
+    // TODO: make sure this documentation links to the possible options properly
     /// Unified read entrypoint for universal platform operations.
     ///
     /// # Arguments

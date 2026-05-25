@@ -293,6 +293,7 @@ impl ControlInterface {
         Ok(fpga.remove_firmware(handle)?)
     }
 
+    // TODO: make sure this documentation links to the possible options properly
     /// Entrypoint for universal platform specific operations.
     ///
     /// # Arguments

@@ -309,8 +309,10 @@ pub enum ReadSubCommand {
     ReadProp,
     ReadFlags,
 }
+// TODO: make sure this is documented upstream
 
 impl ReadSubCommand {
+    // TODO: make sure this is documented upstream
     pub fn as_str(self) -> &'static str {
         match self {
             ReadSubCommand::ReadFlags => "read_flags",
@@ -340,6 +342,7 @@ pub enum WriteSubCommand {
 }
 
 impl WriteSubCommand {
+    // TODO: make sure this is documented upstream
     pub fn as_str(self) -> &'static str {
         match self {
             WriteSubCommand::WriteFlags => "write_flags",

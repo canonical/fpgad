@@ -172,6 +172,9 @@
 //! ./target/debug/cli --device=fpga0 status
 //! ```
 
+// TODO(Artie): add universal and dfx-mgr subcommand documentation help strings
+//  dfx-mgr can link to their repo
+//  universal should properly contain all valid types
 mod proxies;
 
 pub mod load;
