@@ -8,7 +8,8 @@ on:
         type: string
       commit_sha:
         description: 'Commit SHA to publish from'
-        required: true
+        required: false
+        default: main
         type: string
       mode:
         description: '`dry-run` validates publish flow, `publish` uploads to crates.io'
@@ -22,7 +23,8 @@ on:
         required: true
       commit_sha:
         description: 'Commit SHA to publish from'
-        required: true
+        required: false
+        default: main
       mode:
         description: '`dry-run` validates publish flow, `publish` uploads to crates.io'
         required: true
