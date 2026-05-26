@@ -107,8 +107,7 @@ TEST_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
 # Disable exit-on-error temporarily to capture logs even on test failure
 set +e
 echo "--- Running fpgad.test command"
-# Run with sudo but preserve SUDO_USER so test_wrapper can find user's snap dir
-sudo -E SUDO_USER="$CURRENT_USER" fpgad.test 2>&1 | tee artifacts/snap_test.log
+sudo fpgad.test 2>&1 | tee artifacts/snap_test.log
 TEST_EXIT_CODE=$?
 # Re-enable exit-on-error
 set -e
