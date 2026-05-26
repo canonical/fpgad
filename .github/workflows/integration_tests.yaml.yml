@@ -162,7 +162,7 @@ jobs:
           echo "::group::creating job.yaml"
             yq '.test_data.attachments = [
             { "agent": "device_script.sh",        "local": "'"$(pwd)"'/.github/testflinger-assets/test_snap_device_script.sh" },
-            { "agent": "fpgad-snap-package.tar.gz", "local": "'"$(pwd)"'/fpgad-snap-package.tar.gz" },
+            { "agent": "fpgad-snap-package.tar.gz", "local": "'"$(pwd)"'/fpgad-snap-package.tar.gz" }
             ]' .github/testflinger-assets/testflinger_job.yaml | tee job.yaml
           echo "::endgroup::"
 
