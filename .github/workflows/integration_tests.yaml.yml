@@ -159,15 +159,10 @@ jobs:
             echo "Copied to: $(pwd)/fpgad-snap-package.tar.gz"
           echo "::endgroup::"
 
-          echo "::group::Create test_data tarball"
-            tar -czvf test_data.gz -C daemon/tests/test_data/ .
-          echo "::endgroup::"
-
           echo "::group::creating job.yaml"
             yq '.test_data.attachments = [
             { "agent": "device_script.sh",        "local": "'"$(pwd)"'/.github/testflinger-assets/test_snap_device_script.sh" },
             { "agent": "fpgad-snap-package.tar.gz", "local": "'"$(pwd)"'/fpgad-snap-package.tar.gz" },
-            { "agent": "test_data.gz",            "local": "'"$(pwd)"'/test_data.gz" },
             ]' .github/testflinger-assets/testflinger_job.yaml | tee job.yaml
           echo "::endgroup::"
 

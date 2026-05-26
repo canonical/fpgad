@@ -100,15 +100,13 @@ echo "INFO: Done making necessary connections"
 
 echo "INFO: Running snap test script"
 # NOTE: test_data.gz contains "k24-starter-kits/..." and "k26-starter-kits/..." at tarball root from daemon/tests/test_data
-mkdir -p fpgad/artifacts
-echo "    --- Extracting test data"
-tar -xzvf test_data.gz -C fpgad
+mkdir -p artifacts
 echo "    --- Saving timestamp for journal log retrieval"
 TEST_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
 
 # Disable exit-on-error temporarily to capture logs even on test failure
 set +e
-    echo "--- Running fpgad.test command"
+echo "--- Running fpgad.test command"
 # Run with sudo but preserve SUDO_USER so test_wrapper can find user's snap dir
 sudo -E SUDO_USER="$CURRENT_USER" fpgad.test 2>&1 | tee artifacts/snap_test.log
 TEST_EXIT_CODE=$?
@@ -116,7 +114,7 @@ TEST_EXIT_CODE=$?
 set -e
 
 echo "    --- Collecting journal logs since test start"
-sudo journalctl --since "$TEST_START_TIME" -u "snap.fpgad*" 2>&1 | tee fpgad/artifacts/journal.log || true
+sudo journalctl --since "$TEST_START_TIME" -u "snap.fpgad*" 2>&1 | tee artifacts/journal.log || true
 echo "INFO: Done running snap test script"
 
 # Exit with the test exit code to signal success/failure
