@@ -67,7 +67,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
   build:
     name: Build release artifacts
-    runs-on: [ubuntu-24.04-arm, ubuntu-latest]
+    runs-on: ubuntu-24.04-arm
     needs: metadata
     outputs:
       archive_name: ${{ steps.package.outputs.archive_name }}
