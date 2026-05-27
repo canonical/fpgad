@@ -1,6 +1,48 @@
 # Publishing Guide for FPGAd
 
-This document explains how to publish the FPGAd packages to crates.io.
+This document explains how to release tagged versions on GitHub and publish the FPGAd packages to crates.io.
+
+## GitHub Release Automation
+
+GitHub releases are handled by `.github/workflows/release.yml`.
+
+### Trigger Modes
+
+1. Push a tag (`v*`) to build and publish a release automatically.
+2. Run the workflow manually (`workflow_dispatch`) with:
+    - `version` (for example `0.1.1`)
+    - `commit_sha` (the exact commit to release)
+
+The release workflow validates that:
+
+- The version is semver-like
+- The commit exists
+- The requested version matches `[workspace.package].version` in `Cargo.toml` at that commit
+
+If validation passes, the workflow builds in release mode and uploads these assets to the GitHub release:
+
+- `fpgad-<version>-linux-amd64.tar.gz` (contains `fpgad` and `fpgad_cli`)
+- `fpgad-<version>-linux-amd64.tar.gz.sha256`
+
+If the resolved version contains one of these prerelease keywords (`alpha`, `beta`, `rc`, `pre`, `dev`, `exp`, `experimental`, `nightly`), the workflow creates a GitHub prerelease and also uploads:
+
+- `fpgad-<version>-experimental-crates.tar.gz` (workspace `.crate` bundles produced by `cargo package --workspace --locked`)
+
+The same workflow also publishes workspace crates to crates.io by default by invoking `.github/workflows/cargo-publish.yml` in `publish` mode.
+
+It uses a top-level workspace publish command (`cargo publish --manifest-path Cargo.toml --workspace --locked`).
+
+Publishing uses crates.io Trusted Publishing (OIDC) instead of a long-lived API token.
+
+On crates.io, configure Trusted Publishing for this repository and workflow file (`cargo-publish.yml`) before first use.
+
+### Changelog Strategy
+
+This repository currently uses GitHub-generated release notes (`--generate-notes`) as the release changelog.
+
+This approach keeps release notes aligned with merged PRs and labels without requiring a manually maintained `CHANGELOG.md`.
+
+If a manually curated changelog is preferred later, add `CHANGELOG.md` and include an explicit update step in the release checklist.
 
 ## Package Structure
 
@@ -27,8 +69,28 @@ Packages must be published in this order due to dependencies:
 - [ ] All packages compile successfully
 - [ ] All tests pass (CI auto runs on PR)
 - [ ] Documentation is complete
-- [ ] CHANGELOG is up to date
+- [ ] GitHub release notes reviewed (or CHANGELOG updated, if adopted)
 - [ ] Git repository is clean
+
+## Cargo Publish Automation
+
+Cargo publishing is handled by `.github/workflows/cargo-publish.yml` (manual trigger and reusable workflow).
+
+Inputs:
+
+- `version` (for example `0.1.1`)
+- `commit_sha`
+- `mode`: `dry-run` or `publish`
+
+Behavior:
+
+- Publishes all workspace crates using `cargo publish --manifest-path Cargo.toml --workspace --locked`
+- Validates that `Cargo.toml` version matches the requested version
+- For `mode=publish`, requires crates.io Trusted Publishing configuration for this workflow file (`cargo-publish.yml`)
+
+Use `mode=dry-run` to validate the publishing flow safely.
+
+Use the manual workflow when you want to validate publish behavior before creating a GitHub release.
 
 ## Publishing Commands
 
@@ -60,6 +122,8 @@ Before publishing, test with dry-run:
 ```bash
 cargo publish --dry-run
 ```
+
+Or use the `cargo-publish.yml` workflow with `mode=dry-run`.
 
 ## Version Updates
 
