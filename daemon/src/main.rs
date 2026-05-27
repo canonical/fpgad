@@ -11,7 +11,9 @@
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
 use fpgad::comm::dbus::{control_interface::ControlInterface, status_interface::StatusInterface};
-use fpgad::{register_platforms, softeners};
+use fpgad::register_platforms;
+#[cfg(feature = "softeners")]
+use fpgad::softeners;
 use log::info;
 use std::error::Error;
 use std::future::pending;

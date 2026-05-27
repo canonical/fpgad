@@ -342,7 +342,7 @@ impl ControlInterface {
         {
             let args: Vec<&str> = cmd_string.split_whitespace().collect();
 
-            return match run_dfx_mgr(&args) {
+            match run_dfx_mgr(&args) {
                 Ok(output) => {
                     info!("dfx-mgr command ran successfully!");
                     Ok(output)
@@ -351,7 +351,7 @@ impl ControlInterface {
                     info!("dfx-mgr command failed: {}", e);
                     Err(e.into())
                 }
-            };
+            }
         }
 
         #[cfg(not(feature = "xilinx-dfx-mgr"))]
