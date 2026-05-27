@@ -100,20 +100,14 @@ echo "INFO: Done making necessary connections"
 
 echo "INFO: Running snap test script"
 # NOTE: test_data.gz contains "k24-starter-kits/..." and "k26-starter-kits/..." at tarball root from daemon/tests/test_data
-# NOTE: tests.gz contains the test structure (common/, test_universal/, test_xlnx/, test_default/, etc.)
 mkdir -p fpgad/artifacts
-echo "    --- Extracting test data"
-tar -xzvf test_data.gz -C fpgad
-echo "    --- Extracting tests"
-mkdir -p tests
-tar -xzvf tests.gz -C tests
 echo "    --- Saving timestamp for journal log retrieval"
 TEST_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
 
 # Disable exit-on-error temporarily to capture logs even on test failure
 set +e
-echo "    --- Running tests with unittest discovery"
-sudo tests/snap_testing/test_snap.sh 2>&1 | tee fpgad/artifacts/snap_test.log
+echo "--- Running fpgad.test command"
+sudo fpgad.test 2>&1 | tee fpgad/artifacts/snap_test.log
 TEST_EXIT_CODE=$?
 # Re-enable exit-on-error
 set -e
