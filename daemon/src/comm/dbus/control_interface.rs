@@ -338,10 +338,11 @@ impl ControlInterface {
     /// let result = control_interface.dfx_mgr("-load 0 my_design").await?;
     /// ```
     async fn dfx_mgr(&self, cmd_string: &str) -> Result<String, fdo::Error> {
-        if cfg!(feature = "xilinx-dfx-mgr") {
+        #[cfg(feature = "xilinx-dfx-mgr")]
+        {
             let args: Vec<&str> = cmd_string.split_whitespace().collect();
 
-            match run_dfx_mgr(&args) {
+            return match run_dfx_mgr(&args) {
                 Ok(output) => {
                     info!("dfx-mgr command ran successfully!");
                     Ok(output)
@@ -350,8 +351,12 @@ impl ControlInterface {
                     info!("dfx-mgr command failed: {}", e);
                     Err(e.into())
                 }
-            }
-        } else {
+            };
+        }
+
+        #[cfg(not(feature = "xilinx-dfx-mgr"))]
+        {
+            let _ = cmd_string;
             use crate::error::FpgadError;
             Err(FpgadError::Feature(
                 "Cannot use DfxMgr method - FPGAd was compiled without xilinx-dfx-mgr feature"
