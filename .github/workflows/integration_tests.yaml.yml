@@ -79,7 +79,7 @@ jobs:
           fi
   snap-build:
     name: Check Snap Builds
-    runs-on: [self-hosted, linux, noble, ARM64]
+    runs-on: ubuntu-24.04-arm
     outputs:
       artifact_id: ${{ steps.upload-snap.outputs.artifact-id }}
     steps:
