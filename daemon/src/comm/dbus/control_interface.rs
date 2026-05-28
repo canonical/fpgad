@@ -17,6 +17,7 @@
 //!
 
 use crate::comm::dbus::validate_device_handle;
+use crate::error::FpgadError;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 use crate::platforms::universal::universal_write_handler;
 #[cfg(feature = "xilinx-dfx-mgr")]
@@ -340,9 +341,18 @@ impl ControlInterface {
     async fn dfx_mgr(&self, cmd_string: &str) -> Result<String, fdo::Error> {
         #[cfg(feature = "xilinx-dfx-mgr")]
         {
-            let args: Vec<&str> = cmd_string.split_whitespace().collect();
+            use tokio::task;
+            // Avoid borrowing from `cmd_string` across an await point by creating
+            // owned Strings and moving them into the blocking task.
+            let cmd_owned = cmd_string.to_string();
+            let res = task::spawn_blocking(move || {
+                let args: Vec<&str> = cmd_owned.split_whitespace().collect();
+                run_dfx_mgr(&args)
+            })
+            .await
+            .map_err(|e| FpgadError::Internal(format!("dfx-mgr-client subprocess failed: {e}")))?;
 
-            match run_dfx_mgr(&args) {
+            match res {
                 Ok(output) => {
                     info!("dfx-mgr command ran successfully!");
                     Ok(output)
@@ -357,7 +367,6 @@ impl ControlInterface {
         #[cfg(not(feature = "xilinx-dfx-mgr"))]
         {
             let _ = cmd_string;
-            use crate::error::FpgadError;
             Err(FpgadError::Feature(
                 "Cannot use DfxMgr method - FPGAd was compiled without xilinx-dfx-mgr feature"
                     .into(),
