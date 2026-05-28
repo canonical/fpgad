@@ -140,6 +140,11 @@ jobs:
       - cargo-publish
     if: ${{ always() && (inputs.skip_cargo == true || needs.cargo-publish.result == 'success') }}
     steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.metadata.outputs.commit_sha }}
+          fetch-depth: 0
       - name: Download release assets
         uses: actions/download-artifact@v8
         with:
