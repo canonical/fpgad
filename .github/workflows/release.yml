@@ -11,6 +11,11 @@ on:
       commit_sha:
         description: 'Commit SHA to build and release'
         required: true
+      skip_cargo:
+        description: 'Skip cargo publish steps (Only for failed GH releases)'
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: write
 concurrency:
@@ -60,6 +65,11 @@ jobs:
 
           python scripts/ci/check_version_bump.py validate --expected-version "${VERSION}" --ref "${COMMIT_SHA}"
 
+          if ! git merge-base --is-ancestor "${COMMIT_SHA}" "origin/${{ github.event.repository.default_branch }}"; then
+            echo "::error::Commit ${COMMIT_SHA} is not on ${{ github.event.repository.default_branch }}. Releases must target the default branch."
+            exit 1
+          fi
+
           {
             echo "tag_name=${TAG_NAME}"
             echo "version=${VERSION}"
@@ -67,11 +77,15 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
   build:
     name: Build release artifacts
-    runs-on: [ubuntu-24.04-arm, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
     needs: metadata
-    outputs:
-      archive_name: ${{ steps.package.outputs.archive_name }}
-      checksum_name: ${{ steps.package.outputs.checksum_name }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -82,7 +96,6 @@ jobs:
           set -euo pipefail
           cargo build --workspace --release --locked --all-features
       - name: Package artifacts
-        id: package
         shell: bash
         run: |
           set -euo pipefail
@@ -92,27 +105,23 @@ jobs:
           cp target/release/fpgad_cli dist/
           chmod +x dist/fpgad dist/fpgad_cli
 
-          ARCHIVE_NAME="fpgad-${{ needs.metadata.outputs.version }}-linux-amd64.tar.gz"
+          ARCHIVE_NAME="fpgad-${{ needs.metadata.outputs.version }}-linux-${{ matrix.arch }}.tar.gz"
           CHECKSUM_NAME="${ARCHIVE_NAME}.sha256"
 
           tar -czf "${ARCHIVE_NAME}" -C dist fpgad fpgad_cli
           sha256sum "${ARCHIVE_NAME}" > "${CHECKSUM_NAME}"
-
-          {
-            echo "archive_name=${ARCHIVE_NAME}"
-            echo "checksum_name=${CHECKSUM_NAME}"
-          } >> "${GITHUB_OUTPUT}"
       - name: Upload release assets
         uses: actions/upload-artifact@v7
         with:
-          name: release-assets
+          name: release-assets-${{ matrix.arch }}
           path: |
-            ${{ steps.package.outputs.archive_name }}
-            ${{ steps.package.outputs.checksum_name }}
+            fpgad-${{ needs.metadata.outputs.version }}-linux-${{ matrix.arch }}.tar.gz
+            fpgad-${{ needs.metadata.outputs.version }}-linux-${{ matrix.arch }}.tar.gz.sha256
           # prerelease bundle packaging removed — prereleases are no longer supported
   cargo-publish:
     name: Publish crates to crates.io
     needs: metadata
+    if: ${{ inputs.skip_cargo != true }}
     permissions:
       contents: read
       id-token: write
@@ -124,36 +133,34 @@ jobs:
   github-release:
     name: Publish GitHub release
     runs-on: ubuntu-latest
+    environment: gh-release
     needs:
       - metadata
       - build
       - cargo-publish
+    if: ${{ always() && (inputs.skip_cargo == true || needs.cargo-publish.result == 'success') }}
     steps:
       - name: Download release assets
         uses: actions/download-artifact@v8
         with:
-          name: release-assets
-          path: .
+          path: ./release-assets
       - name: Create GitHub release with gh CLI
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          ARCHIVE="${{ needs.build.outputs.archive_name }}"
-          CHECKSUM="${{ needs.build.outputs.checksum_name }}"
-          ASSETS=("${ARCHIVE}" "${CHECKSUM}")
+
+          mapfile -t ASSETS < <(find ./release-assets -type f | sort)
+          if [[ ${#ASSETS[@]} -lt 4 ]]; then
+            echo "::error::Expected at least 4 release assets (2 archives + 2 checksums), got ${#ASSETS[@]}."
+            exit 1
+          fi
+
           RELEASE_ARGS=(
             --target "${{ needs.metadata.outputs.commit_sha }}"
             --generate-notes
           )
-
-          for asset in "${ASSETS[@]}"; do
-            if [[ ! -f "${asset}" ]]; then
-              echo "::error::Release asset '${asset}' not found."
-              exit 1
-            fi
-          done
 
           gh release create "${{ needs.metadata.outputs.tag_name }}" \
             "${ASSETS[@]}" \
