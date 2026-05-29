@@ -83,12 +83,12 @@ while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|
     sleep 10
 done
 sudo snap connect fpgad:device-tree-overlays
-echo "    --- connecting dfx-mgr-socket interface"
+echo "    --- connecting run-dfx-mgrd-socket interface"
 while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
     echo "    --- snapd internal tasks still running... waiting..."
     sleep 10
 done
-sudo snap connect fpgad:dfx-mgr-socket
+sudo snap connect fpgad:run-dfx-mgrd-socket
 echo "    --- connecting dbus interfaces"
 while sudo snap debug state /var/lib/snapd/state.json | grep -qE 'Doing|Undoing|Waiting'; do
     echo "    --- snapd internal tasks still running... waiting..."
