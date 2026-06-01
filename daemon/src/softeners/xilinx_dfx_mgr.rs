@@ -55,7 +55,6 @@
 //! # }
 //! ```
 
-use std::env;
 use std::path::Path;
 use std::sync::OnceLock;
 
@@ -65,6 +64,7 @@ use crate::softeners::error::FpgadSoftenerError;
 use fpgad_macros::platform;
 use log::trace;
 use xilinx_dfx_mgr_fpga::XilinxDfxMgrFPGA;
+use xilinx_dfx_mgr_helpers::run_dfx_mgr;
 use xilinx_dfx_mgr_overlay_handler::XilinxDfxMgrOverlayHandler;
 
 // Marked as public so that the members are published in docs
@@ -216,42 +216,4 @@ pub fn load_overlay(bitstream_path: &Path, dtbo_path: &Path) -> Result<String, F
     })?;
 
     run_dfx_mgr(&["-o", dtbo_str, "-b", bitstream_str])
-}
-
-/// Helper to run the dfx-mgr-client binary with arguments
-fn run_dfx_mgr(args: &[&str]) -> Result<String, FpgadSoftenerError> {
-    let prefix = if let Ok(snap_env) = env::var("SNAP_COMPONENTS") {
-        snap_env + "/dfx-mgr"
-    } else {
-        "".to_string()
-    };
-
-    let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", prefix);
-
-    // Check if dfx-mgr-client exists before trying to run it
-    if !Path::new(&dfx_mgr_client_path).exists() {
-        return Err(FpgadSoftenerError::DfxMgr(format!(
-            "dfx-mgr-client not found at '{}'. Install the dfx-mgr component with: snap install fpgad+dfx-mgr.comp",
-            dfx_mgr_client_path
-        )));
-    }
-
-    trace!("Calling dfx-mgr with args {:#?}", args);
-    let output = std::process::Command::new(&dfx_mgr_client_path)
-        .args(args)
-        .output()
-        .map_err(|e| {
-            FpgadSoftenerError::DfxMgr(format!("dfx-mgr-client failed to produce output:\n{e}"))
-        })?;
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        // output.status usually looks like `exit status: 255`
-        Err(FpgadSoftenerError::DfxMgr(format!(
-            "dfx-mgr-client failed.\n{}\nStdout:\n{:?}\nStderr:\n{:?}",
-            output.status,
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        )))
-    }
 }

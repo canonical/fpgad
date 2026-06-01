@@ -40,15 +40,14 @@
 //! | `"write_property_bytes"` | Full sysfs path under `/sys/class/fpga_manager/` | Hex byte string, e.g. `deadbeef` |
 
 use crate::comm::dbus::validate_device_handle;
-use crate::error::map_error_io_to_fdo;
+use crate::error::FpgadError;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
 use crate::platforms::universal::universal_write_handler;
-use crate::softeners::error::FpgadSoftenerError;
+#[cfg(feature = "xilinx-dfx-mgr")]
+use crate::softeners::xilinx_dfx_mgr::xilinx_dfx_mgr_helpers::run_dfx_mgr;
 use log::{info, trace};
-use std::env;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::process::Command;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use zbus::{fdo, interface};
 
@@ -373,7 +372,7 @@ impl ControlInterface {
     ///   (e.g. `"-listPackage"` or `"-b my_bitstream.bit.bin -o my_overlay.dtbo"`)
     ///
     /// # Returns: `Result<String, fdo::Error>`
-    /// * `Ok(String)` – Exit status, stdout, and stderr from `dfx-mgr-client` on success
+    /// * `Ok(String)` – stdout from `dfx-mgr-client` on success
     /// * `Err(fdo::Error)` – If `dfx-mgr-client` is not found, the process fails, or
     ///   the `xilinx-dfx-mgr` feature was not compiled in
     ///
@@ -387,56 +386,34 @@ impl ControlInterface {
     /// let result = control_interface.dfx_mgr("-load 0 my_design").await?;
     /// ```
     async fn dfx_mgr(&self, cmd_string: &str) -> Result<String, fdo::Error> {
-        if cfg!(feature = "xilinx-dfx-mgr") {
-            let snap_env = env::var("SNAP").unwrap_or("".to_string());
+        #[cfg(feature = "xilinx-dfx-mgr")]
+        {
+            use tokio::task;
+            // Avoid borrowing from `cmd_string` across an await point by creating
+            // owned Strings and moving them into the blocking task.
+            let cmd_owned = cmd_string.to_string();
+            let res = task::spawn_blocking(move || {
+                let args: Vec<&str> = cmd_owned.split_whitespace().collect();
+                run_dfx_mgr(&args)
+            })
+            .await
+            .map_err(|e| FpgadError::Internal(format!("dfx-mgr-client subprocess failed: {e}")))?;
 
-            let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", snap_env);
-
-            // Check if dfx-mgr-client exists
-            if !Path::new(&dfx_mgr_client_path).exists() {
-                return Err(FpgadSoftenerError::DfxMgr(format!(
-                    "dfx-mgr-client not detected.\n\
-                    If using snap, please install the dfx-mgr component with \n\
-                    `[sudo] snap install fpgad+dfx-mgr [options]` \n\
-                    otherwise ensure that dfx-mgr-client exists at `{dfx_mgr_client_path}`"
-                ))
-                .into());
-            }
-
-            let output = Command::new(&dfx_mgr_client_path)
-                .args(cmd_string.split_whitespace())
-                .output()
-                .await
-                .map_err(|e| {
-                    map_error_io_to_fdo("dfx-mgr-client call failed to produce any output", e)
-                })?;
-
-            // Exit status
-            match output.status.success() {
-                true => {
-                    info!("Command ran successfully!");
-                    Ok(format!(
-                        "dfx-mgr called with args {}.\nExit status: {}\nStdout:\n{}\nStderr:\n{}",
-                        cmd_string,
-                        output.status,
-                        String::from_utf8_lossy(&output.stdout),
-                        String::from_utf8_lossy(&output.stderr),
-                    ))
+            match res {
+                Ok(output) => {
+                    info!("dfx-mgr command ran successfully!");
+                    Ok(output)
                 }
-                false => {
-                    info!("Command failed with code: {:#?}", output.status.code());
-                    Err(FpgadSoftenerError::DfxMgr(format!(
-                        "dfx-mgr called with args {}.\nExit status: {}\nStdout:\n{}\nStderr:\n{}",
-                        cmd_string,
-                        output.status,
-                        String::from_utf8_lossy(&output.stdout),
-                        String::from_utf8_lossy(&output.stderr),
-                    ))
-                    .into())
+                Err(e) => {
+                    info!("dfx-mgr command failed: {}", e);
+                    Err(e.into())
                 }
             }
-        } else {
-            use crate::error::FpgadError;
+        }
+
+        #[cfg(not(feature = "xilinx-dfx-mgr"))]
+        {
+            let _ = cmd_string;
             Err(FpgadError::Feature(
                 "Cannot use DfxMgr method - FPGAd was compiled without xilinx-dfx-mgr feature"
                     .into(),
