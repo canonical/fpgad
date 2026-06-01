@@ -65,7 +65,7 @@ plugs:
     interface: system-files
     write:
       - /sys/kernel/config/device-tree/overlays
-  dfx-mgr-socket:
+  run-dfx-mgrd-socket:
     interface: system-files
     write:
       - /run/dfx-mgrd.socket
@@ -88,7 +88,7 @@ apps:
       - fpga
       - kernel-firmware-control
       - hardware-observe
-      - dfx-mgr-socket
+      - run-dfx-mgrd-socket
       - device-tree-overlays
     activates-on:
       - daemon-dbus

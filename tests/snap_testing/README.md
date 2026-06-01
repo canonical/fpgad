@@ -41,7 +41,7 @@ sudo snap connect fpgad:fpga
 sudo snap connect fpgad:kernel-firmware-control
 sudo snap connect fpgad:hardware-observe
 sudo snap connect fpgad:device-tree-overlays
-sudo snap connect fpgad:dfx-mgr-socket
+sudo snap connect fpgad:run-dfx-mgrd-socket
 sudo snap connect fpgad:cli-dbus fpgad:daemon-dbus
 
 # Run all tests (MUST use sudo)
