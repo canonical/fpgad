@@ -19,27 +19,40 @@ eval "$(cargo llvm-cov show-env --sh)"
 
 export RUSTFLAGS="${RUSTFLAGS:-} -C llvm-args=-runtime-counter-relocation"
 
-# build the daemon only, to avoid getting coverage for cli (no tests written)
+# build the daemon only
 cargo build --bin fpgad
+
+# build the cli only
+cargo build --bin fpgad_cli
+
+set +e
+
+# run daemon unit tests
+echo "Running daemon unit tests..."
+cargo test -p fpgad --lib
+DAEMON_UNIT_EXIT=$?
+
+# run cli unit tests
+echo "Running CLI unit tests..."
+cargo test -p fpgad_cli --lib
+CLI_UNIT_EXIT=$?
+
+set -e
 
 # build the test binaries avoiding cli as well. Also extract the names of the integration test binaries
 universal_test="$(\
-cargo test --no-run --bin fpgad --test universal 2>&1 |\
+cargo test --no-run -p fpgad --test universal 2>&1 |\
   grep 'tests/universal.rs' |\
   awk '{gsub(/[()]/,""); print $3}'\
 )"
 echo "universal test binary: $universal_test"
 
 xilinx_dfx_mgr_test="$(\
-cargo test --no-run --bin fpgad --test xilinx_dfx_mgr 2>&1 |\
+cargo test --no-run -p fpgad --test xilinx_dfx_mgr 2>&1 |\
   grep 'tests/xilinx_dfx_mgr.rs' |\
   awk '{gsub(/[()]/,""); print $3}'\
 )"
 echo "xilinx_dfx_mgr test binary: $xilinx_dfx_mgr_test"
-
-# only run daemon unit tests
-cargo test --bin fpgad
-
 
 daemon_bin=${CARGO_LLVM_COV_TARGET_DIR}/debug/fpgad
 
@@ -113,9 +126,9 @@ cleanup_daemon
 cargo llvm-cov report &> artifacts/summary.txt
 cargo llvm-cov report --lcov --output-path artifacts/coverage.lcov
 
-# Exit with failure if either test suite failed
-if [ $UNIVERSAL_EXIT -ne 0 ] || [ $DFX_MGR_EXIT -ne 0 ]; then
-    echo "Tests failed: universal=$UNIVERSAL_EXIT, dfx_mgr=$DFX_MGR_EXIT"
+# Exit with failure if any test suite failed
+if [ $DAEMON_UNIT_EXIT -ne 0 ] || [ $CLI_UNIT_EXIT -ne 0 ] || [ $UNIVERSAL_EXIT -ne 0 ] || [ $DFX_MGR_EXIT -ne 0 ]; then
+    echo "Tests failed: daemon_unit=$DAEMON_UNIT_EXIT, cli_unit=$CLI_UNIT_EXIT, universal=$UNIVERSAL_EXIT, dfx_mgr=$DFX_MGR_EXIT"
     exit 1
 fi
 
