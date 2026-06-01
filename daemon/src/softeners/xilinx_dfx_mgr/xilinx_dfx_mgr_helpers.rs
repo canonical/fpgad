@@ -103,29 +103,30 @@ pub fn extract_firmware_name(dtbo_path: &Path) -> Result<String, FpgadError> {
 #[cfg(test)]
 mod tests {
     use crate::softeners::xilinx_dfx_mgr::xilinx_dfx_mgr_helpers::extract_firmware_name;
+    use googletest::prelude::*;
     use std::path::PathBuf;
 
-    #[test]
+    #[gtest]
     fn test_extract_firmware_name_k26() {
         let test_dtbo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests/test_data/k26-starter-kits/k26_starter_kits.dtbo");
-
-        if test_dtbo.exists() {
-            let result = extract_firmware_name(&test_dtbo);
-            assert!(result.is_ok());
-            assert_eq!(result.unwrap(), "k26-starter-kits.bit.bin");
+        if !test_dtbo.exists() {
+            println!("SKIP: test data not found at {}", test_dtbo.display());
+            return;
         }
+        let result = extract_firmware_name(&test_dtbo);
+        assert_that!(result, ok(eq("k26_starter_kits.bit.bin")));
     }
 
-    #[test]
+    #[gtest]
     fn test_extract_firmware_name_k24() {
         let test_dtbo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests/test_data/k24-starter-kits/k24_starter_kits.dtbo");
-
-        if test_dtbo.exists() {
-            let result = extract_firmware_name(&test_dtbo);
-            assert!(result.is_ok());
-            assert_eq!(result.unwrap(), "k24-starter-kits.bit.bin");
+        if !test_dtbo.exists() {
+            println!("SKIP: test data not found at {}", test_dtbo.display());
+            return;
         }
+        let result = extract_firmware_name(&test_dtbo);
+        assert_that!(result, ok(eq("k24_starter_kits.bit.bin")));
     }
 }
