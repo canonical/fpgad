@@ -93,6 +93,15 @@ class FPGATestBase(unittest.TestCase):
         full_msg = f"{msg}\nstdout:\t{proc.stdout}\nstderr:\t{proc.stderr}"
         self.assertNotIn(substring, proc.stdout, full_msg)
 
+    def assert_not_in_proc_err(
+        self, substring: str, proc: CompletedProcess, msg: str = None
+    ):
+        """Assert that a substring does not exist in stdout, including stdout/stderr on failure."""
+        if msg is None:
+            msg = f"Undesired '{substring}' found in stderr."
+        full_msg = f"{msg}\nstdout:\t{proc.stdout}\nstderr:\t{proc.stderr}"
+        self.assertNotIn(substring, proc.stderr, full_msg)
+
     def assert_in_proc_err(
         self, substring: str, proc: CompletedProcess, msg: str = None
     ):

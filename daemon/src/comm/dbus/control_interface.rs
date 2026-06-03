@@ -366,6 +366,12 @@ impl ControlInterface {
     /// This is a thin passthrough to the Xilinx DFX Manager client. The `cmd_string` is
     /// split on whitespace and forwarded as arguments to `dfx-mgr-client`.
     ///
+    /// # Security
+    ///
+    /// All arguments are validated to prevent command injection and other security issues.
+    /// Arguments containing shell metacharacters (`;`, `&`, `|`, `$`, etc.) are rejected.
+    /// This is done despite `Command::new().args()` not invoking a shell.
+    ///
     /// # Arguments
     ///
     /// * `cmd_string` - Space-separated arguments to pass to `dfx-mgr-client`
@@ -373,8 +379,8 @@ impl ControlInterface {
     ///
     /// # Returns: `Result<String, fdo::Error>`
     /// * `Ok(String)` – stdout from `dfx-mgr-client` on success
-    /// * `Err(fdo::Error)` – If `dfx-mgr-client` is not found, the process fails, or
-    ///   the `xilinx-dfx-mgr` feature was not compiled in
+    /// * `Err(fdo::Error)` – If arguments are invalid, `dfx-mgr-client` is not found,
+    ///   the process fails, or the `xilinx-dfx-mgr` feature was not compiled in
     ///
     /// # Examples
     ///
@@ -394,7 +400,15 @@ impl ControlInterface {
             let cmd_owned = cmd_string.to_string();
             let res = task::spawn_blocking(move || {
                 let args: Vec<&str> = cmd_owned.split_whitespace().collect();
-                run_dfx_mgr(&args)
+
+                if let Err(e) = validate_dfx_mgr_args(&args) {
+                    return Err(FpgadError::Argument(format!(
+                        "Invalid dfx-mgr arguments: {}",
+                        e
+                    )));
+                }
+
+                run_dfx_mgr(&args).map_err(|e| e.into())
             })
             .await
             .map_err(|e| FpgadError::Internal(format!("dfx-mgr-client subprocess failed: {e}")))?;
@@ -423,6 +437,56 @@ impl ControlInterface {
     }
 }
 
+/// Validate dfx-mgr arguments to prevent command injection and other security issues.
+///
+/// This function blocks shell metacharacters and overly long arguments to try to
+/// prevent command injection attacks and other security issues.
+///
+/// # Security Considerations
+///
+/// Even though we use `Command::new().args()` which doesn't invoke a shell,
+/// we validate inputs to:
+/// 1. Prevent any potential vulnerabilities in dfx-mgr-client itself
+/// 2. Give error messages for invalid input
+///
+/// # Arguments
+///
+/// * `args` - Slice of argument strings to validate
+///
+/// # Returns
+/// * `Ok(())` - If all arguments are valid
+/// * `Err(String)` - Error message describing the validation failure
+#[cfg(feature = "xilinx-dfx-mgr")]
+fn validate_dfx_mgr_args(args: &[&str]) -> Result<(), String> {
+    // Shell metacharacters and other dangerous patterns that should never appear
+    const DANGEROUS_CHARS: &[char] = &[
+        ';', '&', '|', '$', '`', '\n', '\r', '<', '>', '(', ')', '{', '}', '[', ']', '\\', '\'',
+        '"', '*', '?',
+    ];
+
+    for (index, arg) in args.iter().enumerate() {
+        // Check for dangerous shell metacharacters
+        if let Some(dangerous_char) = arg.chars().find(|c| DANGEROUS_CHARS.contains(c)) {
+            return Err(format!(
+                "Argument at position {} contains dangerous character '{}': \"{}\". \
+                Shell metacharacters and special characters are not allowed in dfx-mgr commands.",
+                index, dangerous_char, arg
+            ));
+        }
+
+        // Prevent excessively long arguments (potential buffer overflow attacks)
+        if arg.len() > 1024 {
+            return Err(format!(
+                "Argument at position {} is too long ({} characters). Maximum length is 1024 characters.",
+                index,
+                arg.len()
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod test_get_write_lock_guard {
     use crate::comm::dbus::control_interface::get_write_lock_guard;
@@ -430,5 +494,145 @@ mod test_get_write_lock_guard {
     #[tokio::test]
     async fn test_get_write_lock_guard() {
         let _guard = get_write_lock_guard().await;
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "xilinx-dfx-mgr")]
+mod test_validate_dfx_mgr_args {
+    use super::validate_dfx_mgr_args;
+
+    #[test]
+    fn test_validate_valid_commands() {
+        // Valid single flag commands
+        assert!(validate_dfx_mgr_args(&["-listPackage"]).is_ok());
+        assert!(validate_dfx_mgr_args(&["-listSlot"]).is_ok());
+
+        // Valid load command with slot and package name
+        assert!(validate_dfx_mgr_args(&["-load", "0", "my_design"]).is_ok());
+
+        // Valid remove command
+        assert!(validate_dfx_mgr_args(&["-remove", "0"]).is_ok());
+
+        // Package names with underscores, hyphens, dots
+        assert!(validate_dfx_mgr_args(&["-load", "1", "my-package_v2.0"]).is_ok());
+
+        // Paths with forward slashes and colons
+        assert!(validate_dfx_mgr_args(&["-load", "0", "/path/to/package"]).is_ok());
+
+        // Complex valid flag names
+        assert!(validate_dfx_mgr_args(&["-list_Package"]).is_ok());
+        assert!(validate_dfx_mgr_args(&["-loadPackage123"]).is_ok());
+    }
+
+    #[test]
+    fn test_validate_shell_injection_attempts() {
+        // Shell command chaining with semicolon
+        let result = validate_dfx_mgr_args(&["-listPackage", ";", "rm", "-rf", "/"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Background command with ampersand
+        let result = validate_dfx_mgr_args(&["-listPackage", "&", "sudo", "rm", "-rf", "/"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Pipe to another command
+        let result = validate_dfx_mgr_args(&["-listPackage", "|", "grep", "secret"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Variable expansion attempt
+        let result = validate_dfx_mgr_args(&["-load", "$HOME"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Command substitution with backticks
+        let result = validate_dfx_mgr_args(&["`whoami`"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Redirect attempts
+        let result = validate_dfx_mgr_args(&["-listPackage", ">", "/tmp/output"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        let result = validate_dfx_mgr_args(&["-listPackage", "<", "/etc/passwd"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Glob patterns
+        let result = validate_dfx_mgr_args(&["-load", "*"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Quotes
+        let result = validate_dfx_mgr_args(&["\"malicious\""]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        let result = validate_dfx_mgr_args(&["'malicious'"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+    }
+
+    #[test]
+    fn test_validate_allows_special_characters() {
+        // Characters that are not dangerous shell metacharacters should be allowed
+        // This supports international use cases and various naming conventions
+        assert!(validate_dfx_mgr_args(&["-load", "0", "package@version"]).is_ok());
+        assert!(validate_dfx_mgr_args(&["-load", "0", "package+variant"]).is_ok());
+        assert!(validate_dfx_mgr_args(&["-load", "0", "design#1"]).is_ok());
+    }
+
+    #[test]
+    fn test_validate_allows_unicode() {
+        // International characters should be allowed for file paths
+        assert!(validate_dfx_mgr_args(&["-load", "0", "设计文件"]).is_ok()); // Chinese
+        assert!(validate_dfx_mgr_args(&["-load", "0", "ファイル"]).is_ok()); // Japanese
+        assert!(validate_dfx_mgr_args(&["-load", "0", "файл"]).is_ok()); // Cyrillic
+    }
+
+    #[test]
+    fn test_validate_long_arguments() {
+        // Argument that's too long (potential buffer overflow attempt)
+        let long_arg = "a".repeat(1025);
+        let result = validate_dfx_mgr_args(&["-load", "0", &long_arg]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("too long"));
+
+        // Boundary case: exactly 1024 characters should be OK
+        let boundary_arg = "a".repeat(1024);
+        assert!(validate_dfx_mgr_args(&["-load", "0", &boundary_arg]).is_ok());
+    }
+
+    #[test]
+    fn test_validate_newlines_and_control_chars() {
+        // Newline injection
+        let result = validate_dfx_mgr_args(&["-list\nPackage"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Carriage return
+        let result = validate_dfx_mgr_args(&["-list\rPackage"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+    }
+
+    #[test]
+    fn test_validate_parentheses_and_brackets() {
+        // Subshell attempts
+        let result = validate_dfx_mgr_args(&["$(whoami)"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        let result = validate_dfx_mgr_args(&["(ls)"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Arrays/brackets
+        let result = validate_dfx_mgr_args(&["[test]"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
     }
 }
