@@ -10,22 +10,44 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
+//! D-Bus control interface (`com.canonical.fpgad.control`) for modifying FPGA state.
 //!
-//! The `ControlInterface` provides asynchronous methods to modify FPGA state, load bitstreams, and manage device tree overlays.
-//! All methods return a `Result<String, fdo::Error>` and are designed for D-Bus usage.
-//! If FPGAd raises the error, then the fdo::Error strings are prepended with the relevant FPGAd error type e.g. `FpgadError::Argument: <error text>`. See [crate::comm::dbus] for a summary of this interface's methods.
+//! The [`ControlInterface`] provides asynchronous methods to load bitstreams, apply and remove
+//! device-tree overlays, and interact with vendor-specific FPGA managers.
+//! All methods return `Result<String, fdo::Error>` and communicate with the daemon over D-Bus.
+//! Error strings are prefixed with the relevant `FpgadError` type, e.g.
+//! `FpgadError::Argument: <message>`. See [`crate::comm::dbus`] for a higher-level overview.
 //!
+//! # Methods
+//!
+//! | Method | D-Bus signature summary | Description |
+//! |--------|------------------------|-------------|
+//! | `write_bitstream_direct` | `(platform_string, device_handle, bitstream_path, firmware_lookup_path)` | Load a bitstream directly to an FPGA (no device-tree changes) |
+//! | `apply_overlay` | `(platform_string, overlay_handle, overlay_source_path, firmware_lookup_path)` | Apply a device-tree overlay to trigger a bitstream load and driver probe |
+//! | `remove_overlay` | `(platform_string, overlay_handle)` | Remove a previously applied device-tree overlay |
+//! | `remove_bitstream` | `(platform_string, device_handle, bitstream_handle)` | Remove the currently loaded bitstream from an FPGA device |
+//! | `universal` | `(sub_cmd, path_str, value_str)` | Low-level write to FPGA manager sysfs properties — see [`WriteSubCommand`](crate::platforms::universal::WriteSubCommand) |
+//! | `dfx_mgr` | `(cmd_string)` | Passthrough to `dfx-mgr-client` (requires `dfx-mgr` snap component) |
+//!
+//! ## `universal` control sub-commands
+//!
+//! The `universal` method dispatches on `sub_cmd`; see [`WriteSubCommand`](crate::platforms::universal::WriteSubCommand) for the full enum available via this (control) interface.
+//!
+//! | `sub_cmd` | `path_str` | `value_str` |
+//! |-----------|-----------|-------------|
+//! | `"write_flags"` | Device handle or full sysfs path to flags, e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags` | Hex `u32` with or without `0x` prefix (e.g. `0x20` or `20`, both = decimal 32) |
+//! | `"write_property"` | Full sysfs path under `/sys/class/fpga_manager/` | String payload |
+//! | `"write_property_bytes"` | Full sysfs path under `/sys/class/fpga_manager/` | Hex byte string, e.g. `deadbeef` |
 
-use crate::comm::dbus::{validate_device_handle, validate_property_path};
-use crate::error::map_error_io_to_fdo;
+use crate::comm::dbus::validate_device_handle;
+use crate::error::FpgadError;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
-use crate::softeners::error::FpgadSoftenerError;
-use crate::system_io::{fs_write, fs_write_bytes};
+use crate::platforms::universal::universal_write_handler;
+#[cfg(feature = "xilinx-dfx-mgr")]
+use crate::softeners::xilinx_dfx_mgr::xilinx_dfx_mgr_helpers::run_dfx_mgr;
 use log::{info, trace};
-use std::env;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::process::Command;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use zbus::{fdo, interface};
 
@@ -75,48 +97,6 @@ pub struct ControlInterface {}
 /// [crate::comm::dbus::control_interface] for a summary of this interface in general.
 #[interface(name = "com.canonical.fpgad.control")]
 impl ControlInterface {
-    /// Set the flags for a specific FPGA device.
-    ///
-    /// # Arguments
-    ///
-    /// * `platform_string`: Platform compatibility string.
-    /// * `device_handle`: FPGA device handle (e.g., `fpga0`).
-    /// * `flags`: Bitmask flags to apply to the device.
-    ///
-    /// # Returns: `Result<String, fdo::Error>`
-    /// * `Ok(String)` – Confirmation message, including the new flags in hex.
-    /// * `Err(fdo::Error)` if device validation or flag setting fails.
-    ///
-    /// # Examples
-    ///
-    /// Specify device
-    /// ```
-    /// let result = control_interface
-    ///     .set_fpga_flags("xlnx,zynqmp-pcap-fpga", "fpga0", 0x20)
-    ///     .await?;
-    /// assert_eq!(result, "Flags set to 0x20 for fpga0");
-    /// ```
-    ///
-    /// Don't specify compat string (fetches compat string based on `device_handle`)
-    /// ```rust
-    /// let result = control_interface
-    ///     .set_fpga_flags("", "fpga0", 0b100000)
-    ///     .await?;
-    /// assert_eq!(result, "Flags set to 0x20 for fpga0");
-    /// ```
-    async fn set_fpga_flags(
-        &self,
-        platform_string: &str,
-        device_handle: &str,
-        flags: u32,
-    ) -> Result<String, fdo::Error> {
-        // TODO(Artie): https://github.com/canonical/fpgad/issues/187
-        info!("set_fpga_flags called with name: {device_handle} and flags: {flags}");
-        validate_device_handle(device_handle)?;
-        let platform = platform_from_compat_or_device(platform_string, device_handle)?;
-        Ok(platform.fpga(device_handle)?.set_flags(flags)?)
-    }
-
     /// Trigger a bitstream-only load of a bitstream to a given FPGA device (i.e. no device-tree changes or driver installation).
     ///
     /// # Arguments
@@ -174,7 +154,6 @@ impl ControlInterface {
         bitstream_path_str: &str,
         firmware_lookup_path: &str,
     ) -> Result<String, fdo::Error> {
-        // TODO(Artie): https://github.com/canonical/fpgad/issues/187
         info!("load_firmware called with name: {device_handle} and path_str: {bitstream_path_str}");
         validate_device_handle(device_handle)?;
         let path = Path::new(bitstream_path_str);
@@ -335,87 +314,48 @@ impl ControlInterface {
         Ok(fpga.remove_firmware(handle)?)
     }
 
-    /// Write a string value to an arbitrary FPGA device property.
+    /// Entrypoint for universal platform specific operations.
     ///
     /// # Arguments
     ///
-    /// * `property_path_str`: Full path under [crate::config::FPGA_MANAGERS_DIR].
-    /// * `data`: String data to write.
+    /// * `sub_cmd` - The write operation to perform - see [`crate::platforms::universal::WriteSubCommand`]
+    /// * `path_str` - Device handle for `write_flags`, or sysfs property path for property writes
+    /// * `value_str` - Value to write (flags value, string payload for `write_property`,
+    ///   or raw byte string for `write_property_bytes`)
     ///
-    /// # Returns: `Result<String, Error>`
-    ///
-    /// * `Ok(String)` – Confirmation of written data.
-    /// * `Err(fdo::Error)` if path is outside FPGA managers, or if the writing failed for any
-    ///     other reason
-    /// **Notes:**
-    ///
-    /// * Path must be under [crate::config::FPGA_MANAGERS_DIR] - determined at compile time.
+    /// # Returns: `Result<String, fdo::Error>`
+    /// * `Ok(String)` – Confirmation message.
+    /// * `Err(fdo::Error)` – If the `sub_cmd` is unrecognised, the path is invalid / outside the
+    ///   allowed directory, or the write fails.
     ///
     /// # Examples
     ///
+    /// ```rust,no_run
+    /// // Write programming flags
+    /// control_interface.universal("write_flags", "fpga0", "0x20").await?;
+    ///
+    /// // Write a string property
+    /// control_interface.universal(
+    ///     "write_property",
+    ///     "/sys/class/fpga_manager/fpga0/key",
+    ///     "BADBADBADBAD",
+    /// ).await?;
+    ///
+    /// // Write raw bytes
+    /// control_interface.universal(
+    ///     "write_property_bytes",
+    ///     "/sys/class/fpga_manager/fpga0/key",
+    ///     "deadbeef",
+    /// ).await?;
     /// ```
-    /// let result = control_interface
-    ///     .write_property(
-    ///         "xlnx,zynqmp-pcap-fpga",
-    ///         "/sys/class/fpga_manager/fpga0/key",
-    ///         "BADBADBADBAD")
-    ///     .await?;
-    /// assert_eq!(result, "BADBADBADBAD written to /sys/class/fpga_manager/fpga0/key");
-    /// ```
-    async fn write_property(
+    async fn universal(
         &self,
-        property_path_str: &str,
-        data: &str,
+        sub_cmd: &str,
+        path_str: &str,
+        value_str: &str,
     ) -> Result<String, fdo::Error> {
-        // TODO(Artie): https://github.com/canonical/fpgad/issues/187
-        info!("write_property called with property_path_str: {property_path_str} and data: {data}");
-        let property_path = validate_property_path(Path::new(property_path_str))?;
-        fs_write(&property_path, false, data)?;
-        Ok(format!("{data} written to {property_path_str}"))
-    }
-
-    /// Write raw bytes to an arbitrary FPGA device property.
-    ///
-    /// # Arguments
-    ///
-    /// * `property_path_str`: Full path under [crate::config::FPGA_MANAGERS_DIR].
-    /// * `data`: Byte array to write.
-    ///
-    /// # Returns: `Result<String, Error>`
-    ///
-    /// * `Ok(String)` – Confirmation of written data.
-    /// * `Err(fdo::Error)` if path is outside FPGA managers, or if the writing failed for any
-    ///     other reason
-    ///
-    /// **Notes:**
-    ///
-    /// * Path must be under [crate::config::FPGA_MANAGERS_DIR] - determined at compile time.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let result = control_interface
-    ///     .write_property_bytes(
-    ///         "xlnx,zynqmp-pcap-fpga",
-    ///         "/sys/class/fpga_manager/fpga0/key",
-    ///         &[0xBA, 0xDB, 0xAD, 0xBA, 0xDB, 0xAD])
-    ///     .await?;
-    /// assert_eq!(result, "Byte string successfully written to /sys/class/fpga_manager/fpga0/key");
-    /// ```
-    async fn write_property_bytes(
-        &self,
-        property_path_str: &str,
-        data: &[u8],
-    ) -> Result<String, fdo::Error> {
-        // TODO(Artie): https://github.com/canonical/fpgad/issues/187
-        info!(
-            "write_property called with property_path_str: {property_path_str} and data: {data:?}"
-        );
-        let property_path = validate_property_path(Path::new(property_path_str))?;
-        fs_write_bytes(&property_path, false, data)?;
-        Ok(format!(
-            "Byte string successfully written to {property_path_str}"
-        ))
+        info!("universal (write) called with sub_cmd: {sub_cmd}, path_str: {path_str}");
+        universal_write_handler(sub_cmd, path_str, value_str)
     }
 
     /// Entrypoint for dfx-mgr specific operations
@@ -426,15 +366,21 @@ impl ControlInterface {
     /// This is a thin passthrough to the Xilinx DFX Manager client. The `cmd_string` is
     /// split on whitespace and forwarded as arguments to `dfx-mgr-client`.
     ///
+    /// # Security
+    ///
+    /// All arguments are validated to prevent command injection and other security issues.
+    /// Arguments containing shell metacharacters (`;`, `&`, `|`, `$`, etc.) are rejected.
+    /// This is done despite `Command::new().args()` not invoking a shell.
+    ///
     /// # Arguments
     ///
     /// * `cmd_string` - Space-separated arguments to pass to `dfx-mgr-client`
     ///   (e.g. `"-listPackage"` or `"-b my_bitstream.bit.bin -o my_overlay.dtbo"`)
     ///
     /// # Returns: `Result<String, fdo::Error>`
-    /// * `Ok(String)` – Exit status, stdout, and stderr from `dfx-mgr-client` on success
-    /// * `Err(fdo::Error)` – If `dfx-mgr-client` is not found, the process fails, or
-    ///   the `xilinx-dfx-mgr` feature was not compiled in
+    /// * `Ok(String)` – stdout from `dfx-mgr-client` on success
+    /// * `Err(fdo::Error)` – If arguments are invalid, `dfx-mgr-client` is not found,
+    ///   the process fails, or the `xilinx-dfx-mgr` feature was not compiled in
     ///
     /// # Examples
     ///
@@ -446,56 +392,42 @@ impl ControlInterface {
     /// let result = control_interface.dfx_mgr("-load 0 my_design").await?;
     /// ```
     async fn dfx_mgr(&self, cmd_string: &str) -> Result<String, fdo::Error> {
-        if cfg!(feature = "xilinx-dfx-mgr") {
-            let snap_env = env::var("SNAP").unwrap_or("".to_string());
+        #[cfg(feature = "xilinx-dfx-mgr")]
+        {
+            use tokio::task;
+            // Avoid borrowing from `cmd_string` across an await point by creating
+            // owned Strings and moving them into the blocking task.
+            let cmd_owned = cmd_string.to_string();
+            let res = task::spawn_blocking(move || {
+                let args: Vec<&str> = cmd_owned.split_whitespace().collect();
 
-            let dfx_mgr_client_path = format!("{}/usr/bin/dfx-mgr-client", snap_env);
-
-            // Check if dfx-mgr-client exists
-            if !Path::new(&dfx_mgr_client_path).exists() {
-                return Err(FpgadSoftenerError::DfxMgr(format!(
-                    "dfx-mgr-client not detected.\n\
-                    If using snap, please install the dfx-mgr component with \n\
-                    `[sudo] snap install fpgad+dfx-mgr [options]` \n\
-                    otherwise ensure that dfx-mgr-client exists at `{dfx_mgr_client_path}`"
-                ))
-                .into());
-            }
-
-            let output = Command::new(&dfx_mgr_client_path)
-                .args(cmd_string.split_whitespace())
-                .output()
-                .await
-                .map_err(|e| {
-                    map_error_io_to_fdo("dfx-mgr-client call failed to produce any output", e)
-                })?;
-
-            // Exit status
-            match output.status.success() {
-                true => {
-                    info!("Command ran successfully!");
-                    Ok(format!(
-                        "dfx-mgr called with args {}.\nExit status: {}\nStdout:\n{}\nStderr:\n{}",
-                        cmd_string,
-                        output.status,
-                        String::from_utf8_lossy(&output.stdout),
-                        String::from_utf8_lossy(&output.stderr),
-                    ))
+                if let Err(e) = validate_dfx_mgr_args(&args) {
+                    return Err(FpgadError::Argument(format!(
+                        "Invalid dfx-mgr arguments: {}",
+                        e
+                    )));
                 }
-                false => {
-                    info!("Command failed with code: {:#?}", output.status.code());
-                    Err(FpgadSoftenerError::DfxMgr(format!(
-                        "dfx-mgr called with args {}.\nExit status: {}\nStdout:\n{}\nStderr:\n{}",
-                        cmd_string,
-                        output.status,
-                        String::from_utf8_lossy(&output.stdout),
-                        String::from_utf8_lossy(&output.stderr),
-                    ))
-                    .into())
+
+                run_dfx_mgr(&args).map_err(|e| e.into())
+            })
+            .await
+            .map_err(|e| FpgadError::Internal(format!("dfx-mgr-client subprocess failed: {e}")))?;
+
+            match res {
+                Ok(output) => {
+                    info!("dfx-mgr command ran successfully!");
+                    Ok(output)
+                }
+                Err(e) => {
+                    info!("dfx-mgr command failed: {}", e);
+                    Err(e.into())
                 }
             }
-        } else {
-            use crate::error::FpgadError;
+        }
+
+        #[cfg(not(feature = "xilinx-dfx-mgr"))]
+        {
+            let _ = cmd_string;
             Err(FpgadError::Feature(
                 "Cannot use DfxMgr method - FPGAd was compiled without xilinx-dfx-mgr feature"
                     .into(),
@@ -505,6 +437,56 @@ impl ControlInterface {
     }
 }
 
+/// Validate dfx-mgr arguments to prevent command injection and other security issues.
+///
+/// This function blocks shell metacharacters and overly long arguments to try to
+/// prevent command injection attacks and other security issues.
+///
+/// # Security Considerations
+///
+/// Even though we use `Command::new().args()` which doesn't invoke a shell,
+/// we validate inputs to:
+/// 1. Prevent any potential vulnerabilities in dfx-mgr-client itself
+/// 2. Give error messages for invalid input
+///
+/// # Arguments
+///
+/// * `args` - Slice of argument strings to validate
+///
+/// # Returns
+/// * `Ok(())` - If all arguments are valid
+/// * `Err(String)` - Error message describing the validation failure
+#[cfg(feature = "xilinx-dfx-mgr")]
+fn validate_dfx_mgr_args(args: &[&str]) -> Result<(), String> {
+    // Shell metacharacters and other dangerous patterns that should never appear
+    const DANGEROUS_CHARS: &[char] = &[
+        ';', '&', '|', '$', '`', '\n', '\r', '<', '>', '(', ')', '{', '}', '[', ']', '\\', '\'',
+        '"', '*', '?',
+    ];
+
+    for (index, arg) in args.iter().enumerate() {
+        // Check for dangerous shell metacharacters
+        if let Some(dangerous_char) = arg.chars().find(|c| DANGEROUS_CHARS.contains(c)) {
+            return Err(format!(
+                "Argument at position {} contains dangerous character '{}': \"{}\". \
+                Shell metacharacters and special characters are not allowed in dfx-mgr commands.",
+                index, dangerous_char, arg
+            ));
+        }
+
+        // Prevent excessively long arguments (potential buffer overflow attacks)
+        if arg.len() > 1024 {
+            return Err(format!(
+                "Argument at position {} is too long ({} characters). Maximum length is 1024 characters.",
+                index,
+                arg.len()
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod test_get_write_lock_guard {
     use crate::comm::dbus::control_interface::get_write_lock_guard;
@@ -512,5 +494,145 @@ mod test_get_write_lock_guard {
     #[tokio::test]
     async fn test_get_write_lock_guard() {
         let _guard = get_write_lock_guard().await;
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "xilinx-dfx-mgr")]
+mod test_validate_dfx_mgr_args {
+    use super::validate_dfx_mgr_args;
+
+    #[test]
+    fn test_validate_valid_commands() {
+        // Valid single flag commands
+        assert!(validate_dfx_mgr_args(&["-listPackage"]).is_ok());
+        assert!(validate_dfx_mgr_args(&["-listSlot"]).is_ok());
+
+        // Valid load command with slot and package name
+        assert!(validate_dfx_mgr_args(&["-load", "0", "my_design"]).is_ok());
+
+        // Valid remove command
+        assert!(validate_dfx_mgr_args(&["-remove", "0"]).is_ok());
+
+        // Package names with underscores, hyphens, dots
+        assert!(validate_dfx_mgr_args(&["-load", "1", "my-package_v2.0"]).is_ok());
+
+        // Paths with forward slashes and colons
+        assert!(validate_dfx_mgr_args(&["-load", "0", "/path/to/package"]).is_ok());
+
+        // Complex valid flag names
+        assert!(validate_dfx_mgr_args(&["-list_Package"]).is_ok());
+        assert!(validate_dfx_mgr_args(&["-loadPackage123"]).is_ok());
+    }
+
+    #[test]
+    fn test_validate_shell_injection_attempts() {
+        // Shell command chaining with semicolon
+        let result = validate_dfx_mgr_args(&["-listPackage", ";", "rm", "-rf", "/"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Background command with ampersand
+        let result = validate_dfx_mgr_args(&["-listPackage", "&", "sudo", "rm", "-rf", "/"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Pipe to another command
+        let result = validate_dfx_mgr_args(&["-listPackage", "|", "grep", "secret"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Variable expansion attempt
+        let result = validate_dfx_mgr_args(&["-load", "$HOME"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Command substitution with backticks
+        let result = validate_dfx_mgr_args(&["`whoami`"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Redirect attempts
+        let result = validate_dfx_mgr_args(&["-listPackage", ">", "/tmp/output"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        let result = validate_dfx_mgr_args(&["-listPackage", "<", "/etc/passwd"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Glob patterns
+        let result = validate_dfx_mgr_args(&["-load", "*"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Quotes
+        let result = validate_dfx_mgr_args(&["\"malicious\""]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        let result = validate_dfx_mgr_args(&["'malicious'"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+    }
+
+    #[test]
+    fn test_validate_allows_special_characters() {
+        // Characters that are not dangerous shell metacharacters should be allowed
+        // This supports international use cases and various naming conventions
+        assert!(validate_dfx_mgr_args(&["-load", "0", "package@version"]).is_ok());
+        assert!(validate_dfx_mgr_args(&["-load", "0", "package+variant"]).is_ok());
+        assert!(validate_dfx_mgr_args(&["-load", "0", "design#1"]).is_ok());
+    }
+
+    #[test]
+    fn test_validate_allows_unicode() {
+        // International characters should be allowed for file paths
+        assert!(validate_dfx_mgr_args(&["-load", "0", "设计文件"]).is_ok()); // Chinese
+        assert!(validate_dfx_mgr_args(&["-load", "0", "ファイル"]).is_ok()); // Japanese
+        assert!(validate_dfx_mgr_args(&["-load", "0", "файл"]).is_ok()); // Cyrillic
+    }
+
+    #[test]
+    fn test_validate_long_arguments() {
+        // Argument that's too long (potential buffer overflow attempt)
+        let long_arg = "a".repeat(1025);
+        let result = validate_dfx_mgr_args(&["-load", "0", &long_arg]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("too long"));
+
+        // Boundary case: exactly 1024 characters should be OK
+        let boundary_arg = "a".repeat(1024);
+        assert!(validate_dfx_mgr_args(&["-load", "0", &boundary_arg]).is_ok());
+    }
+
+    #[test]
+    fn test_validate_newlines_and_control_chars() {
+        // Newline injection
+        let result = validate_dfx_mgr_args(&["-list\nPackage"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Carriage return
+        let result = validate_dfx_mgr_args(&["-list\rPackage"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+    }
+
+    #[test]
+    fn test_validate_parentheses_and_brackets() {
+        // Subshell attempts
+        let result = validate_dfx_mgr_args(&["$(whoami)"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        let result = validate_dfx_mgr_args(&["(ls)"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
+
+        // Arrays/brackets
+        let result = validate_dfx_mgr_args(&["[test]"]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("dangerous character"));
     }
 }

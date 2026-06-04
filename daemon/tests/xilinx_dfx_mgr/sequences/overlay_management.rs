@@ -39,12 +39,12 @@ async fn apply_overlay_via_dfx_mgr(_setup: ()) {
 
     // Reset flags
     control_proxy
-        .set_fpga_flags(PLATFORM_STRING, device_handle, 0)
+        .universal("write_flags", device_handle, "0")
         .await
         .expect("failed to set fpga flags");
     expect_that!(
         status_proxy
-            .get_fpga_flags(PLATFORM_STRING, device_handle)
+            .universal("read_flags", device_handle)
             .await
             .expect("failed to get fpga flags"),
         eq("0"),

@@ -111,25 +111,6 @@ pub trait Fpga {
     /// * `Err(FpgadError::IORead)` - Failed to read state file
     fn state(&self) -> Result<String, FpgadError>;
 
-    /// Get the current programming flags for the FPGA device.
-    ///
-    /// # Returns: `Result<u32, FpgadError>`
-    /// * `Ok(u32)` - Current flags value
-    /// * `Err(FpgadError::IORead)` - Failed to read flags file
-    /// * `Err(FpgadError::Flag)` - Failed to parse flags value
-    fn flags(&self) -> Result<u32, FpgadError>;
-
-    /// Set the programming flags for the FPGA device.
-    ///
-    /// # Arguments
-    ///
-    /// * `flags` - The flags value to set
-    ///
-    /// # Returns: `Result<String, FpgadError>`
-    /// * `Ok(String)` - Confirmation message including flags value and device handle
-    /// * `Err(FpgadError::IOWrite)` - Failed to write flags file
-    fn set_flags(&self, flags: u32) -> Result<String, FpgadError>;
-
     /// Load a bitstream firmware file to the FPGA device.
     ///
     /// # Arguments

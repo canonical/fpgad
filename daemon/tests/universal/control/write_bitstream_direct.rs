@@ -102,7 +102,7 @@ async fn should_pass<M: for<'a> Matcher<&'a zbus::Result<String>>>(
         .expect("failed to create control proxy");
 
     proxy
-        .set_fpga_flags(platform_str, device_hande, 0)
+        .universal("write_flags", device_hande, "0")
         .await
         .expect("Failed to reset flags during test");
 
@@ -144,7 +144,7 @@ async fn should_timeout(
         .expect("failed to create control proxy");
 
     proxy
-        .set_fpga_flags(platform_str, device_hande, 0)
+        .universal("write_flags", device_hande, "0")
         .await
         .expect("Failed to reset flags during test");
 

@@ -137,7 +137,7 @@ fn build_property_path(device_handle: &str, attribute: &str) -> Result<String, z
 async fn call_write_property(property: &str, value: &str) -> Result<String, zbus::Error> {
     let connection = Connection::system().await?;
     let proxy = control_proxy::ControlProxy::new(&connection).await?;
-    proxy.write_property(property, value).await
+    proxy.universal("write_property", property, value).await
 }
 
 /// Main handler for the set command.
@@ -171,7 +171,6 @@ pub async fn set_handler(
     attribute: &str,
     value: &str,
 ) -> Result<String, zbus::Error> {
-    // TODO(Artie): https://github.com/canonical/fpgad/issues/187
     let property_path = match device_handle {
         None => build_property_path(&get_first_device_handle().await?, attribute)?,
         Some(dev) => build_property_path(dev, attribute)?,

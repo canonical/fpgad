@@ -106,19 +106,21 @@ pub trait Status {
     /// * `Err(zbus::Error)` - DBus error or FpgadError. See [Error Handling](../../index.html#error-handling)
     async fn get_fpga_state(&self, platform_string: &str, device_handle: &str) -> Result<String>;
 
-    /// Get the current programming flags for an FPGA device.
+    /// Get the current programming flags for an FPGA device via the universal interface.
     ///
-    /// Returns the flags as a hexadecimal string with no prefix (decimal value of 32 -> "20").
+    /// Use `universal("read_flags", device_handle)` to read flags, or
+    /// `universal("read_property", property_path)` to read an arbitrary sysfs property.
     ///
     /// # Arguments
     ///
-    /// * `platform_string` - Platform identifier (can be empty for auto-detection)
-    /// * `device_handle` - [Device handle](../../index.html#device-handles) (e.g., "fpga0")
+    /// * `sub_cmd` - One of `read_property` or `read_flags` — see
+    ///   [`ReadSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.ReadSubCommand.html)
+    /// * `path_str` - device handle or sysfs path to flags property for `read_flags`, or sysfs property path for `read_property`,
     ///
     /// # Returns: `Result<String>`
-    /// * `Ok(String)` - Current flags in hexadecimal format
+    /// * `Ok(String)` - Property value or flags in hexadecimal format
     /// * `Err(zbus::Error)` - DBus error or FpgadError. See [Error Handling](../../index.html#error-handling)
-    async fn get_fpga_flags(&self, platform_string: &str, device_handle: &str) -> Result<String>;
+    async fn universal(&self, sub_cmd: &str, path_str: &str) -> Result<String>;
 
     /// Get the status of a specific device tree overlay.
     ///

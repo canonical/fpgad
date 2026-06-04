@@ -48,6 +48,6 @@ pub async fn cases<M: for<'a> Matcher<&'a Result<String>>>(
     let proxy = ControlProxy::new(&connection)
         .await
         .expect("failed to create control proxy");
-    let res = proxy.write_property(path, data).await;
+    let res = proxy.universal("write_property", path, data).await;
     expect_that!(&res, condition);
 }

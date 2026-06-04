@@ -53,12 +53,12 @@ async fn expected_good_overlay_process(_setup: ()) {
 
     // reset flags
     control_proxy
-        .set_fpga_flags(platform_handle, device_handle, 0)
+        .universal("write_flags", device_handle, "0")
         .await
         .expect("failed to set fpga flags");
     expect_that!(
         status_proxy
-            .get_fpga_flags(platform_handle, device_handle)
+            .universal("read_flags", device_handle)
             .await
             .expect("failed to get fpga flags"),
         eq("0"),
@@ -67,7 +67,7 @@ async fn expected_good_overlay_process(_setup: ()) {
 
     // reset encryption key
     control_proxy
-        .write_property("/sys/class/fpga_manager/fpga0/key", "")
+        .universal("write_property", "/sys/class/fpga_manager/fpga0/key", "")
         .await
         .expect("failed to reset the encryption key");
 
@@ -136,12 +136,12 @@ async fn overlay_already_applied(_setup: ()) {
 
     // reset flags
     control_proxy
-        .set_fpga_flags(platform_handle, device_handle, 0)
+        .universal("write_flags", device_handle, "0")
         .await
         .expect("failed to set fpga flags");
     expect_that!(
         status_proxy
-            .get_fpga_flags(platform_handle, device_handle)
+            .universal("read_flags", device_handle)
             .await
             .expect("failed to get fpga flags"),
         eq("0"),
@@ -150,7 +150,7 @@ async fn overlay_already_applied(_setup: ()) {
 
     // reset encryption key
     control_proxy
-        .write_property("/sys/class/fpga_manager/fpga0/key", "")
+        .universal("write_property", "/sys/class/fpga_manager/fpga0/key", "")
         .await
         .expect("failed to reset the encryption key");
 
@@ -248,12 +248,12 @@ async fn argument_errors(
 
     // reset flags
     control_proxy
-        .set_fpga_flags(good_platform_handle, good_device_handle, 0)
+        .universal("write_flags", good_device_handle, "0")
         .await
         .expect("failed to set fpga flags");
     expect_that!(
         status_proxy
-            .get_fpga_flags(good_platform_handle, good_device_handle)
+            .universal("read_flags", good_device_handle)
             .await
             .expect("failed to get fpga flags"),
         eq("0"),
@@ -262,7 +262,7 @@ async fn argument_errors(
 
     // reset encryption key
     control_proxy
-        .write_property("/sys/class/fpga_manager/fpga0/key", "")
+        .universal("write_property", "/sys/class/fpga_manager/fpga0/key", "")
         .await
         .expect("failed to reset the encryption key");
 
@@ -336,12 +336,12 @@ async fn io_errors(
 
     // reset flags
     control_proxy
-        .set_fpga_flags(good_platform_handle, good_device_handle, 0)
+        .universal("write_flags", good_device_handle, "0")
         .await
         .expect("failed to set fpga flags");
     expect_that!(
         status_proxy
-            .get_fpga_flags(good_platform_handle, good_device_handle)
+            .universal("read_flags", good_device_handle)
             .await
             .expect("failed to get fpga flags"),
         eq("0"),
@@ -350,7 +350,7 @@ async fn io_errors(
 
     // reset encryption key
     control_proxy
-        .write_property("/sys/class/fpga_manager/fpga0/key", "")
+        .universal("write_property", "/sys/class/fpga_manager/fpga0/key", "")
         .await
         .expect("failed to reset the encryption key");
 
