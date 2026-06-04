@@ -63,6 +63,8 @@ plugs:
     target: $SNAP_DATA/provider-content
   device-tree-overlays:
     interface: system-files
+    read:
+      - /sys/kernel/config/device-tree/overlays
     write:
       - /sys/kernel/config/device-tree/overlays
   run-dfx-mgrd-socket:
