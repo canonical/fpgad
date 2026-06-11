@@ -11,8 +11,8 @@ fpgad to work with proprietary or vendor-specific tools that sit alongside or ab
 
 ### When to Use a Softener vs. a Platform
 
-- **Use the Universal Platform** when implementing direct interactions with the Linux FPGA subsystem (
-  `/sys/class/fpga_manager`) and device tree overlays using standard kernel interfaces. The Universal platform handles
+- **Use the XilinxSys Platform** when implementing direct interactions with the Linux FPGA subsystem (
+  `/sys/class/fpga_manager`) and device tree overlays using standard kernel interfaces. The XilinxSys platform handles
   the standard kernel interface through generic sysfs operations.
 
 - **Create a Softener Platform** when you need to integrate with vendor-specific userspace tools, SDKs, or frameworks
@@ -32,7 +32,7 @@ Softeners extend platforms by providing vendor-specific functionality. A softene
 
 ### Why Custom FPGA and OverlayHandler Implementations?
 
-While you *could* reuse the Universal platform's components (`UniversalFPGA` and `UniversalOverlayHandler`), softeners
+While you *could* reuse the XilinxSys platform's components (`XilinxSysFPGA` and `XilinxSysOverlayHandler`), softeners
 exist specifically to provide vendor-specific functionality. Custom implementations allow you to:
 
 - **Wrap vendor tools**: Instead of using generic sysfs operations, call vendor-specific binaries or libraries
@@ -41,14 +41,14 @@ exist specifically to provide vendor-specific functionality. Custom implementati
 - **Handle vendor quirks**: Work around device-specific behaviors or limitations
 - **Integrate with vendor ecosystems**: Connect with other vendor tools, licensing systems, or management frameworks
 
-If you find yourself not needing any custom behavior, you probably don't need a softener platform at all - the Universal
+If you find yourself not needing any custom behavior, you probably don't need a softener platform at all - the XilinxSys
 platform should suffice.
 
 ### Example: Xilinx DFX Manager
 
 The `xilinx_dfx_mgr` softener integrates with AMD/Xilinx's `dfx-mgr` tool, which provides vendor specific optimizations
 on top of the standard FPGA subsystem and, e.g., enables "partial reconfiguration" of the device, which isn't supported
-by the Universal platform. See [dfx-mgr on GitHub](https://github.com/Xilinx/dfx-mgr) for more information on dfx-mgr.
+by the XilinxSys platform. See [dfx-mgr on GitHub](https://github.com/Xilinx/dfx-mgr) for more information on dfx-mgr.
 
 ## Adding a New Softener Platform
 
@@ -78,7 +78,7 @@ Create your softener module directory and files:
    - `your_softener_name_helpers.rs` (optional) - Helper functions
 3. Create the main platform file: `daemon/src/softeners/your_softener_name.rs`
 
-**Important**: While you *could* reuse the Universal platform's components, softeners exist to provide vendor-specific
+**Important**: While you *could* reuse the XilinxSys platform's components, softeners exist to provide vendor-specific
 functionality, so you should implement your own FPGA and OverlayHandler types that wrap or integrate with your vendor's
 tools.
 
@@ -410,11 +410,11 @@ pub fn register_platforms() {
     #[cfg(feature = "your-new-softener")]
     YourSoftenerPlatform::register_platform();  // Add this
 
-    UniversalPlatform::register_platform();
+    XilinxSysPlatform::register_platform();
 }
 ```
 
-**Important**: The Universal platform should always be registered last as it serves as the fallback.
+**Important**: The XilinxSys platform should always be registered last as it serves as the fallback.
 
 ### Step 6: Implement Vendor-Specific Functions (optional)
 

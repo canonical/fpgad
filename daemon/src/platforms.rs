@@ -13,5 +13,5 @@
 #![doc = include_str!("platforms/README.md")]
 
 pub mod platform;
-pub mod universal;
-pub mod universal_components;
+pub mod xilinx_sys;
+pub mod xilinx_sys_components;

@@ -173,7 +173,7 @@ async fn apply_overlay(
             let platform = platforms
                 .values()
                 .next()
-                .unwrap_or(&"universal".to_string())
+                .unwrap_or(&"xlnx-sys".to_string())
                 .clone();
             let overlay = platforms
                 .keys()

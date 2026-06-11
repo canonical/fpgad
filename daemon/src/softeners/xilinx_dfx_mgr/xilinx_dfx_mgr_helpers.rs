@@ -76,10 +76,10 @@ pub fn get_dfx_mgr_client_path() -> Result<String, FpgadSoftenerError> {
                 "dfx-mgr-client not found at '{path}'.\n\n\
             To enable Xilinx DFX Manager support, install the dfx-mgr component:\n\n\
                 `sudo snap install fpgad+dfx-mgr.comp --dangerous`\n\n\
-            Or run the CLI using the `universal` platform (no dfx-mgr required):\n\n\
-                `fpgad --platform=universal <command>`\n\n\
+            Or run the CLI using the `xlnx-sys` platform (no dfx-mgr required):\n\n\
+                `fpgad --platform=xlnx-sys <command>`\n\n\
             If you are calling the daemon over DBus manually \n\n \
-                set the `platform_string` to `universal` instead."
+                set the `platform_string` to `xlnx-sys` instead."
             )));
         }
         path
@@ -90,10 +90,10 @@ pub fn get_dfx_mgr_client_path() -> Result<String, FpgadSoftenerError> {
                 "dfx-mgr-client not found on system at '{path}'.\n\n\
             To enable Xilinx DFX Manager support, install the dfx-mgr binaries e.g.\n\n\
                 `sudo apt install dfx-mgr`\n\n\
-            Or run the CLI using the `universal` platform (no dfx-mgr required):\n\n\
-                `fpgad --platform=universal <command>`\n\n\
+            Or run the CLI using the `xlnx-sys` platform (no dfx-mgr required):\n\n\
+                `fpgad --platform=xlnx-sys <command>`\n\n\
             If you are calling the daemon over DBus manually \n\n \
-                set the `platform_string` to `universal` instead."
+                set the `platform_string` to `xlnx-sys` instead."
             )));
         }
         path

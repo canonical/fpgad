@@ -24,22 +24,22 @@ Run All Tests:
   python3 -m unittest discover -s tests -p "test_*.py" -v
 
 Run Platform-Specific Tests:
-  ./run_all.sh universal      # Universal platform tests only
+  ./run_all.sh xilinx_sys      # XilinxSys platform tests only
   ./run_all.sh xlnx          # Xilinx platform tests only
   ./run_all.sh default       # Help & CLI option tests
 
 Run Individual Test Files:
-  python3 -m unittest tests.test_universal.test_bitstream -v
+  python3 -m unittest tests.test_xilinx_sys.test_bitstream -v
   python3 -m unittest tests.test_xlnx.test_overlay -v
   python3 -m unittest tests.test_default.test_help -v
 
 Run Single Test:
-  python3 -m unittest tests.test_universal.test_bitstream.TestBitstreamUniversal.test_load_bitstream_local -v
+  python3 -m unittest tests.test_xilinx_sys.test_bitstream.TestBitstreamXilinxSys.test_load_bitstream_local -v
 
 Directory Structure:
   tests/
   ├── common/              # Shared base classes & utilities
-  ├── test_universal/      # Tests with --platform universal
+  ├── test_xilinx_sys/      # Tests with --platform xilinx_sys
   ├── test_xlnx/          # Tests with --platform xlnx
   └── test_default/       # Tests without platform flag
 

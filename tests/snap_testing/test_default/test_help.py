@@ -52,19 +52,19 @@ class TestHelp(FPGATestBase):
         proc = self.run_fpgad(["help", "load", "overlay"])
         self.assert_proc_succeeds(proc)
 
-    def test_help_universal(self):
-        """Test help for universal command."""
-        proc = self.run_fpgad(["help", "universal"])
+    def test_help_xlnx_sys(self):
+        """Test help for xlnx-sys command."""
+        proc = self.run_fpgad(["help", "xlnx-sys"])
         self.assert_proc_succeeds(proc)
 
-    def test_help_universal_read(self):
-        """Test help for universal read subcommand."""
-        proc = self.run_fpgad(["help", "universal", "read"])
+    def test_help_xlnx_sys_read(self):
+        """Test help for xlnx-sys read subcommand."""
+        proc = self.run_fpgad(["help", "xlnx-sys", "read"])
         self.assert_proc_succeeds(proc)
 
-    def test_help_universal_write(self):
-        """Test help for universal write subcommand."""
-        proc = self.run_fpgad(["help", "universal", "write"])
+    def test_help_xlnx_sys_write(self):
+        """Test help for xlnx-sys write subcommand."""
+        proc = self.run_fpgad(["help", "xlnx-sys", "write"])
         self.assert_proc_succeeds(proc)
 
     def test_help_dfx_mgr(self):

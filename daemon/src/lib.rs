@@ -44,7 +44,7 @@
 //!
 //! # Platform Support
 //!
-//! - **Universal Platform**: Generic FPGA support for standard Linux FPGA subsystem
+//! - **XilinxSys Platform**: Generic FPGA support for standard Linux FPGA subsystem
 //! - **Xilinx DFX Manager** (optional, feature-gated): Xilinx-specific softener which uses dfx-mgr
 //! - **Additional Platforms**: Can be added via feature flags and custom implementations
 //!
@@ -64,7 +64,7 @@ pub mod system_io;
 #[cfg(feature = "xilinx-dfx-mgr")]
 use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
 
-use crate::platforms::universal::UniversalPlatform;
+use crate::platforms::xilinx_sys::XilinxSysPlatform;
 
 /// Register all available FPGA platform implementations.
 ///
@@ -76,9 +76,9 @@ use crate::platforms::universal::UniversalPlatform;
 /// # Platform Registration Order
 ///
 /// 1. Xilinx DFX Manager (if feature enabled) - Handles Xilinx-specific devices
-/// 2. Universal Platform - Fallback for standard Linux FPGA subsystem devices
+/// 2. XilinxSys Platform - Fallback for standard Linux FPGA subsystem devices
 pub fn register_platforms() {
     #[cfg(feature = "xilinx-dfx-mgr")]
     XilinxDfxMgrPlatform::register_platform();
-    UniversalPlatform::register_platform();
+    XilinxSysPlatform::register_platform();
 }

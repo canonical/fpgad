@@ -28,9 +28,9 @@ echo "=========================================="
 if [ $# -eq 0 ]; then
     echo "Running ALL tests..."
     python3 -m unittest discover -s "$SCRIPT_DIR" -p "test_*.py" -v
-elif [ "$1" == "universal" ]; then
+elif [ "$1" == "xlnx-sys" ]; then
     echo "Running UNIVERSAL platform tests..."
-    python3 -m unittest discover -s "$SCRIPT_DIR/test_universal" -p "test_*.py" -v
+    python3 -m unittest discover -s "$SCRIPT_DIR/test_xilinx_sys" -p "test_*.py" -v
 elif [ "$1" == "xlnx" ]; then
     echo "Running xilinx dfx-mgr platform tests..."
     python3 -m unittest discover -s "$SCRIPT_DIR/test_xlnx" -p "test_*.py" -v
@@ -38,9 +38,9 @@ elif [ "$1" == "default" ]; then
     echo "Running DEFAULT (no platform) tests..."
     python3 -m unittest discover -s "$SCRIPT_DIR/test_default" -p "test_*.py" -v
 else
-    echo "Usage: $0 [universal|xlnx|default]"
+    echo "Usage: $0 [xlnx-sys|xlnx|default]"
     echo "  No argument: run all tests"
-    echo "  universal: run only --platform universal tests"
+    echo "  xlnx-sys: run only --platform xlnx-sys tests"
     echo "  xlnx: run only --platform xlnx tests"
     echo "  default: run only tests without platform flag"
     exit 1

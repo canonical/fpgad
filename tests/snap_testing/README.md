@@ -9,7 +9,7 @@ tests/
 ├── common/                     # Shared utilities and base classes
 │   ├── base_test.py           # Base test class with setUp/tearDown
 │   └── helpers.py             # Colors, TestData, utility functions
-├── test_universal/            # Tests with --platform universal
+├── test_xilinx_sys/            # Tests with --platform xilinx_sys
 │   ├── test_bitstream.py      # Bitstream loading tests
 │   ├── test_overlay.py        # Overlay loading tests
 │   ├── test_status.py         # Status command tests
@@ -48,7 +48,7 @@ sudo snap connect fpgad:cli-dbus fpgad:daemon-dbus
 sudo fpgad.test
 
 # Run specific test suite
-sudo fpgad.test universal  # Universal platform tests only
+sudo fpgad.test xilinx_sys  # XilinxSys platform tests only
 sudo fpgad.test xlnx       # Xilinx dfx-mgr tests only
 sudo fpgad.test default    # Default (no platform) tests only
 ```
@@ -74,9 +74,9 @@ python3 -m unittest discover -s . -p "test_*.py" -v
 ### Run Platform-Specific Tests
 
 ```bash
-# Universal platform only
-python3 -m unittest discover -s test_universal -p "test_*.py" -v
-./run_all.sh universal
+# XilinxSys platform only
+python3 -m unittest discover -s test_xilinx_sys -p "test_*.py" -v
+./run_all.sh xilinx_sys
 
 # Xilinx platform only
 python3 -m unittest discover -s test_xlnx -p "test_*.py" -v
@@ -90,7 +90,7 @@ python3 -m unittest discover -s test_default -p "test_*.py" -v
 ### Run Specific Test File
 
 ```bash
-python3 -m unittest tests.test_universal.test_bitstream
+python3 -m unittest tests.test_xilinx_sys.test_bitstream
 python3 -m unittest tests.test_xlnx.test_overlay
 python3 -m unittest tests.test_default.test_help
 ```
@@ -98,7 +98,7 @@ python3 -m unittest tests.test_default.test_help
 ### Run Single Test
 
 ```bash
-python3 -m unittest tests.test_universal.test_bitstream.TestBitstreamUniversal.test_load_bitstream_local
+python3 -m unittest tests.test_xilinx_sys.test_bitstream.TestBitstreamXilinxSys.test_load_bitstream_local
 ```
 
 ## Requirements
@@ -143,7 +143,7 @@ The `local_snap_tests.sh` script automatically copies files from the source loca
 ## Migration from Legacy Tests
 
 The old `snap_tests.py` file is deprecated but kept for reference. All tests have been:
-1. Split by platform (universal, xlnx, default)
+1. Split by platform (xilinx_sys, xlnx, default)
 2. Organized by functionality (bitstream, overlay, status, set, help, cli_options)
 3. Refactored to use shared base classes and utilities
 
@@ -162,7 +162,7 @@ The GitHub Actions workflow automatically:
 
 ## Adding New Tests
 
-1. Determine which platform directory (test_universal, test_xlnx, or test_default)
+1. Determine which platform directory (test_xilinx_sys, test_xlnx, or test_default)
 2. Add test methods to existing test classes or create new test file
 3. Inherit from `FPGATestBase`
 4. Use provided assertion helpers
@@ -173,7 +173,7 @@ Example:
 from common.base_test import FPGATestBase
 
 class TestNewFeature(FPGATestBase):
-    PLATFORM = "universal"  # or "xlnx", or omit for default
+    PLATFORM = "xlnx-sys"  # or "xlnx", or omit for default
     
     def test_something(self):
         proc = self.run_fpgad(["--platform", self.PLATFORM, "command"])

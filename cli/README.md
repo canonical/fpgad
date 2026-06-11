@@ -11,8 +11,8 @@ OPTIONs:
                                 the first available FPGA device in the system
                                 (under `/sys/class/fpga_manager/`)
   -p, --platform <PLATFORM>     Override the platform detection. Format:
-                                "universal" or "vendor,device"
-                                Examples: --platform=universal
+                                "xilinx_sys" or "vendor,device"
+                                Examples: --platform=xlnx-sys
                                           --platform=xlnx,zynqmp-pcap-fpga
 
 COMMANDs:
@@ -38,7 +38,7 @@ COMMANDs:
 │           Remove active bitstream from FPGA (bitstream removal is vendor specific)
 │           Optionally specify --handle to name the removal handle
 │
-├── universal           Low-level read/write access to FPGA manager properties
+├── xlnx-sys           Low-level read/write access to FPGA manager properties
 │   ├── read <SUB_CMD> <PATH>
 │   │       Read from sysfs path where SUB_CMD is:
 │   │           read_property: read property from sysfs path
@@ -77,10 +77,10 @@ fpgad [--device=<device_handle>] set ATTRIBUTE VALUE
 fpgad [--device=<device_handle>] status
 ```
 
-### Universal
+### XilinxSys
 
 ```shell
-fpgad [--device=<device_handle>] universal ( (read <sub_cmd> <path>) | (write <sub_cmd> <path> <value>) )
+fpgad [--device=<device_handle>] xlnx-sys ( (read <sub_cmd> <path>) | (write <sub_cmd> <path> <value>) )
 ```
 
 ### DFX Manager
@@ -125,17 +125,17 @@ sudo ./target/debug/fpgad_cli --device=fpga0 set flags 0
 ./target/debug/fpgad_cli --device=fpga0 status
 ```
 
-### Universal
+### XilinxSys
 
 ```shell
 # Read operations
-sudo ./target/debug/fpgad_cli universal read read_property /sys/class/fpga_manager/fpga0/name
-sudo ./target/debug/fpgad_cli universal read read_flags fpga0
+sudo ./target/debug/fpgad_cli xlnx-sys read read_property /sys/class/fpga_manager/fpga0/name
+sudo ./target/debug/fpgad_cli xlnx-sys read read_flags fpga0
 
 # Write operations
-sudo ./target/debug/fpgad_cli universal write write_flags fpga0 0
-sudo ./target/debug/fpgad_cli universal write write_property /sys/class/fpga_manager/fpga0/flags 0
-sudo ./target/debug/fpgad_cli universal write write_property_bytes /sys/class/fpga_manager/fpga0/firmware BYTES
+sudo ./target/debug/fpgad_cli xlnx-sys write write_flags fpga0 0
+sudo ./target/debug/fpgad_cli xlnx-sys write write_property /sys/class/fpga_manager/fpga0/flags 0
+sudo ./target/debug/fpgad_cli xlnx-sys write write_property_bytes /sys/class/fpga_manager/fpga0/firmware BYTES
 ```
 
 ### DFX Manager
@@ -153,8 +153,8 @@ sudo ./target/debug/fpgad_cli dfx-mgr "remove slot:0"
 ### Platform Override
 
 ```shell
-# Force universal platform
-sudo ./target/debug/fpgad_cli --platform=universal load bitstream /lib/firmware/bitstream.bin
+# Force xlnx-sys platform
+sudo ./target/debug/fpgad_cli --platform=xlnx-sys load bitstream /lib/firmware/bitstream.bin
 
 # Force specific Xilinx platform
 sudo ./target/debug/fpgad_cli --platform=xlnx,zynqmp-pcap-fpga load bitstream /lib/firmware/bitstream.bin

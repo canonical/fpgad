@@ -13,7 +13,7 @@
 use clap::Parser;
 use fpgad_cli::{
     Cli, Commands, dfx_mgr::dfx_mgr_handler, load::load_handler, remove::remove_handler,
-    set::set_handler, status::status_handler, universal::universal_handler,
+    set::set_handler, status::status_handler, xlnx_sys::xlnx_sys_handler,
 };
 use log::{debug, error};
 use std::error::Error;
@@ -33,7 +33,7 @@ use std::error::Error;
 ///    - `remove_handler` for removing bitstreams/overlays
 ///    - `set_handler` for setting FPGA attributes
 ///    - `status_handler` for querying device status
-///    - `universal_handler` for low-level property read/write via the universal interface
+///    - `xlnx_sys_handler` for low-level property read/write via the xlnx_sys interface
 ///    - `dfx_mgr_handler` for passing commands to dfx-mgr-client
 /// 4. Prints success messages or logs errors
 ///
@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             set_handler(cli.platform(), cli.device(), attribute, value).await
         }
         Commands::Status => status_handler(cli.platform(), cli.device()).await,
-        Commands::Universal { command } => universal_handler(command).await,
+        Commands::XlnxSys { command } => xlnx_sys_handler(command).await,
         Commands::DfxMgr { cmd } => dfx_mgr_handler(cmd).await,
     };
     match result {

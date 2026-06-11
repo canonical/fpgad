@@ -32,8 +32,8 @@ use syn::{Expr, ItemStruct, Lit, Meta, parse_macro_input, punctuated::Punctuated
 /// # Examples
 ///
 /// ```rust,ignore
-/// #[platform(compat_string = "universal")]
-/// pub struct UniversalPlatform {
+/// #[platform(compat_string = "xlnx-sys")]
+/// pub struct XilinxSysPlatform {
 ///     // ...
 /// }
 /// ```

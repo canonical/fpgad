@@ -40,6 +40,6 @@ pub trait Control {
         device_handle: &str,
         bitstream_handle: &str,
     ) -> Result<String>;
-    async fn universal(&self, sub_cmd: &str, path_str: &str, value_str: &str) -> Result<String>;
+    async fn xlnx_sys(&self, sub_cmd: &str, path_str: &str, value_str: &str) -> Result<String>;
     async fn dfx_mgr(&self, cmd_string: &str) -> Result<String>;
 }
