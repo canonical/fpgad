@@ -28,11 +28,11 @@
 //! | `get_overlays` | `()` | Newline-separated list of all overlay handles currently present |
 //! | `get_platform_type` | `(device_handle)` | Platform compatibility string for a single FPGA device, e.g. `"xlnx,zynqmp-pcap-fpga"` |
 //! | `get_platform_types` | `()` | All FPGA devices and their compat strings, one per line as `device:compat\n` |
-//! | `universal` | `(sub_cmd, path_str)` | Low-level read from FPGA manager sysfs properties — see [`ReadSubCommand`](crate::platforms::universal::ReadSubCommand) |
+//! | `xilinx_sys` | `(sub_cmd, path_str)` | Low-level read from FPGA manager sysfs properties — see [`ReadSubCommand`](crate::platforms::xilinx_sys::ReadSubCommand) |
 //!
-//! ## `universal` status sub-commands
+//! ## `xilinx_sys` status sub-commands
 //!
-//! The `universal` method dispatches on `sub_cmd`; see [`ReadSubCommand`](crate::platforms::universal::ReadSubCommand) for the full enum available via this (status) interface.
+//! The `xilinx_sys` method dispatches on `sub_cmd`; see [`ReadSubCommand`](crate::platforms::xilinx_sys::ReadSubCommand) for the full enum available via this (status) interface.
 //!
 //! | `sub_cmd` | `path_str` | Returns |
 //! |-----------|-----------|---------|
@@ -43,7 +43,7 @@ use crate::config;
 use crate::error::FpgadError;
 use crate::platforms::platform::{list_fpga_managers, read_compatible_string};
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
-use crate::platforms::universal::universal_read_handler;
+use crate::platforms::xilinx_sys::xilinx_sys_read_handler;
 use crate::system_io::fs_read_dir;
 use log::{error, info};
 use zbus::{fdo, interface};
@@ -58,7 +58,7 @@ impl StatusInterface {
     async fn get_status_message(&self, platform_string: &str) -> Result<String, fdo::Error> {
         info!("get_fpga_state called with platform_string: {platform_string}");
         if platform_string.is_empty() {
-            return Err(FpgadError::Argument("Empty platform string - cannot determine how to get status message becuase cannot determine platform to use without platform string".to_string()).into());
+            return Err(FpgadError::Argument("Empty platform string - cannot determine how to get status message because cannot determine platform to use without platform string".to_string()).into());
         }
         let platform = platform_from_compat_or_device(platform_string, "")?;
         Ok(platform.status_message()?)
@@ -223,11 +223,11 @@ impl StatusInterface {
         Ok(ret_string)
     }
 
-    /// Entrypoint for universal platform specific operations.
+    /// Entrypoint for xilinx_sys platform specific operations.
     ///
     /// # Arguments
     ///
-    /// * `sub_cmd` - The read operation to perform - see [`crate::platforms::universal::ReadSubCommand`]
+    /// * `sub_cmd` - The read operation to perform - see [`crate::platforms::xilinx_sys::ReadSubCommand`]
     /// * `path_str` - Device handle or full sysfs path to flags for `read_flags` (e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags`), or sysfs property path for `read_property`.
     ///
     /// # Returns: `Result<String, fdo::Error>`
@@ -240,16 +240,16 @@ impl StatusInterface {
     /// ```rust,no_run
     /// // Read the FPGA manager name
     /// let name = status_interface
-    ///     .universal("read_property", "/sys/class/fpga_manager/fpga0/name")
+    ///     .xlnx_sys("read_property", "/sys/class/fpga_manager/fpga0/name")
     ///     .await?;
     ///
     /// // Read the current programming flags for fpga0
     /// let flags = status_interface
-    ///     .universal("read_flags", "fpga0")
+    ///     .xlnx_sys("read_flags", "fpga0")
     ///     .await?;
     /// ```
-    async fn universal(&self, sub_cmd: &str, path_str: &str) -> Result<String, fdo::Error> {
-        info!("universal (read) called with sub_cmd: {sub_cmd}, path_str: {path_str}");
-        universal_read_handler(sub_cmd, path_str)
+    async fn xlnx_sys(&self, sub_cmd: &str, path_str: &str) -> Result<String, fdo::Error> {
+        info!("xlnx_sys (read) called with sub_cmd: {sub_cmd}, path_str: {path_str}");
+        xilinx_sys_read_handler(sub_cmd, path_str)
     }
 }

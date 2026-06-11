@@ -26,12 +26,12 @@
 //! | `apply_overlay` | `(platform_string, overlay_handle, overlay_source_path, firmware_lookup_path)` | Apply a device-tree overlay to trigger a bitstream load and driver probe |
 //! | `remove_overlay` | `(platform_string, overlay_handle)` | Remove a previously applied device-tree overlay |
 //! | `remove_bitstream` | `(platform_string, device_handle, bitstream_handle)` | Remove the currently loaded bitstream from an FPGA device |
-//! | `universal` | `(sub_cmd, path_str, value_str)` | Low-level write to FPGA manager sysfs properties — see [`WriteSubCommand`](crate::platforms::universal::WriteSubCommand) |
+//! | `xilinx_sys` | `(sub_cmd, path_str, value_str)` | Low-level write to FPGA manager sysfs properties — see [`WriteSubCommand`](crate::platforms::xilinx_sys::WriteSubCommand) |
 //! | `dfx_mgr` | `(cmd_string)` | Passthrough to `dfx-mgr-client` (requires `dfx-mgr` snap component) |
 //!
-//! ## `universal` control sub-commands
+//! ## `xilinx_sys` control sub-commands
 //!
-//! The `universal` method dispatches on `sub_cmd`; see [`WriteSubCommand`](crate::platforms::universal::WriteSubCommand) for the full enum available via this (control) interface.
+//! The `xilinx_sys` method dispatches on `sub_cmd`; see [`WriteSubCommand`](crate::platforms::xilinx_sys::WriteSubCommand) for the full enum available via this (control) interface.
 //!
 //! | `sub_cmd` | `path_str` | `value_str` |
 //! |-----------|-----------|-------------|
@@ -42,7 +42,7 @@
 use crate::comm::dbus::validate_device_handle;
 use crate::error::FpgadError;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
-use crate::platforms::universal::universal_write_handler;
+use crate::platforms::xilinx_sys::xilinx_sys_write_handler;
 #[cfg(feature = "xilinx-dfx-mgr")]
 use crate::softeners::xilinx_dfx_mgr::xilinx_dfx_mgr_helpers::run_dfx_mgr;
 use log::{info, trace};
@@ -314,11 +314,11 @@ impl ControlInterface {
         Ok(fpga.remove_firmware(handle)?)
     }
 
-    /// Entrypoint for universal platform specific operations.
+    /// Entrypoint for xilinx_sys platform specific operations.
     ///
     /// # Arguments
     ///
-    /// * `sub_cmd` - The write operation to perform - see [`crate::platforms::universal::WriteSubCommand`]
+    /// * `sub_cmd` - The write operation to perform - see [`crate::platforms::xilinx_sys::WriteSubCommand`]
     /// * `path_str` - Device handle for `write_flags`, or sysfs property path for property writes
     /// * `value_str` - Value to write (flags value, string payload for `write_property`,
     ///   or raw byte string for `write_property_bytes`)
@@ -332,30 +332,30 @@ impl ControlInterface {
     ///
     /// ```rust,no_run
     /// // Write programming flags
-    /// control_interface.universal("write_flags", "fpga0", "0x20").await?;
+    /// control_interface.xlnx_sys("write_flags", "fpga0", "0x20").await?;
     ///
     /// // Write a string property
-    /// control_interface.universal(
+    /// control_interface.xlnx_sys(
     ///     "write_property",
     ///     "/sys/class/fpga_manager/fpga0/key",
     ///     "BADBADBADBAD",
     /// ).await?;
     ///
     /// // Write raw bytes
-    /// control_interface.universal(
+    /// control_interface.xlnx_sys(
     ///     "write_property_bytes",
     ///     "/sys/class/fpga_manager/fpga0/key",
     ///     "deadbeef",
     /// ).await?;
     /// ```
-    async fn universal(
+    async fn xlnx_sys(
         &self,
         sub_cmd: &str,
         path_str: &str,
         value_str: &str,
     ) -> Result<String, fdo::Error> {
-        info!("universal (write) called with sub_cmd: {sub_cmd}, path_str: {path_str}");
-        universal_write_handler(sub_cmd, path_str, value_str)
+        info!("xlnx_sys (write) called with sub_cmd: {sub_cmd}, path_str: {path_str}");
+        xilinx_sys_write_handler(sub_cmd, path_str, value_str)
     }
 
     /// Entrypoint for dfx-mgr specific operations

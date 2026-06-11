@@ -40,12 +40,12 @@ CLI_UNIT_EXIT=$?
 set -e
 
 # build the test binaries avoiding cli as well. Also extract the names of the integration test binaries
-universal_test="$(\
-cargo test --no-run -p fpgad --test universal 2>&1 |\
-  grep 'tests/universal.rs' |\
+xilinx_sys_test="$(\
+cargo test --no-run -p fpgad --test xilinx_sys 2>&1 |\
+  grep 'tests/xilinx_sys.rs' |\
   awk '{gsub(/[()]/,""); print $3}'\
 )"
-echo "universal test binary: $universal_test"
+echo "xilinx_sys test binary: $xilinx_sys_test"
 
 xilinx_dfx_mgr_test="$(\
 cargo test --no-run -p fpgad --test xilinx_dfx_mgr 2>&1 |\
@@ -106,9 +106,9 @@ echo "Daemon started successfully (PID: $DAEMON_PID)"
 # Temporarily disable exit-on-error to capture test results even on failure
 set +e
 
-# run the universal test binary
-echo "Running universal tests..."
-timeout 300 sudo env LLVM_PROFILE_FILE="${CARGO_LLVM_COV_TARGET_DIR}/test_universal-%p.profraw" "$universal_test" --test-threads=1 --no-capture < /dev/null
+# run the xilinx_sys test binary
+echo "Running xilinx_sys tests..."
+timeout 300 sudo env LLVM_PROFILE_FILE="${CARGO_LLVM_COV_TARGET_DIR}/test_xilinx_sys-%p.profraw" "$xilinx_sys_test" --test-threads=1 --no-capture < /dev/null
 UNIVERSAL_EXIT=$?
 
 # run the xilinx_dfx_mgr test binary
@@ -128,7 +128,7 @@ cargo llvm-cov report --lcov --output-path artifacts/coverage.lcov
 
 # Exit with failure if any test suite failed
 if [ $DAEMON_UNIT_EXIT -ne 0 ] || [ $CLI_UNIT_EXIT -ne 0 ] || [ $UNIVERSAL_EXIT -ne 0 ] || [ $DFX_MGR_EXIT -ne 0 ]; then
-    echo "Tests failed: daemon_unit=$DAEMON_UNIT_EXIT, cli_unit=$CLI_UNIT_EXIT, universal=$UNIVERSAL_EXIT, dfx_mgr=$DFX_MGR_EXIT"
+    echo "Tests failed: daemon_unit=$DAEMON_UNIT_EXIT, cli_unit=$CLI_UNIT_EXIT, xilinx_sys=$UNIVERSAL_EXIT, dfx_mgr=$DFX_MGR_EXIT"
     exit 1
 fi
 

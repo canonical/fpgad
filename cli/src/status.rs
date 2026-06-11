@@ -41,7 +41,7 @@ use zbus::Connection;
 ///
 /// # Arguments
 ///
-/// * `platform` - Platform compatibility string (e.g., "xlnx,zynqmp-pcap-fpga", "universal")
+/// * `platform` - Platform compatibility string (e.g., "xlnx,zynqmp-pcap-fpga", "xlnx-sys")
 ///
 /// # Returns: `Result<String, zbus::Error>`
 /// * `Ok(String)` - Formatted status message from the platform
@@ -262,10 +262,10 @@ pub async fn call_get_platform_types() -> Result<HashMap<String, String>, zbus::
 /// Get the platform string of the first available FPGA device.
 ///
 /// Retrieves the platform compatibility string for the first device found in the
-/// system. Returns "universal" as a fallback if no devices are found.
+/// system. Returns "xlnx-sys" as a fallback if no devices are found.
 ///
-/// # Returns: `Result<String, zbus::Error>`
-/// * `String` - Platform compatibility string of the first device, or "universal" if none found
+/// # Returns
+/// * `String` - Platform compatibility string of the first device, or "xlnx-sys" if none found
 /// * `zbus::Error` - DBus communication error or FpgadError. See [Error Handling](../index.html#error-handling) for details.
 ///
 /// # Examples
@@ -279,7 +279,7 @@ pub async fn get_first_platform() -> Result<String, zbus::Error> {
     Ok(platforms
         .values()
         .next()
-        .unwrap_or(&"universal".to_string())
+        .unwrap_or(&"xlnx-sys".to_string())
         .clone())
 }
 

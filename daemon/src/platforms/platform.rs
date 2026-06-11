@@ -30,7 +30,7 @@
 //! At runtime, the daemon discovers which platform to use for each FPGA device by:
 //! 1. Reading the device's `/sys/class/fpga_manager/<device>/of_node/compatible` string
 //! 2. Matching this against registered platform compatibility strings
-//! 3. Falling back to the Universal platform if no match is found
+//! 3. Falling back to the XilinxSys platform if no match is found
 //!
 //! # Platform Registration
 //!
@@ -59,14 +59,14 @@
 //!     #[cfg(feature = "your-new-softener")]
 //!     YourSoftenerPlatform::register_platform();  // Add this
 //!
-//!     UniversalPlatform::register_platform();
+//!     XilinxSysPlatform::register_platform();
 //! }
 //! ```
 //!
 
 use crate::config;
 use crate::error::FpgadError;
-use crate::platforms::universal::UniversalPlatform;
+use crate::platforms::xilinx_sys::XilinxSysPlatform;
 use crate::system_io::{fs_read, fs_read_dir};
 use log::{trace, warn};
 use std::any::Any;
@@ -251,7 +251,7 @@ pub trait Platform: Any {
     ///
     /// # Examples
     ///
-    /// For the Universal platform, this returns a table of devices and overlays.
+    /// For the XilinxSys platform, this returns a table of devices and overlays.
     /// For Xilinx DFX Manager, this returns the output of `dfx-mgr-client -listPackage`.
     fn status_message(&self) -> Result<String, FpgadError>;
 
@@ -262,7 +262,7 @@ pub trait Platform: Any {
     /// which platform to use for a device.
     ///
     /// # Returns: `String`
-    /// * The platform compatibility string (e.g., "universal", "xlnx,zynqmp-pcap-fpga")
+    /// * The platform compatibility string (e.g., "xlnx-sys", "xlnx,zynqmp-pcap-fpga")
     ///
     /// # Examples
     ///
@@ -335,14 +335,14 @@ pub fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>,
 ///
 /// This function reads the device tree compatible string from the device's sysfs
 /// `of_node/compatible` file and attempts to match it to a registered platform.
-/// If no match is found, it falls back to the Universal platform with a warning.
+/// If no match is found, it falls back to the XilinxSys platform with a warning.
 ///
 /// # Arguments
 ///
 /// * `device_handle` - The device handle (e.g., "fpga0")
 ///
 /// # Returns: `Result<Box<dyn Platform>, FpgadError>`
-/// * `Ok(Box<dyn Platform>)` - Platform instance (matched or Universal fallback)
+/// * `Ok(Box<dyn Platform>)` - Platform instance (matched or XilinxSys fallback)
 /// * `Err(FpgadError::Argument)` - Failed to read compatibility string
 ///
 /// # Examples
@@ -365,8 +365,8 @@ pub fn discover_platform(device_handle: &str) -> Result<Box<dyn Platform>, Fpgad
             Ok(platform)
         }
         Err(_) => {
-            warn!("{compat_string} not supported. Defaulting to Universal platform.");
-            Ok(Box::new(UniversalPlatform::new()))
+            warn!("{compat_string} not supported. Defaulting to XilinxSys platform.");
+            Ok(Box::new(XilinxSysPlatform::new()))
         }
     }
 }
@@ -512,7 +512,7 @@ pub fn init_platform_registry() -> Mutex<HashMap<&'static str, PlatformConstruct
 ///
 /// ```rust,no_run
 /// # use crate::platforms::platform::register_platform;
-/// # use crate::platforms::universal::UniversalPlatform;
+/// # use crate::platforms::xilinx_sys::XilinxSysPlatform;
 /// register_platform("new_platform,compatibility-string", || {
 ///     Box::new(NewPlatform::new())
 /// });

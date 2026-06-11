@@ -24,13 +24,13 @@ Platforms handle operations like loading firmware, removing overlays, and queryi
 
 ## Built-in Platforms
 
-- **Universal Platform** ([`universal`]): A generic platform that provides basic FPGA management
+- **XilinxSys Platform** ([`xilinx_sys`]): A generic platform that provides basic FPGA management
   functionality for devices that don't require platform-specific handling.
 
 ## Optional Softener Platforms (using Features)
 
 These platforms are vendor-specific implementations called "softeners" that provide enhanced
-functionality beyond the universal platform. They are enabled via Cargo feature flags.
+functionality beyond the xilinx_sys platform. They are enabled via Cargo feature flags.
 
 - **Xilinx DFX Manager** ([`softeners::xilinx_dfx_mgr`](crate::softeners::xilinx_dfx_mgr)) -
   **Feature** `xilinx-dfx-mgr`

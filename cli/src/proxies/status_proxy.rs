@@ -65,7 +65,7 @@ pub trait Status {
     /// Get a comprehensive status message for the platform.
     ///
     /// Returns a formatted status message containing platform-specific information.
-    /// For the universal platform, this includes a table of all FPGA devices with their
+    /// For the xlnx_sys platform, this includes a table of all FPGA devices with their
     /// platform types and states. For xilinx-dfx-mgr, this returns the result of -listPackage
     ///
     /// # Arguments
@@ -84,7 +84,7 @@ pub trait Status {
     /// # use crate::proxies::status_proxy::StatusProxy;
     /// let connection = Connection::system().await?;
     /// let proxy = StatusProxy::new(&connection).await?;
-    /// let status = proxy.get_status_message("universal").await?;
+    /// let status = proxy.get_status_message("xlnx_sys").await?;
     /// println!("{}", status);
     /// # Ok(())
     /// # }
@@ -106,21 +106,21 @@ pub trait Status {
     /// * `Err(zbus::Error)` - DBus error or FpgadError. See [Error Handling](../../index.html#error-handling)
     async fn get_fpga_state(&self, platform_string: &str, device_handle: &str) -> Result<String>;
 
-    /// Get the current programming flags for an FPGA device via the universal interface.
+    /// Get the current programming flags for an FPGA device via the xlnx_sys interface.
     ///
-    /// Use `universal("read_flags", device_handle)` to read flags, or
-    /// `universal("read_property", property_path)` to read an arbitrary sysfs property.
+    /// Use `xlnx_sys("read_flags", device_handle)` to read flags, or
+    /// `xlnx_sys("read_property", property_path)` to read an arbitrary sysfs property.
     ///
     /// # Arguments
     ///
     /// * `sub_cmd` - One of `read_property` or `read_flags` — see
-    ///   [`ReadSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.ReadSubCommand.html)
+    ///   [`ReadSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/xlnx_sys/enum.ReadSubCommand.html)
     /// * `path_str` - device handle or sysfs path to flags property for `read_flags`, or sysfs property path for `read_property`,
     ///
     /// # Returns: `Result<String>`
     /// * `Ok(String)` - Property value or flags in hexadecimal format
     /// * `Err(zbus::Error)` - DBus error or FpgadError. See [Error Handling](../../index.html#error-handling)
-    async fn universal(&self, sub_cmd: &str, path_str: &str) -> Result<String>;
+    async fn xlnx_sys(&self, sub_cmd: &str, path_str: &str) -> Result<String>;
 
     /// Get the status of a specific device tree overlay.
     ///
@@ -149,8 +149,8 @@ pub trait Status {
 
     /// Get the platform compatibility string for an FPGA device.
     ///
-    /// Returns the platform/compatibility string that identifies the hardware type
-    /// (e.g., "xlnx,zynqmp-pcap-fpga", "universal").
+    /// Returns the hardware-specific compatibility string from device tree
+    /// (e.g., "xlnx,zynqmp-pcap-fpga", "xlnx_sys").
     ///
     /// # Arguments
     ///

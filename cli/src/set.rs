@@ -137,7 +137,7 @@ fn build_property_path(device_handle: &str, attribute: &str) -> Result<String, z
 async fn call_write_property(property: &str, value: &str) -> Result<String, zbus::Error> {
     let connection = Connection::system().await?;
     let proxy = control_proxy::ControlProxy::new(&connection).await?;
-    proxy.universal("write_property", property, value).await
+    proxy.xlnx_sys("write_property", property, value).await
 }
 
 /// Main handler for the set command.

@@ -32,11 +32,11 @@ async fn get_platform_types_test(_setup: ()) {
 
     if let Ok(types) = res {
         println!("Available platform types: {:#?}", types);
-        // Should include either universal or xlnx,zynqmp-pcap-fpga
+        // Should include either xilinx_sys or xlnx,zynqmp-pcap-fpga
         expect_that!(
             types,
             any![
-                contains_substring("universal"),
+                contains_substring("xilinx_sys"),
                 contains_substring("xlnx,zynqmp-pcap-fpga")
             ]
         );
