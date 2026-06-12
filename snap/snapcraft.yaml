@@ -52,6 +52,12 @@ slots:
     interface: dbus
     bus: system
     name: com.canonical.fpgad
+  fpgad-cli-app:
+    interface: content
+    content: fpgad-cli-content
+    source:
+      read:
+        - $SNAP/cli
 plugs:
   cli-dbus:
     interface: dbus
@@ -73,7 +79,7 @@ plugs:
       - /run/dfx-mgrd.socket
 apps:
   fpgad:
-    command: bin/fpgad_cli
+    command: cli/fpgad_cli
     plugs:
       - cli-dbus
     aliases:
@@ -122,6 +128,8 @@ parts:
     rust-path:
       - cli
     rust-channel: 'stable'
+    organize:
+      bin/fpgad_cli: cli/fpgad_cli
   daemon:
     plugin: rust
     source: .
