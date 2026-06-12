@@ -141,7 +141,7 @@ class FPGATestBase(unittest.TestCase):
         # When running in snap, call the CLI binary directly
         # The alias 'fpgad' points to the CLI app, but inside snap we need the actual binary
         if os.getenv("SNAP"):
-            cmd = [f"{os.getenv('SNAP')}/bin/fpgad_cli"] + args
+            cmd = [f"{os.getenv('SNAP')}/cli/fpgad_cli"] + args
         else:
             cmd = ["fpgad"] + args
 
