@@ -84,7 +84,7 @@ pub trait Status {
     /// # use crate::proxies::status_proxy::StatusProxy;
     /// let connection = Connection::system().await?;
     /// let proxy = StatusProxy::new(&connection).await?;
-    /// let status = proxy.get_status_message("xlnx_sys").await?;
+    /// let status = proxy.get_status_message("xlnx-sys").await?;
     /// println!("{}", status);
     /// # Ok(())
     /// # }
@@ -150,7 +150,7 @@ pub trait Status {
     /// Get the platform compatibility string for an FPGA device.
     ///
     /// Returns the hardware-specific compatibility string from device tree
-    /// (e.g., "xlnx,zynqmp-pcap-fpga", "xlnx_sys").
+    /// (e.g., "xlnx,zynqmp-pcap-fpga", "xlnx-sys").
     ///
     /// # Arguments
     ///

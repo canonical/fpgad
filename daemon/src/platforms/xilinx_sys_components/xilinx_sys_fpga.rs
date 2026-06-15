@@ -57,7 +57,7 @@
 //!
 //! ```rust,ignore
 //! // create platform
-//! let platform = platform_for_known_platform("xilinx_sys")?;
+//! let platform = platform_for_known_platform("xlnx-sys")?;
 //! let fpga = platform.fpga("fpga0")?;
 //!
 //! // Check state

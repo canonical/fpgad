@@ -11,7 +11,7 @@ OPTIONs:
                                 the first available FPGA device in the system
                                 (under `/sys/class/fpga_manager/`)
   -p, --platform <PLATFORM>     Override the platform detection. Format:
-                                "xilinx_sys" or "vendor,device"
+                                "xlnx-sys" or "vendor,device"
                                 Examples: --platform=xlnx-sys
                                           --platform=xlnx,zynqmp-pcap-fpga
 

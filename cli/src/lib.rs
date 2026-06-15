@@ -218,7 +218,7 @@ pub struct Cli {
     /// Platform override string (bypasses platform detection logic).
     /// When provided, this platform string is passed directly to the daemon
     /// instead of auto-detecting from the device handle.
-    /// Examples: "xlnx_sys", "xlnx,zynqmp-pcap-fpga"
+    /// Examples: "xlnx-sys", "xlnx,zynqmp-pcap-fpga"
     #[arg(short = 'p', long = "platform")]
     platform: Option<String>,
 
