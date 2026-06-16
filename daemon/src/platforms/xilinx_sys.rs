@@ -79,7 +79,7 @@ use zbus::fdo;
 ///
 /// This struct is thread-safe thanks to `OnceLock`, which ensures that initialization
 /// happens exactly once even with concurrent access.
-#[platform(compat_string = "xlnx-sys")]
+#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,xlnx-sys,platform")]
 #[derive(Debug)]
 pub struct XilinxSysPlatform {
     fpga: OnceLock<XilinxSysFPGA>,
@@ -218,7 +218,7 @@ impl Platform for XilinxSysPlatform {
     }
 
     fn platform_compat_string(&self) -> String {
-        "xlnx-sys".into()
+        "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener".into()
     }
 }
 

@@ -91,7 +91,7 @@ pub mod xilinx_dfx_mgr_overlay_handler;
 ///
 /// This struct is thread-safe thanks to `OnceLock`, which ensures that initialization
 /// happens exactly once even with concurrent access.
-#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0")]
+#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener")]
 pub struct XilinxDfxMgrPlatform {
     fpga: OnceLock<XilinxDfxMgrFPGA>,
     overlay_handler: OnceLock<XilinxDfxMgrOverlayHandler>,
@@ -147,7 +147,7 @@ impl Platform for XilinxDfxMgrPlatform {
     }
 
     fn platform_compat_string(&self) -> String {
-        "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0".into()
+        "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener".into()
     }
 }
 
