@@ -304,16 +304,23 @@ pub trait Platform: Any {
 /// 1. Softeners (platforms with `softener` in their compat string) are preferred if available
 /// 2. Built-in `platforms` are used as fallback if no softener is available
 ///
-/// **Note:** If `softener` is explicitly included in the requested `platform_string`, only
-/// softener platforms will be returned (no built-in platform fallback), as the matching
-/// algorithm requires all components to be present.
+/// Because matching requires all requested components to be present in the registered
+/// compat string, the caller can explicitly constrain which type of platform is returned:
+///
+/// - Requesting `"xlnx,softener"` only matches platforms whose compat string contains both
+///   `"xlnx"` and `"softener"` — built-in platforms (which have `"platform"` but not
+///   `"softener"`) will not match, so no built-in fallback is possible.
+/// - Requesting `"xlnx,platform"` only matches platforms whose compat string contains both
+///   `"xlnx"` and `"platform"` — softeners (which have `"softener"` but not `"platform"`)
+///   will not match, so no softener preference applies.
 ///
 /// # Algorithm
 ///
-/// 1. Split the registered compatibility string into components: `"xlnx,zynqmp-pcap-fpga"` → `["xlnx", "zynqmp-pcap-fpga"]`
+/// 1. Split the registered compatibility string into a component set: `"xlnx,zynqmp-pcap-fpga"` → `{"xlnx", "zynqmp-pcap-fpga"}`
 /// 2. Split the query string into components: `"xlnx"` → `["xlnx"]`
-/// 3. Check if all query components exist in the registered components
-/// 4. Filter for available softeners first, then fall back to any matching platform
+/// 3. Keep only registered platforms whose component set contains all query components
+/// 4. Partition matches into available softeners vs everything else
+/// 5. Return first available softener, or first fallback match, or error
 ///
 /// # Arguments
 ///
@@ -325,7 +332,7 @@ pub trait Platform: Any {
 /// * `Err(FpgadError::Argument)` - No matching platform found
 ///
 /// # Examples
-/// Match on one component (may return softener or built-in):
+/// Match on one component (softener preferred if available, built-in as fallback):
 /// ```rust,ignore
 /// let platform = match_platform_string("xlnx")?;
 /// ```
@@ -333,9 +340,13 @@ pub trait Platform: Any {
 /// ```rust,ignore
 /// let platform = match_platform_string("xlnx,zynqmp-pcap-fpga")?;
 /// ```
-/// Explicitly request only softeners:
+/// Explicitly request only softeners (no built-in fallback):
 /// ```rust,ignore
-/// let platform = match_platform_string("xlnx,softener")?;  // Only softeners match
+/// let platform = match_platform_string("xlnx,softener")?;
+/// ```
+/// Explicitly request only built-in platforms (no softener preference):
+/// ```rust,ignore
+/// let platform = match_platform_string("xlnx,platform")?;
 /// ```
 pub fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
     let registry = PLATFORM_REGISTRY
