@@ -10,9 +10,11 @@ use syn::{Expr, ItemStruct, Lit, Meta, parse_macro_input, punctuated::Punctuated
 /// with the global platform registry. The macro requires a `compat_string` parameter
 /// that specifies the device tree compatibility string(s) the platform supports.
 ///
-/// The macro also generates a `COMPAT_STRING` constant that contains the compatibility
-/// string, which should be used when implementing the Platform trait's `platform_compat_string()`
-/// method.
+/// The macro also generates a `COMPAT_STRING` constant that contains the compatibility string.
+///
+/// **Important**: Each platform MUST define an `is_available()` function that returns `bool`.
+/// - For built-in platforms (in `platforms` dir): `pub fn is_available() -> bool { true }`
+/// - For softeners (in `softeners` dir): Custom logic checking if dependencies exist
 ///
 /// # Arguments
 ///
@@ -27,7 +29,8 @@ use syn::{Expr, ItemStruct, Lit, Meta, parse_macro_input, punctuated::Punctuated
 ///     pub fn register_platform() {
 ///         crate::platforms::platform::register_platform(
 ///             "compat_string",
-///             || Box::new(Self::new())
+///             || Box::new(Self::new()),
+///             Self::is_available
 ///         );
 ///     }
 ///
@@ -35,24 +38,34 @@ use syn::{Expr, ItemStruct, Lit, Meta, parse_macro_input, punctuated::Punctuated
 /// }
 /// ```
 ///
-/// # Usage in Platform Implementation
+/// # Usage
 ///
-/// When implementing the Platform trait, use the generated constant:
+/// Built-in platform (always available):
 /// ```rust,ignore
-/// impl Platform for YourStruct {
-///     fn platform_compat_string(&self) -> String {
-///         Self::COMPAT_STRING.into()
+/// #[platform(compat_string = "xlnx-sys")]
+/// pub struct XilinxSysPlatform { }
+///
+/// impl XilinxSysPlatform {
+///     pub fn new() -> Self { Self }
+///
+///     pub fn is_available() -> bool {
+///         true  // Always available
 ///     }
-///     // ...other trait methods...
 /// }
 /// ```
 ///
-/// # Examples
-///
+/// Softener with custom availability:
 /// ```rust,ignore
-/// #[platform(compat_string = "xlnx-sys")]
-/// pub struct XilinxSysPlatform {
-///     // ...
+/// #[platform(compat_string = "xlnx,dfx-mgr")]
+/// pub struct MyPlatform { }
+///
+/// impl MyPlatform {
+///     pub fn new() -> Self { Self }
+///
+///     pub fn is_available() -> bool {
+///         // Check if required binary exists
+///         std::path::Path::new("/usr/bin/dfx-mgr-client").exists()
+///     }
 /// }
 /// ```
 #[proc_macro_attribute]
@@ -76,9 +89,8 @@ pub fn platform(args: TokenStream, input: TokenStream) -> TokenStream {
     }
     let compat_string = compat_string.expect("compat_string must be provided");
 
-    // Generate code to register the platform and define the compat string constant.
-    // The Platform trait's COMPAT_STRING must be set manually in the impl Platform block,
-    // but the macro provides a convenient constant that can be referenced.
+    // Generate code to register the platform.
+    // The platform impl MUST define is_available() -> bool
     let expanded = quote! {
         #input_struct
 
@@ -87,7 +99,8 @@ pub fn platform(args: TokenStream, input: TokenStream) -> TokenStream {
             pub fn register_platform() {
                 crate::platforms::platform::register_platform(
                     #compat_string,
-                    || Box::new(Self::new())
+                    || Box::new(Self::new()),
+                    Self::is_available
                 );
             }
 

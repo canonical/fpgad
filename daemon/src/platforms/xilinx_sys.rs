@@ -116,6 +116,18 @@ impl XilinxSysPlatform {
             overlay_handler: OnceLock::new(),
         }
     }
+
+    /// Check if this platform is available.
+    ///
+    /// For XilinxSys (a built-in platform), this always returns `true` as it uses
+    /// only standard Linux kernel FPGA interfaces without requiring additional
+    /// dependencies.
+    ///
+    /// # Returns
+    /// * `true` - Platform is always available
+    pub fn is_available() -> bool {
+        true
+    }
 }
 
 impl Platform for XilinxSysPlatform {

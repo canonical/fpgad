@@ -81,16 +81,27 @@ use std::sync::{Mutex, OnceLock};
 /// platform is discovered.
 type PlatformConstructor = fn() -> Box<dyn Platform>;
 
+/// Type alias for platform availability checker functions.
+///
+/// Availability checkers determine if a platform is available without constructing it.
+/// For built-in platforms (in the `platforms` dir), this always returns `true`.
+/// For softeners (in the `softeners` dir), this can implement custom logic like
+/// checking if required system services or binaries are present.
+type AvailabilityChecker = fn() -> bool;
+
+/// Platform registry entry containing both constructor and availability checker.
+type PlatformEntry = (PlatformConstructor, AvailabilityChecker);
+
 /// Global registry of platform implementations.
 ///
 /// This static variable holds a thread-safe registry mapping compatibility strings
-/// to platform constructor functions. It is initialized once at daemon startup via
-/// [`init_platform_registry`] and accessed through [`register_platform`] and
-/// [`match_platform_string`].
+/// to platform registry entries (constructor + availability checker). It is initialized
+/// once at daemon startup via [`init_platform_registry`] and accessed through
+/// [`register_platform`] and [`match_platform_string`].
 ///
 /// The registry uses `OnceLock` to ensure thread-safe lazy initialization and `Mutex`
 /// to protect concurrent access to the internal HashMap.
-pub static PLATFORM_REGISTRY: OnceLock<Mutex<HashMap<&'static str, PlatformConstructor>>> =
+pub static PLATFORM_REGISTRY: OnceLock<Mutex<HashMap<&'static str, PlatformEntry>>> =
     OnceLock::new();
 
 /// Trait for managing an FPGA device
@@ -287,30 +298,44 @@ pub trait Platform: Any {
 /// string. The matching is done by splitting both strings on commas and ensuring ***all***
 /// components in the query string are present in the registered compatibility string.
 ///
+/// # Platform Selection Priority
+///
+/// When multiple platforms match the requested compatibility string:
+/// 1. Softeners (platforms with `softener` in their compat string) are preferred if available
+/// 2. Built-in `platforms` are used as fallback if no softener is available
+///
+/// **Note:** If `softener` is explicitly included in the requested `platform_string`, only
+/// softener platforms will be returned (no built-in platform fallback), as the matching
+/// algorithm requires all components to be present.
+///
 /// # Algorithm
 ///
 /// 1. Split the registered compatibility string into components: `"xlnx,zynqmp-pcap-fpga"` → `["xlnx", "zynqmp-pcap-fpga"]`
 /// 2. Split the query string into components: `"xlnx"` → `["xlnx"]`
 /// 3. Check if all query components exist in the registered components
-/// 4. Return the first matching platform constructor
+/// 4. Filter for available softeners first, then fall back to any matching platform
 ///
 /// # Arguments
 ///
 /// * `platform_string` - Comma-separated compatibility string to match
 ///
 /// # Returns: `Result<Box<dyn Platform>, FpgadError>`
-/// * `Ok(Box<dyn Platform>)` - Newly constructed platform instance
+/// * `Ok(Box<dyn Platform>)` - Newly constructed platform instance (softener preferred)
 /// * `Err(FpgadError::Internal)` - Registry not initialized or lock failure
 /// * `Err(FpgadError::Argument)` - No matching platform found
 ///
 /// # Examples
-/// Match on one component:
+/// Match on one component (may return softener or built-in):
 /// ```rust,ignore
 /// let platform = match_platform_string("xlnx")?;
 /// ```
 /// Match on all of multiple components:
 /// ```rust,ignore
 /// let platform = match_platform_string("xlnx,zynqmp-pcap-fpga")?;
+/// ```
+/// Explicitly request only softeners:
+/// ```rust,ignore
+/// let platform = match_platform_string("xlnx,softener")?;  // Only softeners match
 /// ```
 pub fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>, FpgadError> {
     let registry = PLATFORM_REGISTRY
@@ -321,13 +346,41 @@ pub fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>,
         .lock()
         .map_err(|_| FpgadError::Internal(String::from("couldn't lock PLATFORM_REGISTRY")))?;
 
-    for (compat_string, platform_constructor) in registry.iter() {
-        let compat_set: HashSet<&str> = compat_string.split(',').collect();
-        let compat_found = platform_string.split(',').all(|x| compat_set.contains(x));
-        if compat_found {
-            trace!("found `{compat_found}` for platform with compat string `{platform_string}`");
-            return Ok(platform_constructor());
-        }
+    // find registered platforms which contain all requested platform string parts
+    let matching_platforms: Vec<_> = registry
+        .iter()
+        .filter(|(compat_string, _)| {
+            let compat_set: HashSet<&str> = compat_string.split(',').collect();
+            platform_string.split(',').all(|x| compat_set.contains(x))
+        })
+        .collect();
+
+    // we prefer softeners if in matching list and available
+    let softeners = matching_platforms
+        .iter()
+        .filter(|(compat_string, (_, checker))| {
+            if compat_string.contains("softener") {
+                checker()
+            } else {
+                false
+            }
+        })
+        .collect::<Vec<_>>();
+
+    if let Some((compat_string, (softener_constructor, _))) = softeners.first() {
+        trace!("Using softener platform: {}", compat_string);
+        return Ok(softener_constructor());
+    }
+
+    // Fall back to non-softener platforms only
+    let builtin_platforms: Vec<_> = matching_platforms
+        .iter()
+        .filter(|(compat_string, _)| !compat_string.contains("softener"))
+        .collect();
+
+    if let Some((compat_string, (platform_constructor, _))) = builtin_platforms.first() {
+        trace!("Using built-in platform: {}", compat_string);
+        return Ok(platform_constructor());
     }
 
     Err(FpgadError::Argument(format!(
@@ -487,26 +540,28 @@ pub fn platform_for_known_platform(platform_string: &str) -> Result<Box<dyn Plat
 
 /// Initialize the platform registry.
 ///
-/// Creates a new empty mutex-protected HashMap for storing platform constructors.
+/// Creates a new empty mutex-protected HashMap for storing platform entries
+/// (constructor + availability checker).
 /// This function is called automatically by [`register_platform`] via `OnceLock::get_or_init`.
 ///
-/// # Returns: `Mutex<HashMap<&'static str, PlatformConstructor>>`
+/// # Returns: `Mutex<HashMap<&'static str, PlatformEntry>>`
 /// * Empty mutex-protected HashMap ready for platform registration
-pub fn init_platform_registry() -> Mutex<HashMap<&'static str, PlatformConstructor>> {
+pub fn init_platform_registry() -> Mutex<HashMap<&'static str, PlatformEntry>> {
     Mutex::new(HashMap::new())
 }
 
 /// Register a platform implementation in the global registry.
 ///
-/// Adds a platform constructor to the registry with an associated compatibility string.
-/// The compatibility string should be a comma-separated list of components that match
-/// the device tree compatible property. Platforms are typically registered at daemon
+/// Adds a platform constructor and availability checker to the registry with an associated
+/// compatibility string. The compatibility string should be a comma-separated list of components
+/// that match the device tree compatible property. Platforms are typically registered at daemon
 /// startup before any devices are discovered.
 ///
 /// # Arguments
 ///
 /// * `compatible` - Compatibility string (e.g., "xlnx,zynqmp-pcap-fpga")
 /// * `constructor` - Function that creates a new platform instance
+/// * `availability_checker` - Function that checks if the platform is available
 ///
 /// # Panics
 ///
@@ -517,17 +572,23 @@ pub fn init_platform_registry() -> Mutex<HashMap<&'static str, PlatformConstruct
 /// ```rust,no_run
 /// # use crate::platforms::platform::register_platform;
 /// # use crate::platforms::xilinx_sys::XilinxSysPlatform;
-/// register_platform("new_platform,compatibility-string", || {
-///     Box::new(NewPlatform::new())
-/// });
+/// register_platform(
+///     "new_platform,compatibility-string",
+///     || Box::new(NewPlatform::new()),
+///     || true  // Always available for built-in platforms
+/// );
 /// ```
-pub fn register_platform(compatible: &'static str, constructor: PlatformConstructor) {
+pub fn register_platform(
+    compatible: &'static str,
+    constructor: PlatformConstructor,
+    availability_checker: AvailabilityChecker,
+) {
     let mut registry = PLATFORM_REGISTRY
         .get_or_init(init_platform_registry)
         .lock()
         .expect("couldnt get PLATFORM_REGISTRY");
 
-    registry.insert(compatible, constructor);
+    registry.insert(compatible, (constructor, availability_checker));
 }
 
 /// List all FPGA manager device handles present in the system.
@@ -563,9 +624,11 @@ mod tests {
     use std::any::Any;
 
     fn setup_test_registry() {
-        register_platform("xlnx,versal-fpga,zynqmp-pcap-fpga,zynq-devcfg-1.0", || {
-            Box::new(XilinxDfxMgrPlatform::new())
-        });
+        register_platform(
+            "xlnx,versal-fpga,zynqmp-pcap-fpga,zynq-devcfg-1.0",
+            || Box::new(XilinxDfxMgrPlatform::new()),
+            XilinxDfxMgrPlatform::is_available,
+        );
     }
 
     fn assert_is_xilinx_platform(platform: &dyn Platform) {
