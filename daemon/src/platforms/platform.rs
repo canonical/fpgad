@@ -355,32 +355,19 @@ pub fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>,
         })
         .collect();
 
-    // we prefer softeners if in matching list and available so  return softener if in list
-    let softeners = matching_platforms
+    // Split matches into available softeners and built-in platforms in one pass
+    let (available_softeners, builtin_platforms): (Vec<_>, Vec<_>) = matching_platforms
         .iter()
-        .filter(|(compat_string, (_, checker))| {
-            if compat_string.contains("softener") {
-                checker()
-            } else {
-                false
-            }
-        })
-        .collect::<Vec<_>>();
+        .partition(|(compat_string, (_, checker))| compat_string.contains("softener") && checker());
 
-    if let Some((compat_string, (softener_constructor, _))) = softeners.first() {
+    if let Some((compat_string, (constructor, _))) = available_softeners.first() {
         trace!("Using softener platform: {}", compat_string);
-        return Ok(softener_constructor());
+        return Ok(constructor());
     }
 
-    // Fall back to non-softener platforms only
-    let builtin_platforms: Vec<_> = matching_platforms
-        .iter()
-        .filter(|(compat_string, _)| !compat_string.contains("softener"))
-        .collect();
-
-    if let Some((compat_string, (platform_constructor, _))) = builtin_platforms.first() {
+    if let Some((compat_string, (constructor, _))) = builtin_platforms.first() {
         trace!("Using built-in platform: {}", compat_string);
-        return Ok(platform_constructor());
+        return Ok(constructor());
     }
 
     // No suitable platforms
