@@ -218,7 +218,7 @@ impl Platform for XilinxSysPlatform {
     }
 
     fn platform_compat_string(&self) -> String {
-        "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener".into()
+        Self::COMPAT_STRING.into()
     }
 }
 

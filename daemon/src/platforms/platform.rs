@@ -261,6 +261,10 @@ pub trait Platform: Any {
     /// with. This string matches against device tree compatible properties to determine
     /// which platform to use for a device.
     ///
+    /// Implementations should return the same value as specified in the `#[platform]` macro's
+    /// `compat_string` attribute. The macro generates a `COMPAT_STRING` constant that can
+    /// be used: `Self::COMPAT_STRING.into()`.
+    ///
     /// # Returns: `String`
     /// * The platform compatibility string (e.g., "xlnx-sys", "xlnx,zynqmp-pcap-fpga")
     ///
