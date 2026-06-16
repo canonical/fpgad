@@ -23,6 +23,7 @@
 use fpgad::platforms::platform::{Platform, match_platform_string, register_platform};
 use fpgad::platforms::xilinx_sys::XilinxSysPlatform;
 use fpgad::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
+use googletest::prelude::*;
 use std::any::Any;
 
 fn setup_integrated_registry() {
@@ -40,29 +41,20 @@ fn setup_integrated_registry() {
 
 fn assert_is_dfx_mgr_platform(platform: &dyn Platform) {
     let as_dfx_mgr = (platform as &dyn Any).downcast_ref::<XilinxDfxMgrPlatform>();
-    assert!(
-        as_dfx_mgr.is_some(),
-        "The platform should be of type XilinxDfxMgrPlatform"
-    );
+    assert_that!(as_dfx_mgr.is_some(), eq(true));
 }
 
 fn assert_is_xlnx_sys_platform(platform: &dyn Platform) {
     let as_xlnx_sys = (platform as &dyn Any).downcast_ref::<XilinxSysPlatform>();
-    assert!(
-        as_xlnx_sys.is_some(),
-        "The platform should be of type XilinxSysPlatform"
-    );
+    assert_that!(as_xlnx_sys.is_some(), eq(true));
 }
 
-#[test]
+#[gtest]
 fn test_integrated_platform_selection() {
     setup_integrated_registry();
 
     let result = match_platform_string("xlnx,zynqmp-pcap-fpga");
-    assert!(
-        result.is_ok(),
-        "Should match one of the registered platforms"
-    );
+    assert_that!(result.is_ok(), eq(true));
 
     let platform = result.unwrap();
     if XilinxDfxMgrPlatform::is_available() {
@@ -72,27 +64,27 @@ fn test_integrated_platform_selection() {
     }
 }
 
-#[test]
+#[gtest]
 fn test_explicit_softener_request_with_real_platforms() {
     setup_integrated_registry();
 
     let result = match_platform_string("xlnx,softener");
 
     if XilinxDfxMgrPlatform::is_available() {
-        assert!(result.is_ok(), "Should match available softener");
+        assert_that!(result.is_ok(), eq(true));
         assert_is_dfx_mgr_platform(result.unwrap().as_ref());
     } else {
         // No built-in platform has "softener" in its compat string, so no fallback
-        assert!(result.is_err(), "Should not match unavailable softener");
+        assert_that!(result.is_err(), eq(true));
     }
 }
 
-#[test]
+#[gtest]
 fn test_xlnx_component_matches_both() {
     setup_integrated_registry();
 
     let result = match_platform_string("xlnx");
-    assert!(result.is_ok(), "Should match xlnx component");
+    assert_that!(result.is_ok(), eq(true));
 
     let platform = result.unwrap();
     if XilinxDfxMgrPlatform::is_available() {
