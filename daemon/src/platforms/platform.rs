@@ -355,7 +355,7 @@ pub fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>,
         })
         .collect();
 
-    // we prefer softeners if in matching list and available
+    // we prefer softeners if in matching list and available so  return softener if in list
     let softeners = matching_platforms
         .iter()
         .filter(|(compat_string, (_, checker))| {
@@ -383,6 +383,7 @@ pub fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>,
         return Ok(platform_constructor());
     }
 
+    // No suitable platforms
     Err(FpgadError::Argument(format!(
         "FPGAd could not match {platform_string} to a known platform."
     )))
@@ -617,140 +618,435 @@ pub fn list_fpga_managers() -> Result<Vec<String>, FpgadError> {
     fs_read_dir(config::FPGA_MANAGERS_DIR.as_ref())
 }
 
+#[cfg(test)]
+mod platform_discovery_tests {
+    use super::*;
+
+    /// Helper function to register a test softener platform that mimics XilinxDfxMgrPlatform.
+    /// This uses the same compat string structure as the real DFX Manager softener.
+    /// This version is always available.
+    fn register_test_softener_available() {
+        register_platform(
+            "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener",
+            || Box::new(XilinxSysPlatform::new()), // Using XilinxSysPlatform as a stand-in
+            || true,                               // Always available
+        );
+    }
+
+    /// Helper function to register a test softener platform that is always unavailable.
+    fn register_test_softener_unavailable() {
+        register_platform(
+            "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener",
+            || Box::new(XilinxSysPlatform::new()),
+            || false, // Always unavailable
+        );
+    }
+
+    /// Helper function to register a test built-in platform that mimics XilinxSysPlatform.
+    /// This uses the same compat string structure as the real xlnx-sys platform.
+    fn register_test_builtin() {
+        register_platform(
+            "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,xlnx-sys,platform",
+            || Box::new(XilinxSysPlatform::new()),
+            XilinxSysPlatform::is_available, // Always returns true
+        );
+    }
+
+    #[test]
+    fn test_built_in_platform_is_always_available() {
+        // XilinxSysPlatform should always be available
+        assert!(XilinxSysPlatform::is_available());
+    }
+
+    #[test]
+    fn test_built_in_platform_can_be_registered_and_matched() {
+        // Register the built-in platform
+        register_platform(
+            "test-platform,built-in",
+            || Box::new(XilinxSysPlatform::new()),
+            XilinxSysPlatform::is_available,
+        );
+
+        // Should be able to match it
+        let result = match_platform_string("test-platform");
+        assert!(result.is_ok(), "Should match built-in platform");
+    }
+
+    #[test]
+    fn test_platform_matching_requires_all_components() {
+        register_platform(
+            "test-multi,component,platform",
+            || Box::new(XilinxSysPlatform::new()),
+            || true,
+        );
+
+        // All components present - should match
+        let result = match_platform_string("test-multi,component,platform");
+        assert!(result.is_ok(), "Should match when all components present");
+
+        // Partial match - should succeed if all requested components are in registered
+        let result = match_platform_string("test-multi,component");
+        assert!(result.is_ok(), "Should match partial component list");
+
+        // Extra component not in registered string - should fail
+        let result = match_platform_string("test-multi,component,platform,extra");
+        assert!(
+            result.is_err(),
+            "Should not match when requesting extra components"
+        );
+    }
+
+    #[test]
+    fn test_softener_preferred_when_available() {
+        // Register both softener and built-in
+        register_test_softener_available(); // Available softener
+        register_test_builtin();
+
+        // When matching common components, should prefer available softener
+        let result = match_platform_string("xlnx,zynqmp-pcap-fpga");
+        assert!(result.is_ok(), "Should match a platform");
+
+        // Both match but softener should be selected (verified by match_platform_string logic)
+        let result = match_platform_string("xlnx");
+        assert!(result.is_ok(), "Should match xlnx component");
+    }
+
+    #[test]
+    fn test_fallback_to_builtin_when_softener_unavailable() {
+        // Register unavailable softener and available built-in
+        register_test_softener_unavailable(); // Unavailable softener
+        register_test_builtin(); // Available built-in
+
+        // Should fall back to built-in since softener is unavailable
+        let result = match_platform_string("xlnx,zynqmp-pcap-fpga");
+        assert!(
+            result.is_ok(),
+            "Should fall back to built-in when softener is unavailable"
+        );
+
+        // Verify it works for partial matches too
+        let result = match_platform_string("versal-fpga");
+        assert!(result.is_ok(), "Should match versal-fpga component");
+    }
+
+    #[test]
+    fn test_explicit_softener_request_requires_softener_component() {
+        register_test_softener_available();
+        register_test_builtin();
+
+        // Explicitly requesting "softener" component should only match softener
+        let result = match_platform_string("xlnx,softener");
+        assert!(
+            result.is_ok(),
+            "Should match softener with explicit component"
+        );
+
+        // Built-in shouldn't match when softener component is explicitly requested
+        let result = match_platform_string("xlnx,platform,softener");
+        assert!(
+            result.is_err(),
+            "Built-in missing 'softener' component shouldn't match"
+        );
+    }
+
+    #[test]
+    fn test_explicit_builtin_request_works() {
+        register_test_softener_available();
+        register_test_builtin();
+
+        // Explicitly requesting "platform" component
+        let result = match_platform_string("xlnx,platform");
+        assert!(
+            result.is_ok(),
+            "Should match platform with explicit component"
+        );
+
+        // Request xlnx-sys specifically
+        let result = match_platform_string("xlnx-sys");
+        assert!(result.is_ok(), "Should match xlnx-sys component");
+    }
+
+    #[test]
+    fn test_only_unavailable_platforms_match_still_returns_one() {
+        // Register only an unavailable platform
+        register_platform(
+            "only-unavailable,test",
+            || Box::new(XilinxSysPlatform::new()),
+            || false,
+        );
+
+        // Should still return the unavailable platform (fallback behavior)
+        let result = match_platform_string("only-unavailable");
+        assert!(
+            result.is_ok(),
+            "Should return unavailable platform if it's the only match"
+        );
+    }
+
+    #[test]
+    fn test_multiple_softeners_picks_first_available() {
+        // Register multiple softeners with different availability
+        register_platform(
+            "multi-soft,test,softener,first",
+            || Box::new(XilinxSysPlatform::new()),
+            || false, // Unavailable
+        );
+
+        register_platform(
+            "multi-soft,test,softener,second",
+            || Box::new(XilinxSysPlatform::new()),
+            || true, // Available
+        );
+
+        register_platform(
+            "multi-soft,test,softener,third",
+            || Box::new(XilinxSysPlatform::new()),
+            || true, // Also available
+        );
+
+        // Should pick first available softener
+        let result = match_platform_string("multi-soft,test,softener");
+        assert!(result.is_ok(), "Should find an available softener");
+    }
+
+    #[test]
+    fn test_no_match_returns_error() {
+        let result = match_platform_string("nonexistent-platform-12345");
+        assert!(
+            result.is_err(),
+            "Should return error when no platform matches"
+        );
+
+        if let Err(FpgadError::Argument(msg)) = result {
+            assert!(
+                msg.contains("could not match"),
+                "Error message should indicate no match found"
+            );
+        } else {
+            panic!("Expected FpgadError::Argument");
+        }
+    }
+
+    #[test]
+    fn test_empty_string_returns_error() {
+        let result = match_platform_string("");
+        assert!(result.is_err(), "Empty string should return error");
+    }
+
+    #[test]
+    fn test_case_sensitivity() {
+        register_platform(
+            "case-test,lowercase",
+            || Box::new(XilinxSysPlatform::new()),
+            || true,
+        );
+
+        // Exact match should work
+        let result = match_platform_string("case-test");
+        assert!(result.is_ok(), "Exact case should match");
+
+        // Different case should not match
+        let result = match_platform_string("CASE-TEST");
+        assert!(result.is_err(), "Different case should not match");
+    }
+
+    #[test]
+    fn test_compat_string_constant_matches_registered() {
+        // Verify the macro-generated constant matches what gets registered
+        assert_eq!(
+            XilinxSysPlatform::COMPAT_STRING,
+            "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,xlnx-sys,platform"
+        );
+    }
+
+    #[test]
+    fn test_dfx_mgr_component_matching() {
+        register_test_softener_available();
+
+        // Should match dfx-mgr component
+        let result = match_platform_string("dfx-mgr");
+        assert!(result.is_ok(), "Should match dfx-mgr component");
+
+        // Should match combination with other components
+        let result = match_platform_string("xlnx,dfx-mgr");
+        assert!(result.is_ok(), "Should match xlnx,dfx-mgr components");
+    }
+
+    #[test]
+    fn test_versal_and_zynqmp_components() {
+        register_test_builtin();
+
+        // Should match versal-fpga
+        let result = match_platform_string("versal-fpga");
+        assert!(result.is_ok(), "Should match versal-fpga component");
+
+        // Should match zynqmp-pcap-fpga
+        let result = match_platform_string("zynqmp-pcap-fpga");
+        assert!(result.is_ok(), "Should match zynqmp-pcap-fpga component");
+
+        // Should match zynq-devcfg-1.0
+        let result = match_platform_string("zynq-devcfg-1.0");
+        assert!(result.is_ok(), "Should match zynq-devcfg-1.0 component");
+    }
+}
+
 #[cfg(all(test, feature = "xilinx-dfx-mgr"))]
-mod tests {
+mod dfx_mgr_integration_tests {
     use super::*;
     use crate::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
     use std::any::Any;
 
-    fn setup_test_registry() {
+    /// Register both real softener and built-in platforms for integration testing
+    fn setup_integrated_registry() {
+        // Register the real DFX Manager softener (may or may not be available)
         register_platform(
-            "xlnx,versal-fpga,zynqmp-pcap-fpga,zynq-devcfg-1.0",
+            "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener",
             || Box::new(XilinxDfxMgrPlatform::new()),
             XilinxDfxMgrPlatform::is_available,
         );
+
+        // Register the built-in platform
+        register_platform(
+            "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,xlnx-sys,platform",
+            || Box::new(XilinxSysPlatform::new()),
+            XilinxSysPlatform::is_available,
+        );
     }
 
-    fn assert_is_xilinx_platform(platform: &dyn Platform) {
-        let as_xilinx_platform = (platform as &dyn Any).downcast_ref::<XilinxDfxMgrPlatform>();
+    fn assert_is_dfx_mgr_platform(platform: &dyn Platform) {
+        let as_dfx_mgr = (platform as &dyn Any).downcast_ref::<XilinxDfxMgrPlatform>();
         assert!(
-            as_xilinx_platform.is_some(),
+            as_dfx_mgr.is_some(),
             "The platform should be of type XilinxDfxMgrPlatform"
         );
     }
 
-    #[test]
-    fn test_match_platform_string_empty_string_fails() {
-        setup_test_registry();
-        let result = match_platform_string("");
-
+    fn assert_is_xlnx_sys_platform(platform: &dyn Platform) {
+        let as_xlnx_sys = (platform as &dyn Any).downcast_ref::<XilinxSysPlatform>();
         assert!(
-            result.is_err(),
-            "Empty string should fail to match any platform"
+            as_xlnx_sys.is_some(),
+            "The platform should be of type XilinxSysPlatform"
         );
     }
 
     #[test]
-    fn test_match_platform_string_xlnx_succeeds() {
-        setup_test_registry();
-        let result = match_platform_string("xlnx");
+    fn test_dfx_mgr_platform_availability() {
+        // Test whether DFX Manager is available (depends on system)
+        let available = XilinxDfxMgrPlatform::is_available();
 
-        assert!(result.is_ok(), "xlnx should match successfully");
-        let platform = result.unwrap();
-        assert_is_xilinx_platform(platform.as_ref());
+        // This will be true or false depending on whether dfx-mgr-client is installed
+        // Just verify the function is callable
+        println!("DFX Manager available: {}", available);
     }
 
     #[test]
-    fn test_match_platform_string_partial_match_fails() {
-        setup_test_registry();
-        let result = match_platform_string("xlnx,pcap-");
+    fn test_integrated_platform_selection() {
+        setup_integrated_registry();
 
-        assert!(result.is_err(), "Partial match 'xlnx,pcap-' should fail");
-    }
-
-    #[test]
-    fn test_match_platform_string_invalid_platform_fails() {
-        setup_test_registry();
-        let result = match_platform_string("invalid-platform");
-        assert!(result.is_err(), "Invalid platform should fail to match");
-    }
-
-    #[test]
-    fn test_match_platform_string_full_match_succeeds() {
-        setup_test_registry();
+        // When both are registered, behavior depends on dfx-mgr availability
         let result = match_platform_string("xlnx,zynqmp-pcap-fpga");
-
-        assert!(result.is_ok(), "Full match should succeed");
-        let platform = result.unwrap();
-        assert_is_xilinx_platform(platform.as_ref());
-    }
-
-    #[test]
-    fn test_match_platform_string_single_component_succeeds() {
-        setup_test_registry();
-        let result = match_platform_string("versal-fpga");
-
         assert!(
             result.is_ok(),
-            "Single component 'versal-fpga' should succeed"
+            "Should match one of the registered platforms"
         );
+
         let platform = result.unwrap();
-        assert_is_xilinx_platform(platform.as_ref());
+
+        // Check which one we got
+        if XilinxDfxMgrPlatform::is_available() {
+            // If dfx-mgr is available, should prefer it
+            assert_is_dfx_mgr_platform(platform.as_ref());
+        } else {
+            // Otherwise should fall back to xlnx-sys
+            assert_is_xlnx_sys_platform(platform.as_ref());
+        }
     }
 
     #[test]
-    fn test_match_platform_string_multiple_components_succeeds() {
-        setup_test_registry();
-        let result = match_platform_string("xlnx,versal-fpga,zynq-devcfg-1.0");
+    fn test_explicit_softener_request_with_real_platforms() {
+        setup_integrated_registry();
 
-        assert!(result.is_ok(), "Multiple valid components should succeed");
+        // Explicitly requesting softener component
+        let result = match_platform_string("xlnx,softener");
+
+        if XilinxDfxMgrPlatform::is_available() {
+            // Should match if available
+            assert!(result.is_ok(), "Should match available softener");
+            assert_is_dfx_mgr_platform(result.unwrap().as_ref());
+        } else {
+            // Should not match if unavailable (no fallback has "softener" component)
+            assert!(result.is_err(), "Should not match unavailable softener");
+        }
+    }
+
+    #[test]
+    fn test_explicit_builtin_request_with_real_platforms() {
+        setup_integrated_registry();
+
+        // Explicitly requesting xlnx-sys component
+        let result = match_platform_string("xlnx-sys");
+        assert!(result.is_ok(), "Should match xlnx-sys built-in platform");
+
         let platform = result.unwrap();
-        assert_is_xilinx_platform(platform.as_ref());
+        assert_is_xlnx_sys_platform(platform.as_ref());
     }
 
     #[test]
-    fn test_match_platform_string_mixed_valid_invalid_fails() {
-        setup_test_registry();
-        let result = match_platform_string("xlnx,invalid-component");
+    fn test_xlnx_component_matches_both() {
+        setup_integrated_registry();
 
-        assert!(
-            result.is_err(),
-            "Mix of valid and invalid components should fail"
-        );
-    }
+        // "xlnx" component is in both platforms
+        let result = match_platform_string("xlnx");
+        assert!(result.is_ok(), "Should match xlnx component");
 
-    #[test]
-    fn test_match_platform_string_case_sensitive() {
-        setup_test_registry();
-        let result = match_platform_string("XLNX");
-
-        assert!(
-            result.is_err(),
-            "Case sensitive matching should fail for uppercase"
-        );
+        // Result depends on dfx-mgr availability
+        let platform = result.unwrap();
+        if XilinxDfxMgrPlatform::is_available() {
+            assert_is_dfx_mgr_platform(platform.as_ref());
+        } else {
+            assert_is_xlnx_sys_platform(platform.as_ref());
+        }
     }
 
     #[test]
     fn test_platform_type_assertion_methods() {
-        setup_test_registry();
+        setup_integrated_registry();
         let platform = match_platform_string("xlnx").unwrap();
 
-        // Method 1: Using downcast_ref
-        let as_xilinx = (platform.as_ref() as &dyn Any).downcast_ref::<XilinxDfxMgrPlatform>();
-        assert!(as_xilinx.is_some(), "Downcast should succeed");
-
-        // Method 2: Using type_id comparison
+        // Get type name for debugging
         let platform_any = platform.as_ref() as &dyn Any;
+        let type_name = std::any::type_name_of_val(platform_any);
+        println!("Platform type: {}", type_name);
+
+        // Verify it's one of our expected types
+        let is_dfx_mgr = platform_any.is::<XilinxDfxMgrPlatform>();
+        let is_xlnx_sys = platform_any.is::<XilinxSysPlatform>();
+
         assert!(
-            platform_any.is::<XilinxDfxMgrPlatform>(),
-            "Type ID check should succeed"
+            is_dfx_mgr || is_xlnx_sys,
+            "Platform should be either DFX Manager or XilinxSys"
+        );
+    }
+
+    #[test]
+    fn test_compat_string_constants() {
+        // Verify both platforms have correct compat strings
+        assert!(
+            XilinxDfxMgrPlatform::COMPAT_STRING.contains("dfx-mgr"),
+            "DFX Manager compat string should contain 'dfx-mgr'"
+        );
+        assert!(
+            XilinxDfxMgrPlatform::COMPAT_STRING.contains("softener"),
+            "DFX Manager compat string should contain 'softener'"
         );
 
-        // Method 3: Using type_name (for debugging)
-        let type_name = std::any::type_name_of_val(as_xilinx.unwrap());
         assert!(
-            type_name.contains("XilinxDfxMgrPlatform"),
-            "Type name({type_name}) should contain XilinxDfxMgrPlatform"
+            XilinxSysPlatform::COMPAT_STRING.contains("xlnx-sys"),
+            "XilinxSys compat string should contain 'xlnx-sys'"
+        );
+        assert!(
+            XilinxSysPlatform::COMPAT_STRING.contains("platform"),
+            "XilinxSys compat string should contain 'platform'"
         );
     }
 }

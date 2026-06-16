@@ -206,7 +206,7 @@ async fn overlay_already_applied(_setup: ()) {
 #[gtest]
 #[rstest]
 #[case::no_dtbo_path("fpga0", "xlnx-sys", "")]
-#[case::bad_platform_string("fpga0", "platform", "/lib/firmware/k26-starter-kits.dtbo")]
+#[case::bad_platform_string("fpga0", "bad-platform-string", "/lib/firmware/k26-starter-kits.dtbo")]
 #[case::no_platform_string("fpga0", "", "/lib/firmware/k26-starter-kits.dtbo")]
 #[case::no_overlay_handle("", "xlnx-sys", "/lib/firmware/k26-starter-kits.dtbo")]
 /// fails if an overlay cannot be applied, and will succeed if the overlay is applied, and then
