@@ -30,12 +30,10 @@ fn setup_integrated_registry() {
     register_platform(
         "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener",
         || Box::new(XilinxDfxMgrPlatform::new()),
-        XilinxDfxMgrPlatform::is_available,
     );
     register_platform(
         "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,xlnx-sys,platform",
         || Box::new(XilinxSysPlatform::new()),
-        XilinxSysPlatform::is_available,
     );
 }
 
@@ -57,7 +55,8 @@ fn test_integrated_platform_selection() {
     assert_that!(result.is_ok(), eq(true));
 
     let platform = result.unwrap();
-    if XilinxDfxMgrPlatform::is_available() {
+    let dfx_platform = XilinxDfxMgrPlatform::new();
+    if dfx_platform.is_available() {
         assert_is_dfx_mgr_platform(platform.as_ref());
     } else {
         assert_is_xlnx_sys_platform(platform.as_ref());
@@ -69,8 +68,8 @@ fn test_explicit_softener_request_with_real_platforms() {
     setup_integrated_registry();
 
     let result = match_platform_string("xlnx,softener");
-
-    if XilinxDfxMgrPlatform::is_available() {
+    let dfx_platform = XilinxDfxMgrPlatform::new();
+    if dfx_platform.is_available() {
         assert_that!(result.is_ok(), eq(true));
         assert_is_dfx_mgr_platform(result.unwrap().as_ref());
     } else {
@@ -87,7 +86,8 @@ fn test_xlnx_component_matches_both() {
     assert_that!(result.is_ok(), eq(true));
 
     let platform = result.unwrap();
-    if XilinxDfxMgrPlatform::is_available() {
+    let dfx_platform = XilinxDfxMgrPlatform::new();
+    if dfx_platform.is_available() {
         assert_is_dfx_mgr_platform(platform.as_ref());
     } else {
         assert_is_xlnx_sys_platform(platform.as_ref());

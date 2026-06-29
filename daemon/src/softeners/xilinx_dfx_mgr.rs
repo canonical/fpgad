@@ -127,6 +127,28 @@ impl XilinxDfxMgrPlatform {
             overlay_handler: OnceLock::new(),
         }
     }
+}
+
+impl Platform for XilinxDfxMgrPlatform {
+    fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError> {
+        Ok(self
+            .fpga
+            .get_or_init(|| XilinxDfxMgrFPGA::new(device_handle)))
+    }
+
+    fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError> {
+        Ok(self
+            .overlay_handler
+            .get_or_init(|| XilinxDfxMgrOverlayHandler::new(overlay_handle)))
+    }
+
+    fn status_message(&self) -> Result<String, FpgadError> {
+        Ok(list_package()?)
+    }
+
+    fn platform_compat_string(&self) -> String {
+        Self::COMPAT_STRING.into()
+    }
 
     /// Check if the Xilinx DFX Manager platform is available on this system.
     ///
@@ -149,7 +171,7 @@ impl XilinxDfxMgrPlatform {
     ///     println!("DFX Manager not found, using fallback platform");
     /// }
     /// ```
-    pub fn is_available() -> bool {
+    fn is_available(&self) -> bool {
         let available = xilinx_dfx_mgr_helpers::get_dfx_mgr_client_path().is_ok();
 
         if !available {
@@ -162,28 +184,6 @@ impl XilinxDfxMgrPlatform {
         }
 
         available
-    }
-}
-
-impl Platform for XilinxDfxMgrPlatform {
-    fn fpga(&self, device_handle: &str) -> Result<&dyn Fpga, FpgadError> {
-        Ok(self
-            .fpga
-            .get_or_init(|| XilinxDfxMgrFPGA::new(device_handle)))
-    }
-
-    fn overlay_handler(&self, overlay_handle: &str) -> Result<&dyn OverlayHandler, FpgadError> {
-        Ok(self
-            .overlay_handler
-            .get_or_init(|| XilinxDfxMgrOverlayHandler::new(overlay_handle)))
-    }
-
-    fn status_message(&self) -> Result<String, FpgadError> {
-        Ok(list_package()?)
-    }
-
-    fn platform_compat_string(&self) -> String {
-        Self::COMPAT_STRING.into()
     }
 }
 

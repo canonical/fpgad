@@ -81,17 +81,6 @@ use std::sync::{Mutex, OnceLock};
 /// platform is discovered.
 type PlatformConstructor = fn() -> Box<dyn Platform>;
 
-/// Type alias for platform availability checker functions.
-///
-/// Availability checkers determine if a platform is available without constructing it.
-/// For built-in platforms (in the `platforms` dir), this always returns `true`.
-/// For softeners (in the `softeners` dir), this can implement custom logic like
-/// checking if required system services or binaries are present.
-type AvailabilityChecker = fn() -> bool;
-
-/// Platform registry entry containing both constructor and availability checker.
-type PlatformEntry = (PlatformConstructor, AvailabilityChecker);
-
 /// Global registry of platform implementations.
 ///
 /// This static variable holds a thread-safe registry mapping compatibility strings
@@ -101,7 +90,7 @@ type PlatformEntry = (PlatformConstructor, AvailabilityChecker);
 ///
 /// The registry uses `OnceLock` to ensure thread-safe lazy initialization and `Mutex`
 /// to protect concurrent access to the internal HashMap.
-pub static PLATFORM_REGISTRY: OnceLock<Mutex<HashMap<&'static str, PlatformEntry>>> =
+pub static PLATFORM_REGISTRY: OnceLock<Mutex<HashMap<&'static str, PlatformConstructor>>> =
     OnceLock::new();
 
 /// Trait for managing an FPGA device
@@ -289,6 +278,14 @@ pub trait Platform: Any {
     /// # }
     /// ```
     fn platform_compat_string(&self) -> String;
+
+    /// Check whether this platform is available
+    ///
+    /// This should determine if a platform is available.
+    /// For built-in platforms (in the `platforms` dir), this always returns `true`.
+    /// For softeners (in the `softeners` dir), this can implement custom logic like
+    /// checking if required system services or binaries are present.
+    fn is_available(&self) -> bool;
 }
 
 /// Match a platform compatibility string to a registered platform.
@@ -367,19 +364,31 @@ pub fn match_platform_string(platform_string: &str) -> Result<Box<dyn Platform>,
         .collect();
 
     // Split matches into available softeners and built-in platforms in one pass
-    let (available_softeners, builtin_platforms): (Vec<_>, Vec<_>) = matching_platforms
+    let (softeners, builtin_platforms): (Vec<_>, Vec<_>) = matching_platforms
         .iter()
-        .partition(|(compat_string, (_, checker))| compat_string.contains("softener") && checker());
+        .partition(|(compat_string, _)| compat_string.contains("softener"));
 
-    if let Some((compat_string, (constructor, _))) = available_softeners.first() {
+    for (compat_string, constructor) in softeners {
         trace!("Using softener platform: {}", compat_string);
-        return Ok(constructor());
+        let platform = constructor();
+        if platform.is_available() {
+            return Ok(platform);
+        }
+    }
+    trace!(
+        "No softeners available for {}, trying built in platforms",
+        platform_string
+    );
+
+    for (compat_string, constructor) in builtin_platforms {
+        trace!("Using softener platform: {}", compat_string);
+        let platform = constructor();
+        if platform.is_available() {
+            return Ok(platform);
+        }
     }
 
-    if let Some((compat_string, (constructor, _))) = builtin_platforms.first() {
-        trace!("Using built-in platform: {}", compat_string);
-        return Ok(constructor());
-    }
+    trace!("No built in platforms available for {}", platform_string);
 
     // No suitable platforms
     Err(FpgadError::Argument(format!(
@@ -543,9 +552,9 @@ pub fn platform_for_known_platform(platform_string: &str) -> Result<Box<dyn Plat
 /// (constructor + availability checker).
 /// This function is called automatically by [`register_platform`] via `OnceLock::get_or_init`.
 ///
-/// # Returns: `Mutex<HashMap<&'static str, PlatformEntry>>`
+/// # Returns: `Mutex<HashMap<&'static str, PlatformConstructor>>`
 /// * Empty mutex-protected HashMap ready for platform registration
-pub fn init_platform_registry() -> Mutex<HashMap<&'static str, PlatformEntry>> {
+pub fn init_platform_registry() -> Mutex<HashMap<&'static str, PlatformConstructor>> {
     Mutex::new(HashMap::new())
 }
 
@@ -577,17 +586,13 @@ pub fn init_platform_registry() -> Mutex<HashMap<&'static str, PlatformEntry>> {
 ///     || true  // Always available for built-in platforms
 /// );
 /// ```
-pub fn register_platform(
-    compatible: &'static str,
-    constructor: PlatformConstructor,
-    availability_checker: AvailabilityChecker,
-) {
+pub fn register_platform(compatible: &'static str, constructor: PlatformConstructor) {
     let mut registry = PLATFORM_REGISTRY
         .get_or_init(init_platform_registry)
         .lock()
         .expect("couldnt get PLATFORM_REGISTRY");
 
-    registry.insert(compatible, (constructor, availability_checker));
+    registry.insert(compatible, constructor);
 }
 
 /// List all FPGA manager device handles present in the system.
@@ -628,7 +633,6 @@ mod platform_discovery_tests {
         register_platform(
             "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener",
             || Box::new(XilinxSysPlatform::new()), // Using XilinxSysPlatform as a stand-in
-            || true,                               // Always available
         );
     }
 
@@ -637,7 +641,6 @@ mod platform_discovery_tests {
         register_platform(
             "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener",
             || Box::new(XilinxSysPlatform::new()),
-            || false, // Always unavailable
         );
     }
 
@@ -647,22 +650,20 @@ mod platform_discovery_tests {
         register_platform(
             "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,xlnx-sys,platform",
             || Box::new(XilinxSysPlatform::new()),
-            XilinxSysPlatform::is_available, // Always returns true
         );
     }
 
     #[gtest]
     fn test_built_in_platform_is_always_available() {
-        assert_that!(XilinxSysPlatform::is_available(), eq(true));
+        let platform = XilinxSysPlatform::new();
+        assert_that!(platform.is_available(), eq(true));
     }
 
     #[gtest]
     fn test_built_in_platform_can_be_registered_and_matched() {
-        register_platform(
-            "test-platform,built-in",
-            || Box::new(XilinxSysPlatform::new()),
-            XilinxSysPlatform::is_available,
-        );
+        register_platform("test-platform,built-in", || {
+            Box::new(XilinxSysPlatform::new())
+        });
 
         let result = match_platform_string("test-platform");
         assert_that!(result.is_ok(), eq(true));
@@ -670,11 +671,9 @@ mod platform_discovery_tests {
 
     #[gtest]
     fn test_platform_matching_requires_all_components() {
-        register_platform(
-            "test-multi,component,platform",
-            || Box::new(XilinxSysPlatform::new()),
-            || true,
-        );
+        register_platform("test-multi,component,platform", || {
+            Box::new(XilinxSysPlatform::new())
+        });
 
         let result = match_platform_string("test-multi,component,platform");
         assert_that!(result.is_ok(), eq(true));
@@ -736,11 +735,9 @@ mod platform_discovery_tests {
 
     #[gtest]
     fn test_only_unavailable_platforms_match_still_returns_one() {
-        register_platform(
-            "only-unavailable,test",
-            || Box::new(XilinxSysPlatform::new()),
-            || false,
-        );
+        register_platform("only-unavailable,test", || {
+            Box::new(XilinxSysPlatform::new())
+        });
 
         let result = match_platform_string("only-unavailable");
         assert_that!(result.is_ok(), eq(true));
@@ -748,21 +745,15 @@ mod platform_discovery_tests {
 
     #[gtest]
     fn test_multiple_softeners_picks_first_available() {
-        register_platform(
-            "multi-soft,test,softener,first",
-            || Box::new(XilinxSysPlatform::new()),
-            || false,
-        );
-        register_platform(
-            "multi-soft,test,softener,second",
-            || Box::new(XilinxSysPlatform::new()),
-            || true,
-        );
-        register_platform(
-            "multi-soft,test,softener,third",
-            || Box::new(XilinxSysPlatform::new()),
-            || true,
-        );
+        register_platform("multi-soft,test,softener,first", || {
+            Box::new(XilinxSysPlatform::new())
+        });
+        register_platform("multi-soft,test,softener,second", || {
+            Box::new(XilinxSysPlatform::new())
+        });
+        register_platform("multi-soft,test,softener,third", || {
+            Box::new(XilinxSysPlatform::new())
+        });
 
         let result = match_platform_string("multi-soft,test,softener");
         assert_that!(result.is_ok(), eq(true));
@@ -787,11 +778,7 @@ mod platform_discovery_tests {
 
     #[gtest]
     fn test_case_sensitivity() {
-        register_platform(
-            "case-test,lowercase",
-            || Box::new(XilinxSysPlatform::new()),
-            || true,
-        );
+        register_platform("case-test,lowercase", || Box::new(XilinxSysPlatform::new()));
 
         let result = match_platform_string("case-test");
         assert_that!(result.is_ok(), eq(true));
@@ -847,14 +834,12 @@ mod dfx_mgr_integration_tests {
         register_platform(
             "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener",
             || Box::new(XilinxDfxMgrPlatform::new()),
-            XilinxDfxMgrPlatform::is_available,
         );
 
         // Register the built-in platform
         register_platform(
             "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,xlnx-sys,platform",
             || Box::new(XilinxSysPlatform::new()),
-            XilinxSysPlatform::is_available,
         );
     }
 
@@ -866,7 +851,8 @@ mod dfx_mgr_integration_tests {
     #[gtest]
     fn test_dfx_mgr_platform_availability() {
         // Test whether DFX Manager is available (depends on system)
-        let available = XilinxDfxMgrPlatform::is_available();
+        let platform = XilinxDfxMgrPlatform::new();
+        let available = platform.is_available();
         // This will be true or false depending on whether dfx-mgr-client is installed
         // Just verify the function is callable
         println!("DFX Manager available: {}", available);

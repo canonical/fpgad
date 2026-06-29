@@ -62,7 +62,7 @@ use syn::{Expr, ItemStruct, Lit, Meta, parse_macro_input, punctuated::Punctuated
 /// impl MyPlatform {
 ///     pub fn new() -> Self { Self }
 ///
-///     pub fn is_available() -> bool {
+///     pub fn is_available(&self) -> bool {
 ///         // Check if required binary exists
 ///         std::path::Path::new("/usr/bin/dfx-mgr-client").exists()
 ///     }
@@ -99,8 +99,7 @@ pub fn platform(args: TokenStream, input: TokenStream) -> TokenStream {
             pub fn register_platform() {
                 crate::platforms::platform::register_platform(
                     #compat_string,
-                    || Box::new(Self::new()),
-                    Self::is_available
+                    || Box::new(Self::new())
                 );
             }
 
