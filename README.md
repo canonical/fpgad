@@ -1,6 +1,14 @@
 # FPGAd
 
-[![fpgad](https://snapcraft.io/fpgad/badge.svg)](https://snapcraft.io/fpgad)
+[![fpgad](https://snapcraft.io/fpgad/badge.svg)](https://snapcraft.io/fpgad) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+[![fpgad](https://img.shields.io/crates/v/fpgad?label=fpgad)](https://crates.io/crates/fpgad)
+[![fpgad_cli](https://img.shields.io/crates/v/fpgad_cli?label=fpgad_cli)](https://crates.io/crates/fpgad_cli)
+[![fpgad_macros](https://img.shields.io/crates/v/fpgad_macros?label=fpgad_macros)](https://crates.io/crates/fpgad_macros)
+
+[![fpgad docs](https://img.shields.io/docsrs/fpgad?label=docs%20(fpgad))](https://docs.rs/fpgad)
+[![fpgad_cli docs](https://img.shields.io/docsrs/fpgad_cli?label=docs%20(fpgad_cli))](https://docs.rs/fpgad_cli)
+[![fpgad_macros docs](https://img.shields.io/docsrs/fpgad_macros?label=docs%20(fpgad_macros))](https://docs.rs/fpgad_macros)
 
 FPGAd is a WIP rust project.
 It provides a strictly confined snap which will provide a mechanism to dynamically load and unload bitstreams to FPGA
