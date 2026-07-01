@@ -26,12 +26,12 @@
 //! | `apply_overlay` | `(platform_string, overlay_handle, overlay_source_path, firmware_lookup_path)` | Apply a device-tree overlay to trigger a bitstream load and driver probe |
 //! | `remove_overlay` | `(platform_string, overlay_handle)` | Remove a previously applied device-tree overlay |
 //! | `remove_bitstream` | `(platform_string, device_handle, bitstream_handle)` | Remove the currently loaded bitstream from an FPGA device |
-//! | `universal` | `(sub_cmd, path_str, value_str)` | Low-level write to FPGA manager sysfs properties — see [`WriteSubCommand`](crate::platforms::universal::WriteSubCommand) |
+//! | `xilinx_sys` | `(sub_cmd, path_str, value_str)` | Low-level write to FPGA manager sysfs properties — see [`WriteSubCommand`](crate::platforms::xilinx_sys::WriteSubCommand) |
 //! | `dfx_mgr` | `(cmd_string)` | Passthrough to `dfx-mgr-client` (requires `dfx-mgr` snap component) |
 //!
-//! ## `universal` control sub-commands
+//! ## `xilinx_sys` control sub-commands
 //!
-//! The `universal` method dispatches on `sub_cmd`; see [`WriteSubCommand`](crate::platforms::universal::WriteSubCommand) for the full enum available via this (control) interface.
+//! The `xilinx_sys` method dispatches on `sub_cmd`; see [`WriteSubCommand`](crate::platforms::xilinx_sys::WriteSubCommand) for the full enum available via this (control) interface.
 //!
 //! | `sub_cmd` | `path_str` | `value_str` |
 //! |-----------|-----------|-------------|
@@ -42,7 +42,7 @@
 use crate::comm::dbus::validate_device_handle;
 use crate::error::FpgadError;
 use crate::platforms::platform::{platform_for_known_platform, platform_from_compat_or_device};
-use crate::platforms::universal::universal_write_handler;
+use crate::platforms::xilinx_sys::xilinx_sys_write_handler;
 #[cfg(feature = "xilinx-dfx-mgr")]
 use crate::softeners::xilinx_dfx_mgr::xilinx_dfx_mgr_helpers::run_dfx_mgr;
 use log::{info, trace};
@@ -314,11 +314,11 @@ impl ControlInterface {
         Ok(fpga.remove_firmware(handle)?)
     }
 
-    /// Entrypoint for universal platform specific operations.
+    /// Entrypoint for xilinx_sys platform specific operations.
     ///
     /// # Arguments
     ///
-    /// * `sub_cmd` - The write operation to perform - see [`crate::platforms::universal::WriteSubCommand`]
+    /// * `sub_cmd` - The write operation to perform - see [`crate::platforms::xilinx_sys::WriteSubCommand`]
     /// * `path_str` - Device handle for `write_flags`, or sysfs property path for property writes
     /// * `value_str` - Value to write (flags value, string payload for `write_property`,
     ///   or raw byte string for `write_property_bytes`)
@@ -332,30 +332,30 @@ impl ControlInterface {
     ///
     /// ```rust,no_run
     /// // Write programming flags
-    /// control_interface.universal("write_flags", "fpga0", "0x20").await?;
+    /// control_interface.xlnx_sys("write_flags", "fpga0", "0x20").await?;
     ///
     /// // Write a string property
-    /// control_interface.universal(
+    /// control_interface.xlnx_sys(
     ///     "write_property",
     ///     "/sys/class/fpga_manager/fpga0/key",
     ///     "BADBADBADBAD",
     /// ).await?;
     ///
     /// // Write raw bytes
-    /// control_interface.universal(
+    /// control_interface.xlnx_sys(
     ///     "write_property_bytes",
     ///     "/sys/class/fpga_manager/fpga0/key",
     ///     "deadbeef",
     /// ).await?;
     /// ```
-    async fn universal(
+    async fn xlnx_sys(
         &self,
         sub_cmd: &str,
         path_str: &str,
         value_str: &str,
     ) -> Result<String, fdo::Error> {
-        info!("universal (write) called with sub_cmd: {sub_cmd}, path_str: {path_str}");
-        universal_write_handler(sub_cmd, path_str, value_str)
+        info!("xlnx_sys (write) called with sub_cmd: {sub_cmd}, path_str: {path_str}");
+        xilinx_sys_write_handler(sub_cmd, path_str, value_str)
     }
 
     /// Entrypoint for dfx-mgr specific operations
@@ -501,138 +501,145 @@ mod test_get_write_lock_guard {
 #[cfg(feature = "xilinx-dfx-mgr")]
 mod test_validate_dfx_mgr_args {
     use super::validate_dfx_mgr_args;
+    use googletest::prelude::*;
 
-    #[test]
+    #[gtest]
     fn test_validate_valid_commands() {
         // Valid single flag commands
-        assert!(validate_dfx_mgr_args(&["-listPackage"]).is_ok());
-        assert!(validate_dfx_mgr_args(&["-listSlot"]).is_ok());
+        assert_that!(validate_dfx_mgr_args(&["-listPackage"]), ok(anything()));
+        assert_that!(validate_dfx_mgr_args(&["-listSlot"]), ok(anything()));
 
         // Valid load command with slot and package name
-        assert!(validate_dfx_mgr_args(&["-load", "0", "my_design"]).is_ok());
+        assert_that!(
+            validate_dfx_mgr_args(&["-load", "0", "my_design"]),
+            ok(anything())
+        );
 
         // Valid remove command
-        assert!(validate_dfx_mgr_args(&["-remove", "0"]).is_ok());
+        assert_that!(validate_dfx_mgr_args(&["-remove", "0"]), ok(anything()));
 
         // Package names with underscores, hyphens, dots
-        assert!(validate_dfx_mgr_args(&["-load", "1", "my-package_v2.0"]).is_ok());
+        assert_that!(
+            validate_dfx_mgr_args(&["-load", "1", "my-package_v2.0"]),
+            ok(anything())
+        );
 
         // Paths with forward slashes and colons
-        assert!(validate_dfx_mgr_args(&["-load", "0", "/path/to/package"]).is_ok());
+        assert_that!(
+            validate_dfx_mgr_args(&["-load", "0", "/path/to/package"]),
+            ok(anything())
+        );
 
         // Complex valid flag names
-        assert!(validate_dfx_mgr_args(&["-list_Package"]).is_ok());
-        assert!(validate_dfx_mgr_args(&["-loadPackage123"]).is_ok());
+        assert_that!(validate_dfx_mgr_args(&["-list_Package"]), ok(anything()));
+        assert_that!(validate_dfx_mgr_args(&["-loadPackage123"]), ok(anything()));
     }
 
-    #[test]
+    #[gtest]
     fn test_validate_shell_injection_attempts() {
         // Shell command chaining with semicolon
         let result = validate_dfx_mgr_args(&["-listPackage", ";", "rm", "-rf", "/"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
         // Background command with ampersand
         let result = validate_dfx_mgr_args(&["-listPackage", "&", "sudo", "rm", "-rf", "/"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
         // Pipe to another command
         let result = validate_dfx_mgr_args(&["-listPackage", "|", "grep", "secret"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
         // Variable expansion attempt
         let result = validate_dfx_mgr_args(&["-load", "$HOME"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
         // Command substitution with backticks
         let result = validate_dfx_mgr_args(&["`whoami`"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
         // Redirect attempts
         let result = validate_dfx_mgr_args(&["-listPackage", ">", "/tmp/output"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
         let result = validate_dfx_mgr_args(&["-listPackage", "<", "/etc/passwd"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
         // Glob patterns
         let result = validate_dfx_mgr_args(&["-load", "*"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
         // Quotes
         let result = validate_dfx_mgr_args(&["\"malicious\""]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
         let result = validate_dfx_mgr_args(&["'malicious'"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
     }
 
-    #[test]
+    #[gtest]
     fn test_validate_allows_special_characters() {
-        // Characters that are not dangerous shell metacharacters should be allowed
-        // This supports international use cases and various naming conventions
-        assert!(validate_dfx_mgr_args(&["-load", "0", "package@version"]).is_ok());
-        assert!(validate_dfx_mgr_args(&["-load", "0", "package+variant"]).is_ok());
-        assert!(validate_dfx_mgr_args(&["-load", "0", "design#1"]).is_ok());
+        assert_that!(
+            validate_dfx_mgr_args(&["-load", "0", "package@version"]),
+            ok(anything())
+        );
+        assert_that!(
+            validate_dfx_mgr_args(&["-load", "0", "package+variant"]),
+            ok(anything())
+        );
+        assert_that!(
+            validate_dfx_mgr_args(&["-load", "0", "design#1"]),
+            ok(anything())
+        );
     }
 
-    #[test]
+    #[gtest]
     fn test_validate_allows_unicode() {
         // International characters should be allowed for file paths
-        assert!(validate_dfx_mgr_args(&["-load", "0", "设计文件"]).is_ok()); // Chinese
-        assert!(validate_dfx_mgr_args(&["-load", "0", "ファイル"]).is_ok()); // Japanese
-        assert!(validate_dfx_mgr_args(&["-load", "0", "файл"]).is_ok()); // Cyrillic
+        assert_that!(
+            validate_dfx_mgr_args(&["-load", "0", "设计文件"]),
+            ok(anything())
+        ); // Chinese
+        assert_that!(
+            validate_dfx_mgr_args(&["-load", "0", "ファイル"]),
+            ok(anything())
+        ); // Japanese
+        assert_that!(
+            validate_dfx_mgr_args(&["-load", "0", "файл"]),
+            ok(anything())
+        ); // Cyrillic
     }
 
-    #[test]
+    #[gtest]
     fn test_validate_long_arguments() {
-        // Argument that's too long (potential buffer overflow attempt)
         let long_arg = "a".repeat(1025);
         let result = validate_dfx_mgr_args(&["-load", "0", &long_arg]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("too long"));
+        assert_that!(result, err(contains_substring("too long")));
 
-        // Boundary case: exactly 1024 characters should be OK
         let boundary_arg = "a".repeat(1024);
-        assert!(validate_dfx_mgr_args(&["-load", "0", &boundary_arg]).is_ok());
+        assert_that!(
+            validate_dfx_mgr_args(&["-load", "0", &boundary_arg]),
+            ok(anything())
+        );
     }
 
-    #[test]
+    #[gtest]
     fn test_validate_newlines_and_control_chars() {
-        // Newline injection
         let result = validate_dfx_mgr_args(&["-list\nPackage"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
-        // Carriage return
         let result = validate_dfx_mgr_args(&["-list\rPackage"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
     }
 
-    #[test]
+    #[gtest]
     fn test_validate_parentheses_and_brackets() {
-        // Subshell attempts
         let result = validate_dfx_mgr_args(&["$(whoami)"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
         let result = validate_dfx_mgr_args(&["(ls)"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
 
-        // Arrays/brackets
         let result = validate_dfx_mgr_args(&["[test]"]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("dangerous character"));
+        assert_that!(result, err(contains_substring("dangerous character")));
     }
 }

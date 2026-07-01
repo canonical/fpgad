@@ -11,8 +11,8 @@ fpgad to work with proprietary or vendor-specific tools that sit alongside or ab
 
 ### When to Use a Softener vs. a Platform
 
-- **Use the Universal Platform** when implementing direct interactions with the Linux FPGA subsystem (
-  `/sys/class/fpga_manager`) and device tree overlays using standard kernel interfaces. The Universal platform handles
+- **Use the XilinxSys Platform** when implementing direct interactions with the Linux FPGA subsystem (
+  `/sys/class/fpga_manager`) and device tree overlays using standard kernel interfaces. The XilinxSys platform handles
   the standard kernel interface through generic sysfs operations.
 
 - **Create a Softener Platform** when you need to integrate with vendor-specific userspace tools, SDKs, or frameworks
@@ -32,7 +32,7 @@ Softeners extend platforms by providing vendor-specific functionality. A softene
 
 ### Why Custom FPGA and OverlayHandler Implementations?
 
-While you *could* reuse the Universal platform's components (`UniversalFPGA` and `UniversalOverlayHandler`), softeners
+While you *could* reuse the XilinxSys platform's components (`XilinxSysFPGA` and `XilinxSysOverlayHandler`), softeners
 exist specifically to provide vendor-specific functionality. Custom implementations allow you to:
 
 - **Wrap vendor tools**: Instead of using generic sysfs operations, call vendor-specific binaries or libraries
@@ -41,14 +41,14 @@ exist specifically to provide vendor-specific functionality. Custom implementati
 - **Handle vendor quirks**: Work around device-specific behaviors or limitations
 - **Integrate with vendor ecosystems**: Connect with other vendor tools, licensing systems, or management frameworks
 
-If you find yourself not needing any custom behavior, you probably don't need a softener platform at all - the Universal
+If you find yourself not needing any custom behavior, you probably don't need a softener platform at all - the XilinxSys
 platform should suffice.
 
 ### Example: Xilinx DFX Manager
 
 The `xilinx_dfx_mgr` softener integrates with AMD/Xilinx's `dfx-mgr` tool, which provides vendor specific optimizations
 on top of the standard FPGA subsystem and, e.g., enables "partial reconfiguration" of the device, which isn't supported
-by the Universal platform. See [dfx-mgr on GitHub](https://github.com/Xilinx/dfx-mgr) for more information on dfx-mgr.
+by the XilinxSys platform. See [dfx-mgr on GitHub](https://github.com/Xilinx/dfx-mgr) for more information on dfx-mgr.
 
 ## Adding a New Softener Platform
 
@@ -78,7 +78,7 @@ Create your softener module directory and files:
    - `your_softener_name_helpers.rs` (optional) - Helper functions
 3. Create the main platform file: `daemon/src/softeners/your_softener_name.rs`
 
-**Important**: While you *could* reuse the Universal platform's components, softeners exist to provide vendor-specific
+**Important**: While you *could* reuse the XilinxSys platform's components, softeners exist to provide vendor-specific
 functionality, so you should implement your own FPGA and OverlayHandler types that wrap or integrate with your vendor's
 tools.
 
@@ -105,7 +105,7 @@ pub mod your_softener_name_helpers;  // Optional
 /// # Compatibility
 ///
 /// Compatible with devices matching: `your,compat-string`
-#[platform(compat_string = "your,compat-string")]
+#[platform(compat_string = "your,compat-string,softener")]
 pub struct YourSoftenerPlatform {
     fpga: OnceLock<YourSoftenerFPGA>,
     overlay_handler: OnceLock<YourSoftenerOverlayHandler>,
@@ -124,6 +124,20 @@ impl YourSoftenerPlatform {
             overlay_handler: OnceLock::new(),
         }
     }
+
+    /// Check whether this softener's dependencies are available on this system.
+    ///
+    /// This is called by the platform registry before selecting this softener.
+    /// Return `true` only if the vendor tool / binary / service required by this
+    /// softener is present and usable. If `false` is returned, fpgad will fall
+    /// back to the built-in XilinxSys platform instead.
+    ///
+    /// See [`your_softener_name_helpers::check_vendor_tool`] for the underlying check.
+    pub fn is_available() -> bool {
+        // Check whether the required vendor binary or service is present.
+        // Delegate to a helper so the same logic can be reused elsewhere.
+        your_softener_name_helpers::check_vendor_tool()
+    }
 }
 
 impl Platform for YourSoftenerPlatform {
@@ -139,6 +153,10 @@ impl Platform for YourSoftenerPlatform {
         overlay_handle: &str,
     ) -> Result<&dyn crate::platforms::platform::OverlayHandler, crate::error::FpgadError> {
         Ok(self.overlay_handler.get_or_init(|| YourSoftenerOverlayHandler::new(overlay_handle)))
+    }
+
+    fn platform_compat_string(&self) -> String {
+        Self::COMPAT_STRING.into()
     }
 }
 
@@ -410,11 +428,11 @@ pub fn register_platforms() {
     #[cfg(feature = "your-new-softener")]
     YourSoftenerPlatform::register_platform();  // Add this
 
-    UniversalPlatform::register_platform();
+    XilinxSysPlatform::register_platform();
 }
 ```
 
-**Important**: The Universal platform should always be registered last as it serves as the fallback.
+**Important**: The XilinxSys platform should always be registered last as it serves as the fallback.
 
 ### Step 6: Implement Vendor-Specific Functions (optional)
 
@@ -458,11 +476,36 @@ pub fn vendor_operation(arg: &str) -> Result<String, FpgadSoftenerError> {
 The `compat_string` parameter in the `#[platform]` macro can contain multiple comma-separated values:
 
 ```rust
-#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0")]
+#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener")]
 ```
 
 This means the platform will be selected if the device's `/sys/class/fpga_manager/<device>/of_node/compatible` file
 contains ANY of these strings.
+
+#### Softener vs Built-in Compat String Convention
+
+The platform registry uses the presence of the `"softener"` component in the registered compat string to decide
+whether a registered platform is a softener (preferred when available) or a built-in fallback. This leads to two rules
+that **must** be followed and are enforced by code review:
+
+- **Softener compat strings MUST include `"softener"`** — this is how the registry identifies them and gives them
+  preference over built-in platforms when they are available.
+- **Softener compat strings MUST NOT include `"platform"`** — `"platform"` is the marker used by built-in platforms
+  (e.g. `xlnx-sys`). A compat string must never contain both `"softener"` and `"platform"`.
+
+```rust
+// ✅ Correct softener compat string
+#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,dfx-mgr,softener")]
+
+// ✅ Correct built-in compat string (in platforms/, not softeners/)
+#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,xlnx-sys,platform")]
+
+// ❌ Wrong — contains both "softener" and "platform"
+#[platform(compat_string = "xlnx,softener,platform")]
+
+// ❌ Wrong — softener missing "softener" marker, will be treated as a built-in
+#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,dfx-mgr")]
+```
 
 ### OnceLock for Lazy Initialization
 

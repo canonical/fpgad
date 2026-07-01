@@ -13,6 +13,8 @@
 pub mod xilinx_dfx_mgr {
     pub mod control;
     pub static PLATFORM_STRING: &str = "xlnx,zynqmp-pcap-fpga";
+    #[cfg(feature = "xilinx-dfx-mgr")]
+    pub mod platform_selection;
     pub mod sequences;
     pub mod status;
     // TODO(Artie) add test for get_status_message

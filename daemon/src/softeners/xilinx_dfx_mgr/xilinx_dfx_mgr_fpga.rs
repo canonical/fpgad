@@ -18,7 +18,7 @@
 //! - Uses dfx-mgr-client for bitstream loading and package management
 //! - Supports dfx-mgr's slot-based management
 //!
-//! # Key Differences from Universal Platform
+//! # Key Differences from XilinxSys Platform
 //!
 //! - **State Query**: Returns dfx-mgr package listing instead of simple sysfs state
 //! - **Bitstream Loading**: Uses `dfx-mgr-client -b` instead of direct firmware loading due to snap confinement

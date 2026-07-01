@@ -73,7 +73,7 @@
 //!   -p, --platform <PLATFORM>       Platform override string (bypasses platform detection logic).
 //!                                   When provided, this platform string is passed directly to the
 //!                                   daemon instead of auto-detecting from the device handle.
-//!                                   Examples: "universal", "xlnx,zynqmp-pcap-fpga"
+//!                                   Examples: "xlnx-sys", "xlnx,zynqmp-pcap-fpga"
 //!   -d, --device <DEVICE_HANDLE>    FPGA device handle to be used for the operations.
 //!                                   Default value is calculated at runtime - the application
 //!                                   picks the first available FPGA device in the system
@@ -141,14 +141,14 @@
 //! ```shell
 //! sudo ./target/debug/cli load bitstream /lib/firmware/k26-starter-kits.bit.bin
 //! sudo ./target/debug/cli --device=fpga0 load bitstream /lib/firmware/k26-starter-kits.bit.bin
-//! sudo ./target/debug/cli --platform=universal load bitstream /lib/firmware/k26-starter-kits.bit.bin
-//! sudo ./target/debug/cli --platform=xlnx load bitstream /lib/firmware/k26-starter-kits.bit.bin
+//! sudo ./target/debug/cli --platform=xlnx-sys load bitstream /lib/firmware/k26-starter-kits.bit.bin
+//! sudo ./target/debug/cli --platform=xlnx-sys load bitstream /lib/firmware/k26-starter-kits.bit.bin
 //!
 //! sudo ./target/debug/cli load overlay /lib/firmware/k26-starter-kits.dtbo
 //! sudo ./target/debug/cli load overlay /lib/firmware/k26-starter-kits.dtbo --name=overlay_handle
 //! sudo ./target/debug/cli --device=fpga0 load overlay /lib/firmware/k26-starter-kits.dtbo --name=overlay_handle
-//! sudo ./target/debug/cli --platform=universal load overlay /lib/firmware/k26-starter-kits.dtbo --name=overlay_handle
-//! sudo ./target/debug/cli --platform=xlnx --device=fpga0 load overlay /lib/firmware/k26-starter-kits.dtbo --name=overlay_handle
+//! sudo ./target/debug/cli --platform=xlnx-sys load overlay /lib/firmware/k26-starter-kits.dtbo --name=overlay_handle
+//! sudo ./target/debug/cli --platform=xlnx-sys --device=fpga0 load overlay /lib/firmware/k26-starter-kits.dtbo --name=overlay_handle
 //! ```
 //!
 //! ### Remove
@@ -172,7 +172,7 @@
 //! ./target/debug/cli --device=fpga0 status
 //! ```
 
-// (universal and dfx-mgr subcommands are documented on their respective enum variants below)
+// (xlnx and dfx-mgr subcommands are documented on their respective enum variants below)
 // TODO: move this line of docs somewhere useful
 mod proxies;
 
@@ -184,7 +184,7 @@ pub mod status;
 
 pub mod set;
 
-pub mod universal;
+pub mod xlnx_sys;
 
 pub mod dfx_mgr;
 
@@ -218,7 +218,7 @@ pub struct Cli {
     /// Platform override string (bypasses platform detection logic).
     /// When provided, this platform string is passed directly to the daemon
     /// instead of auto-detecting from the device handle.
-    /// Examples: "universal", "xlnx,zynqmp-pcap-fpga"
+    /// Examples: "xlnx-sys", "xlnx,zynqmp-pcap-fpga"
     #[arg(short = 'p', long = "platform")]
     platform: Option<String>,
 
@@ -330,21 +330,21 @@ pub enum RemoveSubcommand {
     },
 }
 
-/// Subcommands for the universal platform interface.
+/// Subcommands for the xlnx-sys platform interface.
 ///
-/// Provides direct access to the daemon's `universal` read/write DBus methods,
+/// Provides direct access to the daemon's `xlnx_sys` read/write DBus methods,
 /// allowing low-level control of FPGA manager sysfs properties and flags.
 ///
 /// # Valid `sub_cmd` values
 ///
-/// **Read** (`fpgad universal read <sub_cmd> <path>`):
+/// **Read** (`fpgad xlnx-sys read <sub_cmd> <path>`):
 ///
 /// | `sub_cmd` | `path` | Description |
 /// |-----------|--------|-------------|
 /// | `read_flags` | Device handle or full sysfs path to flags, e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags` | Read the current programming flags |
 /// | `read_property` | Full sysfs path e.g. `/sys/class/fpga_manager/fpga0/name` | Read a sysfs property string |
 ///
-/// **Write** (`fpgad universal write <sub_cmd> <path> <value>`):
+/// **Write** (`fpgad xlnx-sys write <sub_cmd> <path> <value>`):
 ///
 /// | `sub_cmd` | `path` | `value` | Description |
 /// |-----------|--------|---------|-------------|
@@ -355,15 +355,15 @@ pub enum RemoveSubcommand {
 /// # Examples
 ///
 /// ```shell
-/// fpgad universal read read_flags fpga0
-/// fpgad universal read read_property /sys/class/fpga_manager/fpga0/name
-/// fpgad universal write write_flags fpga0 0x20
-/// fpgad universal write write_property /sys/class/fpga_manager/fpga0/key VALUE
-/// fpgad universal write write_property_bytes /sys/class/fpga_manager/fpga0/key deadbeef
+/// fpgad xlnx-sys read read_flags fpga0
+/// fpgad xlnx-sys read read_property /sys/class/fpga_manager/fpga0/name
+/// fpgad xlnx-sys write write_flags fpga0 0x20
+/// fpgad xlnx-sys write write_property /sys/class/fpga_manager/fpga0/key VALUE
+/// fpgad xlnx-sys write write_property_bytes /sys/class/fpga_manager/fpga0/key deadbeef
 /// ```
 #[derive(Subcommand, Debug)]
-pub enum UniversalSubcommand {
-    /// Read an FPGA property using the universal interface
+pub enum XlnxSysSubcommand {
+    /// Read an FPGA property using the xlnx interface
     Read {
         /// Read operation to perform: `read_flags` or `read_property`.
         ///
@@ -371,14 +371,14 @@ pub enum UniversalSubcommand {
         ///
         /// * `read_property` — `path` is the full sysfs path, e.g. `/sys/class/fpga_manager/fpga0/name`.
         ///
-        /// See: <https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.ReadSubCommand.html>
+        /// See: <https://docs.rs/fpgad/latest/fpgad/platforms/xlnx_sys/enum.ReadSubCommand.html>
         sub_cmd: String,
         /// For `read_flags`: device handle or full sysfs path, e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags`.
         ///
         /// For `read_property`: full sysfs path, e.g. `/sys/class/fpga_manager/fpga0/name`.
         path: String,
     },
-    /// Write an FPGA property using the universal interface
+    /// Write an FPGA property using the xlnx_sys interface
     Write {
         /// Write operation to perform: `write_flags`, `write_property`, or `write_property_bytes`.
         ///
@@ -389,7 +389,7 @@ pub enum UniversalSubcommand {
         ///
         /// * `write_property_bytes` — `path` is a full sysfs path; `value` is a hex byte string, e.g. `deadbeef`.
         ///
-        /// See: <https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.WriteSubCommand.html>
+        /// See: <https://docs.rs/fpgad/latest/fpgad/platforms/xlnx_sys/enum.WriteSubCommand.html>
         sub_cmd: String,
         /// For `write_flags`: device handle or full sysfs path to flags, e.g. `fpga0` or `/sys/class/fpga_manager/fpga0/flags`.
         ///
@@ -414,7 +414,7 @@ pub enum UniversalSubcommand {
 /// - **Set**: Configure FPGA attributes and flags (e.g., programming flags)
 /// - **Status**: Query the current state of FPGA devices and loaded overlays
 /// - **Remove**: Unload bitstreams or device tree overlays from the FPGA
-/// - **Universal**: Low-level read/write access to FPGA manager properties via the universal interface
+/// - **XlnxSys**: Low-level read/write access to FPGA manager properties via the xlnx_sys interface
 /// - **DfxMgr**: Pass commands directly to `dfx-mgr-client` (requires dfx-mgr component)
 ///
 /// Each command communicates with the fpgad daemon via DBus to perform privileged
@@ -427,7 +427,7 @@ pub enum UniversalSubcommand {
 /// fpgad --device=fpga0 load bitstream /lib/firmware/design.bit.bin
 ///
 /// # Load an overlay with platform override
-/// fpgad --platform=universal load overlay /lib/firmware/overlay.dtbo --name=my_overlay
+/// fpgad --platform=xlnx-sys load overlay /lib/firmware/overlay.dtbo --name=my_overlay
 ///
 /// # Set flags for a device
 /// fpgad --device=fpga0 set flags 0
@@ -438,11 +438,11 @@ pub enum UniversalSubcommand {
 /// # Remove an overlay by name
 /// fpgad remove overlay --name=my_overlay
 ///
-/// # Read FPGA flags via universal interface
-/// fpgad universal read read_flags fpga0
+/// # Read FPGA flags via xlnx_sys interface
+/// fpgad xlnx-sys read read_flags fpga0
 ///
-/// # Write flags via universal interface
-/// fpgad universal write write_flags fpga0 0x20
+/// # Write flags via xlnx_sys interface
+/// fpgad xlnx-sys write write_flags fpga0 0x20
 ///
 /// # Invoke dfx-mgr-client
 /// fpgad dfx-mgr "-listPackage"
@@ -463,10 +463,10 @@ pub enum Commands {
         #[command(subcommand)]
         command: RemoveSubcommand,
     },
-    /// Low-level read/write access to FPGA manager properties (universal platform interface)
-    Universal {
+    /// Low-level read/write access to FPGA manager properties (xlnx_sys platform interface)
+    XlnxSys {
         #[command(subcommand)]
-        command: UniversalSubcommand,
+        command: XlnxSysSubcommand,
     },
     /// Pass a command directly to `dfx-mgr-client` (requires the `dfx-mgr` snap component).
     ///

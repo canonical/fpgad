@@ -55,7 +55,7 @@ use std::path::Path;
 /// Xilinx DFX Manager overlay handler implementation.
 ///
 /// This struct provides overlay management for Xilinx FPGA devices using the
-/// dfx-mgr backend. Unlike the universal overlay handler, it doesn't directly
+/// dfx-mgr backend. Unlike the xilinx_sys overlay handler, it doesn't directly
 /// manage configfs overlay directories since dfx-mgr handles that internally.
 ///
 /// # Implementation Notes

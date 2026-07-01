@@ -1,0 +1,238 @@
+// This file is part of fpgad, an application to manage FPGA subsystem together with device-tree and kernel modules.
+//
+// Copyright 2025 Canonical Ltd.
+//
+// SPDX-License-Identifier: GPL-3.0-only
+//
+// fpgad is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 3, as published by the Free Software Foundation.
+//
+// fpgad is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranties of MERCHANTABILITY, SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
+
+//! XilinxSys FPGA device implementation.
+//!
+//! This module provides the [`XilinxSysFPGA`] struct, which implements the [`Fpga`] trait
+//! for generic FPGA devices using the standard Linux FPGA subsystem. It provides direct
+//! access to sysfs attributes without vendor-specific logic.
+//!
+//! # A sysfs map of an fpga in fpga_manager class.
+//!
+//! Below is an example sysfs layout for an FPGA device managed by the standard Linux FPGA subsystem for a xilinx kria board:
+//! ```text
+//! ubuntu@kria:~$ tree /sys/class/fpga_manager/fpga0
+//! /sys/class/fpga_manager/fpga0
+//! ├── device -> ../../../firmware:zynqmp-firmware:pcap
+//! ├── firmware
+//! ├── flags
+//! ├── key
+//! ├── name
+//! ├── of_node -> ../../../../../../firmware/devicetree/base/firmware/zynqmp-firmware/pcap
+//! ├── power
+//! │   ├── async
+//! │   ├── autosuspend_delay_ms
+//! │   ├── control
+//! │   ├── runtime_active_kids
+//! │   ├── runtime_active_time
+//! │   ├── runtime_enabled
+//! │   ├── runtime_status
+//! │   ├── runtime_suspended_time
+//! │   └── runtime_usage
+//! ├── state
+//! ├── status
+//! ├── subsystem -> ../../../../../../class/fpga_manager
+//! └── uevent
+//! ```
+//! Of these files, only the following are interacted with by this implementation:
+//! - `state` - Current FPGA state (operating, unknown, write error, etc.)
+//! - `flags` - Programming flags (hexadecimal format: "0x...")
+//! - `firmware` - Trigger bitstream loading by writing filename
+//!
+//! with any other files being controllable using the `xilinx_sys` DBus control method
+//! (`write_property` / `write_property_bytes` subcommands), and readable using
+//! the `xilinx_sys` DBus status method (`read_property` subcommand).
+//! See the [`control_interface`](crate::comm::dbus::control_interface) documentation for more details.
+//!
+//! # Examples
+//!
+//! ```rust,ignore
+//! // create platform
+//! let platform = platform_for_known_platform("xlnx-sys")?;
+//! let fpga = platform.fpga("fpga0")?;
+//!
+//! // Check state
+//! let state = fpga.state()?;
+//! println!("FPGA state: {}", state);
+//!
+//! // Get flags
+//! let flags = fpga.flags()?;
+//! println!("Flags: 0x{:X}", flags);
+//! ```
+
+use crate::error::FpgadError;
+use crate::platforms::platform::Fpga;
+use crate::platforms::xilinx_sys_components::xilinx_sys_helpers;
+use crate::system_io::{fs_read, fs_write};
+use crate::{config, system_io};
+use log::{info, trace};
+use std::path::Path;
+
+/// XilinxSys FPGA device implementation using standard Linux FPGA subsystem.
+///
+/// This struct represents a single FPGA device and provides methods to interact
+/// with it through sysfs. It stores only the device handle (e.g., "fpga0") and
+/// constructs paths to sysfs files on demand.
+///
+/// # Fields
+///
+/// * `device_handle` - The device identifier (e.g., "fpga0") used to locate the device in sysfs
+///
+#[derive(Debug)]
+pub struct XilinxSysFPGA {
+    pub(crate) device_handle: String,
+}
+
+impl XilinxSysFPGA {
+    /// Create a new XilinxSysFPGA instance for the specified device.
+    ///
+    /// This constructor simply stores the device handle. It does not verify that
+    /// the device exists in sysfs - validation occurs when methods are called.
+    ///
+    /// # Arguments
+    ///
+    /// * `device_handle` - The device handle (e.g., "fpga0")
+    ///
+    /// # Returns: `XilinxSysFPGA`
+    /// * New XilinxSysFPGA instance
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let platform = platform_for_known_platform("xlnx-sys")?;
+    /// let fpga = platform.fpga("fpga0")?;
+    /// ```
+    pub(crate) fn new(device_handle: &str) -> XilinxSysFPGA {
+        XilinxSysFPGA {
+            device_handle: device_handle.to_owned(),
+        }
+    }
+
+    /// Verify that the FPGA is in the "operating" state.
+    ///
+    /// Reads the FPGA state and checks if it equals "operating". This method should
+    /// be called after bitstream loading to ensure the FPGA successfully configured.
+    ///
+    /// # Returns: `Result<(), FpgadError>`
+    /// * `Ok(())` - FPGA is in "operating" state
+    /// * `Err(FpgadError::FPGAState)` - FPGA is in a different state
+    /// * `Err(FpgadError::IORead)` - Failed to read state file
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let platform = platform_for_known_platform("xlnx-sys")?;
+    /// let fpga = platform.fpga("fpga0")?;
+    /// // After loading a bitstream
+    /// fpga.assert_state()?;
+    /// println!("FPGA is operating correctly");
+    /// ```
+    pub(crate) fn assert_state(&self) -> Result<(), FpgadError> {
+        match self.state() {
+            Ok(state) => match state.to_string().as_str() {
+                "operating" => {
+                    info!("The state of '{}' is 'operating'", self.device_handle);
+                    Ok(())
+                }
+                _ => Err(FpgadError::FPGAState(format!(
+                    "After loading bitstream, the state of '{}' should be should be 'operating' but it is '{}'",
+                    self.device_handle, state
+                ))),
+            },
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl Fpga for XilinxSysFPGA {
+    /// Get the device handle for this FPGA.
+    ///
+    /// Returns the stored device handle string.
+    ///
+    /// # Returns: `&str`
+    /// * Device handle (e.g., "fpga0")
+    fn device_handle(&self) -> &str {
+        &self.device_handle
+    }
+
+    /// Read the current FPGA state from sysfs.
+    ///
+    /// Reads `/sys/class/fpga_manager/<device>/state` and returns the state string
+    /// with trailing newlines removed. Common states include "operating", "unknown",
+    /// or a string representing an error state.
+    ///
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Current state (newlines trimmed)
+    /// * `Err(FpgadError::IORead)` - Failed to read state file
+    fn state(&self) -> Result<String, FpgadError> {
+        let state_path = Path::new(config::FPGA_MANAGERS_DIR)
+            .join(self.device_handle.clone())
+            .join("state");
+        trace!("reading '{state_path:?}'");
+        fs_read(&state_path).map(|s| s.trim_end_matches('\n').to_string())
+    }
+
+    /// Load a bitstream firmware file directly to the FPGA.
+    ///
+    /// Writes the firmware filename (relative to the kernel firmware search path) to
+    /// `/sys/class/fpga_manager/<device>/firmware`. This triggers the kernel to load
+    /// and program the bitstream. After writing, the method verifies the FPGA enters
+    /// the "operating" state.
+    ///
+    /// # Arguments
+    ///
+    /// * `bitstream_path` - Absolute path to the bitstream file
+    /// * `firmware_lookup_path` - Path to resolve firmware or empty path
+    ///   (automatically uses the parent dir of `bitstream_path`)
+    ///
+    /// # Returns: `Result<String, FpgadError>`
+    /// * `Ok(String)` - Confirmation message with source and firmware lookup path
+    /// * `Err(FpgadError::IOWrite)` - Failed to write firmware file
+    /// * `Err(FpgadError::FPGAState)` - FPGA not in "operating" state after loading
+    ///
+    /// # Note
+    ///
+    /// This method can be used to manually load firmware when an overlay doesn't
+    /// trigger automatic loading. Always load firmware before applying overlays.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let platform = platform_for_known_platform("xlnx-sys")?;
+    /// let fpga = platform.fpga("fpga0")?;
+    /// fpga.load_firmware(Path::new("design.bit.bin"))?;
+    /// println!("Bitstream loaded successfully");
+    /// ```
+    fn load_firmware(
+        &self,
+        bitstream_path: &Path,
+        firmware_lookup_path: &Path,
+    ) -> Result<String, FpgadError> {
+        let (prefix, suffix) = system_io::make_firmware_pair(bitstream_path, firmware_lookup_path)?;
+        xilinx_sys_helpers::write_firmware_source_dir(&prefix.to_string_lossy())?;
+        let control_path = Path::new(config::FPGA_MANAGERS_DIR)
+            .join(self.device_handle())
+            .join("firmware");
+        fs_write(&control_path, false, suffix.to_string_lossy())?;
+        self.assert_state()?;
+        Ok(format!(
+            "'{:#?}' loaded to '{}' using firmware lookup path '{:#?}'",
+            bitstream_path, self.device_handle, prefix
+        ))
+    }
+
+    fn remove_firmware(&self, _handle: Option<&str>) -> Result<String, FpgadError> {
+        Err(FpgadError::Internal(
+            "XilinxSysPlatform does not support removing bitstreams".to_string(),
+        ))
+    }
+}

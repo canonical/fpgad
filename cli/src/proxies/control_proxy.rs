@@ -17,7 +17,7 @@
 //! - Loading FPGA bitstreams
 //! - Applying device tree overlays
 //! - Removing overlays
-//! - Writing to FPGA manager properties via the `universal` method
+//! - Writing to FPGA manager properties via the `xlnx_sys` method
 //! - Invoking dfx-mgr-client via the `dfx_mgr` method
 //!
 //! The proxy is generated using the `zbus` crate's `#[proxy]` macro and provides
@@ -144,12 +144,12 @@ pub trait Control {
         bitstream_handle: &str,
     ) -> Result<String>;
 
-    /// Write to an FPGA property using the universal write interface.
+    /// Write to an FPGA property using the xlnx_sys write interface.
     ///
     /// # Arguments
     ///
     /// * `sub_cmd` - One of `write_flags`, `write_property`, `write_property_bytes` — see
-    ///   [`WriteSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/universal/enum.WriteSubCommand.html)
+    ///   [`WriteSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/xlnx_sys/enum.WriteSubCommand.html)
     /// * `path_str` - Device handle or sysfs path to flags property for `write_flags`, or sysfs property path for property writes
     /// * `value_str` - Value to write (flags value, string payload, or raw byte string)
     ///
@@ -157,7 +157,7 @@ pub trait Control {
     /// * `Ok(String)` - Success message from the daemon
     /// * `Err(zbus::Error)` - DBus error or FpgadError.
     ///   See [Error Handling](../../index.html#error-handling)
-    async fn universal(&self, sub_cmd: &str, path_str: &str, value_str: &str) -> Result<String>;
+    async fn xlnx_sys(&self, sub_cmd: &str, path_str: &str, value_str: &str) -> Result<String>;
 
     /// Pass a command string directly to the `dfx-mgr-client` binary.
     ///

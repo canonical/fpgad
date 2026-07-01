@@ -14,9 +14,9 @@ class TestCLIOptions(FPGATestBase):
         proc = self.run_fpgad(["--device", "fpga0", "status"])
         self.assert_proc_succeeds(proc)
 
-    def test_status_with_platform_option_universal(self):
-        """Test status command with explicit --platform option set to `universal`."""
-        proc = self.run_fpgad(["--platform", "universal", "status"])
+    def test_status_with_platform_option_xlnx_sys(self):
+        """Test status command with explicit --platform option set to `xlnx-sys`."""
+        proc = self.run_fpgad(["--platform", "xlnx-sys", "status"])
         self.assert_in_proc_out("---- DEVICES ----", proc)
         self.assert_in_proc_out("---- OVERLAYS ----", proc)
 

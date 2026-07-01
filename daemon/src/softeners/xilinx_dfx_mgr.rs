@@ -62,7 +62,7 @@ use crate::error::FpgadError;
 use crate::platforms::platform::{Fpga, OverlayHandler, Platform};
 use crate::softeners::error::FpgadSoftenerError;
 use fpgad_macros::platform;
-use log::trace;
+use log::{info, trace};
 use xilinx_dfx_mgr_fpga::XilinxDfxMgrFPGA;
 use xilinx_dfx_mgr_helpers::run_dfx_mgr;
 use xilinx_dfx_mgr_overlay_handler::XilinxDfxMgrOverlayHandler;
@@ -91,7 +91,7 @@ pub mod xilinx_dfx_mgr_overlay_handler;
 ///
 /// This struct is thread-safe thanks to `OnceLock`, which ensures that initialization
 /// happens exactly once even with concurrent access.
-#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0")]
+#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,dfx-mgr,softener")]
 pub struct XilinxDfxMgrPlatform {
     fpga: OnceLock<XilinxDfxMgrFPGA>,
     overlay_handler: OnceLock<XilinxDfxMgrOverlayHandler>,
@@ -147,7 +147,43 @@ impl Platform for XilinxDfxMgrPlatform {
     }
 
     fn platform_compat_string(&self) -> String {
-        "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0".into()
+        Self::COMPAT_STRING.into()
+    }
+
+    /// Check if the Xilinx DFX Manager platform is available on this system.
+    ///
+    /// This function checks whether the dfx-mgr-client binary is available, either in the
+    /// snap component location (`$SNAP_COMPONENTS/dfx-mgr/usr/bin/dfx-mgr-client`) or
+    /// the system location (`/usr/bin/dfx-mgr-client`).
+    ///
+    /// # Returns
+    /// * `true` - dfx-mgr-client binary is available and the platform can be used
+    /// * `false` - dfx-mgr-client is not found, platform will not be available
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use daemon::softeners::xilinx_dfx_mgr::XilinxDfxMgrPlatform;
+    ///
+    /// if XilinxDfxMgrPlatform::is_available() {
+    ///     println!("DFX Manager is available");
+    /// } else {
+    ///     println!("DFX Manager not found, using fallback platform");
+    /// }
+    /// ```
+    fn is_available(&self) -> bool {
+        let available = xilinx_dfx_mgr_helpers::get_dfx_mgr_client_path().is_ok();
+
+        if !available {
+            info!(
+                "The dfx-mgr-client binary was not found and therefore Xilinx DFX Manager softener isn't available. \
+                If you'd like to use DFX Manager features, you can install support via: \
+                `sudo snap install fpgad+dfx-mgr.comp --dangerous` or `sudo apt install dfx-mgr`. \
+                For now, this will probably use the xlnx-sys platform as fallback."
+            );
+        }
+
+        available
     }
 }
 
