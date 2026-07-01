@@ -424,27 +424,35 @@ pub enum XlnxSysSubcommand {
 ///
 /// ```shell
 /// # Load a bitstream to a specific device
+///
 /// fpgad --device=fpga0 load bitstream /lib/firmware/design.bit.bin
 ///
 /// # Load an overlay with platform override
+///
 /// fpgad --platform=xlnx-sys load overlay /lib/firmware/overlay.dtbo --name=my_overlay
 ///
 /// # Set flags for a device
+///
 /// fpgad --device=fpga0 set flags 0
 ///
 /// # Get status for all devices
+///
 /// fpgad status
 ///
 /// # Remove an overlay by name
+///
 /// fpgad remove overlay --name=my_overlay
 ///
 /// # Read FPGA flags via xlnx_sys interface
+///
 /// fpgad xlnx-sys read read_flags fpga0
 ///
 /// # Write flags via xlnx_sys interface
+///
 /// fpgad xlnx-sys write write_flags fpga0 0x20
 ///
 /// # Invoke dfx-mgr-client
+///
 /// fpgad dfx-mgr "-listPackage"
 /// ```
 #[derive(Subcommand, Debug)]
