@@ -84,9 +84,9 @@ type PlatformConstructor = fn() -> Box<dyn Platform>;
 /// Global registry of platform implementations.
 ///
 /// This static variable holds a thread-safe registry mapping compatibility strings
-/// to platform registry entries (constructor + availability checker). It is initialized
-/// once at daemon startup via [`init_platform_registry`] and accessed through
-/// [`register_platform`] and [`match_platform_string`].
+/// to platform constructor functions. It is initialized once at daemon startup via
+/// [`init_platform_registry`] and accessed through [`register_platform`] and
+/// [`match_platform_string`].
 ///
 /// The registry uses `OnceLock` to ensure thread-safe lazy initialization and `Mutex`
 /// to protect concurrent access to the internal HashMap.
