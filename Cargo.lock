@@ -102,6 +102,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_complete"
+version = "4.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0a7a9bfdb35811f9e59832f0f05975114d2251b415fb534108e6f34060fd772"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "clap_derive"
 version = "4.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -231,7 +240,7 @@ checksum = "784a4df722dc6267a04af36895398f59d21d07dce47232adf31ec0ff2fa45e67"
 
 [[package]]
 name = "fpgad"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "env_logger",
  "fdt",
@@ -246,9 +255,10 @@ dependencies = [
 
 [[package]]
 name = "fpgad_cli"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "clap",
+ "clap_complete",
  "env_logger",
  "log",
  "tokio",
@@ -257,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "fpgad_macros"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "quote",
  "syn",
@@ -685,7 +695,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52d1cfed4120b4d927bf7c0f86d2087a4a7d6027c906d9f9d525a80573b9be51"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
