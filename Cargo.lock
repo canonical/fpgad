@@ -240,7 +240,7 @@ checksum = "784a4df722dc6267a04af36895398f59d21d07dce47232adf31ec0ff2fa45e67"
 
 [[package]]
 name = "fpgad"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "env_logger",
  "fdt",
@@ -255,7 +255,7 @@ dependencies = [
 
 [[package]]
 name = "fpgad_cli"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "clap",
  "clap_complete",
@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "fpgad_macros"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "quote",
  "syn",
