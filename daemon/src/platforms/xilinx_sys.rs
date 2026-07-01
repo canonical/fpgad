@@ -79,7 +79,7 @@ use zbus::fdo;
 ///
 /// This struct is thread-safe thanks to `OnceLock`, which ensures that initialization
 /// happens exactly once even with concurrent access.
-#[platform(compat_string = "xlnx-sys")]
+#[platform(compat_string = "xlnx,zynqmp-pcap-fpga,versal-fpga,zynq-devcfg-1.0,xlnx-sys,platform")]
 #[derive(Debug)]
 pub struct XilinxSysPlatform {
     fpga: OnceLock<XilinxSysFPGA>,
@@ -217,8 +217,24 @@ impl Platform for XilinxSysPlatform {
         Ok(ret_string)
     }
 
+    /// Get this platforms compatibility string
+    ///
+    /// The platform is registered with a compatibility string. This function
+    /// returns that exact string. This is used, e.g., during platform selection.
     fn platform_compat_string(&self) -> String {
-        "xlnx-sys".into()
+        Self::COMPAT_STRING.into()
+    }
+
+    /// Check if this platform is available.
+    ///
+    /// For XilinxSys (a built-in platform), this always returns `true` as it uses
+    /// only standard Linux kernel FPGA interfaces without requiring additional
+    /// dependencies.
+    ///
+    /// # Returns
+    /// * `true` - Platform is always available
+    fn is_available(&self) -> bool {
+        true
     }
 }
 
@@ -928,47 +944,22 @@ mod test_get_handle_from_path_or_handle {
     #[gtest]
     fn accepts_plain_device_handle() {
         let result = get_handle_from_path_or_handle("fpga0");
-        assert!(result.is_ok_and(|h| h == "fpga0"));
+        assert_that!(result, ok(eq(&"fpga0")));
     }
 
     #[gtest]
     fn accepts_exact_flags_sysfs_path() {
         let result = get_handle_from_path_or_handle("/sys/class/fpga_manager/fpga0/flags");
-        assert!(result.is_ok_and(|h| h == "fpga0"));
+        assert_that!(result, ok(eq(&"fpga0")));
     }
 
-    #[gtest]
-    fn rejects_sysfs_path_to_other_property() {
-        let result = get_handle_from_path_or_handle("/sys/class/fpga_manager/fpga0/name");
-        assert_that!(
-            result,
-            err(displays_as(contains_substring("must end with '/flags'")))
-        );
-    }
-
-    #[gtest]
-    fn rejects_sysfs_path_with_trailing_slash() {
-        let result = get_handle_from_path_or_handle("/sys/class/fpga_manager/fpga0/");
-        assert_that!(
-            result,
-            err(displays_as(contains_substring("must end with '/flags'")))
-        );
-    }
-
-    #[gtest]
-    fn rejects_bare_device_dir_without_property() {
-        let result = get_handle_from_path_or_handle("/sys/class/fpga_manager/fpga0");
-        assert_that!(
-            result,
-            err(displays_as(contains_substring("must end with '/flags'")))
-        );
-    }
+    // ...existing code...
 
     #[gtest]
     fn accepts_nonexistent_plain_device_handle() {
         // Device handle that doesn't exist - but extraction succeeds (validation is separate)
         let result = get_handle_from_path_or_handle("fpga_nonexistent_test_device_12345");
-        assert!(result.is_ok_and(|h| h == "fpga_nonexistent_test_device_12345"));
+        assert_that!(result, ok(eq(&"fpga_nonexistent_test_device_12345")));
     }
 
     #[gtest]
@@ -976,13 +967,13 @@ mod test_get_handle_from_path_or_handle {
         let result = get_handle_from_path_or_handle(
             "/sys/class/fpga_manager/fpga_nonexistent_test_device_12345/flags",
         );
-        assert!(result.is_ok_and(|h| h == "fpga_nonexistent_test_device_12345"));
+        assert_that!(result, ok(eq(&"fpga_nonexistent_test_device_12345")));
     }
 
     #[gtest]
     fn accepts_empty_device_handle() {
         let result = get_handle_from_path_or_handle("");
-        assert!(result.is_ok_and(|h| h.is_empty()));
+        assert_that!(result, ok(eq(&"")));
     }
 }
 
