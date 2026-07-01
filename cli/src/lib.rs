@@ -212,8 +212,8 @@ use clap::{Parser, Subcommand};
 ///
 /// ```
 #[derive(Parser, Debug)]
-#[command(name = "fpga")]
-#[command(bin_name = "fpga")]
+#[command(name = "fpgad")]
+#[command(bin_name = "fpgad")]
 pub struct Cli {
     /// Platform override string (bypasses platform detection logic).
     /// When provided, this platform string is passed directly to the daemon
@@ -508,5 +508,21 @@ pub enum Commands {
         /// ```
         #[arg(allow_hyphen_values = true, num_args = 1.., value_name = "CMD")]
         cmd: Vec<String>,
+    },
+    /// Generate a shell completion script and print it to stdout.
+    ///
+    /// This is primarily used at packaging time (the snap wires the generated bash
+    /// script up via the `completer` keyword), but it can also be sourced manually:
+    ///
+    /// ```shell
+    /// # Enable completions for the current shell session
+    /// source <(fpgad completions bash)
+    ///
+    /// # Or install them permanently for the current user
+    /// fpgad completions bash > ~/.local/share/bash-completion/completions/fpgad
+    /// ```
+    Completions {
+        /// Shell to generate the completion script for (e.g. `bash`, `zsh`, `fish`).
+        shell: clap_complete::Shell,
     },
 }
