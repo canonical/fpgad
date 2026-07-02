@@ -212,8 +212,8 @@ use clap::{Parser, Subcommand};
 ///
 /// ```
 #[derive(Parser, Debug)]
-#[command(name = "fpga")]
-#[command(bin_name = "fpga")]
+#[command(name = "fpgad")]
+#[command(bin_name = "fpgad")]
 pub struct Cli {
     /// Platform override string (bypasses platform detection logic).
     /// When provided, this platform string is passed directly to the daemon
@@ -424,27 +424,35 @@ pub enum XlnxSysSubcommand {
 ///
 /// ```shell
 /// # Load a bitstream to a specific device
+///
 /// fpgad --device=fpga0 load bitstream /lib/firmware/design.bit.bin
 ///
 /// # Load an overlay with platform override
+///
 /// fpgad --platform=xlnx-sys load overlay /lib/firmware/overlay.dtbo --name=my_overlay
 ///
 /// # Set flags for a device
+///
 /// fpgad --device=fpga0 set flags 0
 ///
 /// # Get status for all devices
+///
 /// fpgad status
 ///
 /// # Remove an overlay by name
+///
 /// fpgad remove overlay --name=my_overlay
 ///
 /// # Read FPGA flags via xlnx_sys interface
+///
 /// fpgad xlnx-sys read read_flags fpga0
 ///
 /// # Write flags via xlnx_sys interface
+///
 /// fpgad xlnx-sys write write_flags fpga0 0x20
 ///
 /// # Invoke dfx-mgr-client
+///
 /// fpgad dfx-mgr "-listPackage"
 /// ```
 #[derive(Subcommand, Debug)]
@@ -508,5 +516,21 @@ pub enum Commands {
         /// ```
         #[arg(allow_hyphen_values = true, num_args = 1.., value_name = "CMD")]
         cmd: Vec<String>,
+    },
+    /// Generate a shell completion script and print it to stdout.
+    ///
+    /// This is primarily used at packaging time (the snap wires the generated bash
+    /// script up via the `completer` keyword), but it can also be sourced manually:
+    ///
+    /// ```shell
+    /// # Enable completions for the current shell session
+    /// source <(fpgad completions bash)
+    ///
+    /// # Or install them permanently for the current user
+    /// fpgad completions bash > ~/.local/share/bash-completion/completions/fpgad
+    /// ```
+    Completions {
+        /// Shell to generate the completion script for (e.g. `bash`, `zsh`, `fish`).
+        shell: clap_complete::Shell,
     },
 }

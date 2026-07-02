@@ -74,6 +74,7 @@ plugs:
 apps:
   fpgad:
     command: bin/fpgad_cli
+    completer: share/bash-completion/completions/fpgad_cli
     plugs:
       - cli-dbus
     aliases:
@@ -122,6 +123,15 @@ parts:
     rust-path:
       - cli
     rust-channel: 'stable'
+  cli-completions:
+    after:
+      - cli
+    plugin: nil
+    override-build: |
+      craftctl default
+      mkdir -p "$CRAFT_PART_INSTALL/share/bash-completion/completions"
+      "$CRAFT_STAGE/bin/fpgad_cli" completions bash \
+        > "$CRAFT_PART_INSTALL/share/bash-completion/completions/fpgad_cli"
   daemon:
     plugin: rust
     source: .

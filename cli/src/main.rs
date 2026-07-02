@@ -35,6 +35,8 @@ use std::error::Error;
 ///    - `status_handler` for querying device status
 ///    - `xlnx_sys_handler` for low-level property read/write via the xlnx_sys interface
 ///    - `dfx_mgr_handler` for passing commands to dfx-mgr-client
+///    - shell-completion generation (`completions <shell>`) is handled inline and
+///      short-circuits before any DBus interaction
 /// 4. Prints success messages or logs errors
 ///
 /// # Returns
@@ -58,6 +60,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     let cli = Cli::parse();
     debug!("parsed cli command with {cli:#?}");
+
+    // Shell-completion generation is a local, side-effect-free operation: handle it
+    // before any attempt to talk to the daemon over DBus and exit early.
+    if let Commands::Completions { shell } = cli.command() {
+        let mut cmd = <Cli as clap::CommandFactory>::command();
+        let bin_name = cmd.get_name().to_string();
+        clap_complete::generate(*shell, &mut cmd, bin_name, &mut std::io::stdout());
+        return Ok(());
+    }
+
     let result = match cli.command() {
         Commands::Load { command } => load_handler(cli.platform(), cli.device(), command).await,
         Commands::Remove { command } => remove_handler(cli.platform(), cli.device(), command).await,
@@ -67,6 +79,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Commands::Status => status_handler(cli.platform(), cli.device()).await,
         Commands::XlnxSys { command } => xlnx_sys_handler(command).await,
         Commands::DfxMgr { cmd } => dfx_mgr_handler(cmd).await,
+        // Handled above, before any DBus interaction.
+        Commands::Completions { .. } => unreachable!(),
     };
     match result {
         Ok(msg) => {
