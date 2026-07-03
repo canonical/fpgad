@@ -77,8 +77,6 @@ apps:
     completer: share/bash-completion/completions/fpgad_cli
     plugs:
       - cli-dbus
-    aliases:
-      - cli
   daemon:
     command: bin/fpgad
     daemon: dbus
