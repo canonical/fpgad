@@ -1,0 +1,11 @@
+[package]
+name = "fpgad_proxies"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+zbus = { version = "5.9.0", default-features = false, features = ["tokio"] }

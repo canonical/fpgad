@@ -245,6 +245,7 @@ dependencies = [
  "env_logger",
  "fdt",
  "fpgad_macros",
+ "fpgad_proxies",
  "googletest",
  "log",
  "rstest",
@@ -260,6 +261,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "env_logger",
+ "fpgad_proxies",
  "log",
  "tokio",
  "zbus",
@@ -271,6 +273,13 @@ version = "0.4.3"
 dependencies = [
  "quote",
  "syn",
+]
+
+[[package]]
+name = "fpgad_proxies"
+version = "0.4.3"
+dependencies = [
+ "zbus",
 ]
 
 [[package]]
