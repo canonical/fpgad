@@ -173,9 +173,6 @@
 //! ```
 
 // (xlnx and dfx-mgr subcommands are documented on their respective enum variants below)
-// TODO: move this line of docs somewhere useful
-mod proxies;
-
 pub mod load;
 
 pub mod remove;

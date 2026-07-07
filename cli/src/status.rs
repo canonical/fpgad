@@ -30,9 +30,9 @@
 //! [Overlay Handles]: ../index.html#overlay-handles
 //! [Error Handling]: ../index.html#error-handling
 
-use crate::proxies::status_proxy;
+use fpgad_proxies::proxies::status_proxy;
 use std::collections::HashMap;
-use zbus::Connection;
+use zbus::{self, Connection};
 
 /// Retrieve a platform-specific status message from the daemon.
 ///

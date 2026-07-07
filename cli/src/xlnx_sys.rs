@@ -37,8 +37,8 @@
 //! ```
 
 use crate::XlnxSysSubcommand;
-use crate::proxies::{control_proxy, status_proxy};
-use zbus::Connection;
+use fpgad_proxies::proxies::{control_proxy, status_proxy};
+use zbus::{self, Connection};
 
 /// Sends the `xlnx_sys` read command to the daemon's status interface.
 ///

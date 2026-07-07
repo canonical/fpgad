@@ -39,8 +39,8 @@
 //!
 //! For a full list of `dfx-mgr-client` commands see: <https://github.com/Xilinx/dfx-mgr>
 
-use crate::proxies::control_proxy;
-use zbus::Connection;
+use fpgad_proxies::proxies::control_proxy;
+use zbus::{self, Connection};
 
 /// Main handler for the `dfx-mgr` subcommand.
 ///
