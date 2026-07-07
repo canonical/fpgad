@@ -41,3 +41,7 @@ snapcraft:
   owners:
     - artiepoole
     - talhaHavadar
+daemon:
+  owners:
+    - artiepoole
+    - talhaHavadar
