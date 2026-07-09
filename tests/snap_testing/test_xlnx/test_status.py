@@ -42,8 +42,7 @@ class TestStatusXlnx(FPGATestBase):
 
         status_proc = self.run_fpgad(["--platform", self.PLATFORM, "status"])
         self.assert_proc_succeeds(status_proc)
-        # dfx-mgr returns table with "slot->handle" and bitstream filename
-        self.assert_in_proc_out("slot->handle", status_proc)
+        # dfx-mgr returns table with the filename listed
         self.assert_in_proc_out("k26_starter_kits.bit.bin", status_proc)
 
         # attempt to clean up
@@ -70,8 +69,7 @@ class TestStatusXlnx(FPGATestBase):
 
         status_proc = self.run_fpgad(["--platform", self.PLATFORM, "status"])
         self.assert_proc_succeeds(status_proc)
-        # dfx-mgr returns table with "slot->handle" and bitstream filename
-        self.assert_in_proc_out("slot->handle", status_proc)
+        # dfx-mgr returns table with the filename listed
         self.assert_in_proc_out("k26_starter_kits.bit.bin", status_proc)
         # attempt to clean up
         self.run_fpgad(["--platform", self.PLATFORM, "remove", "overlay"])

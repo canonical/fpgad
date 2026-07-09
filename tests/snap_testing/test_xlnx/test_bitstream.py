@@ -21,9 +21,9 @@ from common.helpers import (
     "dfx-mgr component not installed. Install with: snap install fpgad+dfx-mgr.comp",
 )
 class TestBitstreamXlnx(FPGATestBase):
-    """Test bitstream loading operations with --platform xlnx."""
+    """Test bitstream loading operations with --platform dfx-mgr."""
 
-    PLATFORM = "xlnx"
+    PLATFORM = "dfx-mgr"
 
     def test_load_bitstream_local(self):
         """Test loading bitstream from local relative path."""
