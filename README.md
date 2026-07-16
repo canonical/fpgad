@@ -44,6 +44,15 @@ appropriate drivers are loaded.
 
 ![anticipated_architecture.png](docs/assets/anticipated_architecture.png)
 
+# Documentation
+
+- [`cli/README.md`](cli/README.md) — `fpgad_cli` command usage and examples.
+- [`daemon/README.md`](daemon/README.md) — `fpgad` daemon D-Bus API (Control/Status interfaces) and running as a snap.
+- [`snap/README.md`](snap/README.md) — on creating provider snaps using `fpgad_cli` (content interface + wrapper script recommended, to keep the CLI and daemon versions in sync; or `stage-snaps` to pin the binary at build time).
+- [`docs/code_coverage.md`](docs/code_coverage.md) — gathering code coverage for the daemon.
+- [`PUBLISHING.md`](PUBLISHING.md) — release process for maintainers (GitHub releases, crates.io).
+- Cargo docs: [docs.rs/fpgad](https://docs.rs/fpgad), [docs.rs/fpgad_cli](https://docs.rs/fpgad_cli), [docs.rs/fpgad_macros](https://docs.rs/fpgad_macros).
+
 # Building and running from source
 
 From a fresh install, you must install build-essential, rustup (includes cargo) and pull the source from the repo then
