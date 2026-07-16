@@ -45,3 +45,8 @@ daemon:
   owners:
     - artiepoole
     - talhaHavadar
+proxies:
+  owners:
+    - artiepoole
+    - talhaHavadar
+    - Sinan-Karakaya
