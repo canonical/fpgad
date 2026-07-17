@@ -78,6 +78,16 @@ this can be done in one go by installing `build-essential` (`sudo` may be necess
 apt update && apt install -y build-essential
 ```
 
+### optional: Xilinx DFX Manager softener
+
+If building/running with the `xilinx-dfx-mgr` feature (enabled by default via `softeners-all`), the target system must have [`dfx-mgr`](https://github.com/Xilinx/dfx-mgr) version `>2026.1` installed and the `dfx-mgrd` daemon running.
+On Ubuntu 24.04 (noble), the latest `dfx-mgr` version is only available via the `ppa:ubuntu-xilinx/default` PPA:
+
+```
+sudo add-apt-repository ppa:ubuntu-xilinx/default
+sudo apt update && sudo apt install -y dfx-mgr
+```
+
 ### build
 
 cargo makes this simple:
