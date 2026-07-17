@@ -55,6 +55,24 @@ pub struct StatusInterface {}
 /// [crate::comm::dbus::status_interface] for a summary of this interface in general.
 #[interface(name = "com.canonical.fpgad.status")]
 impl StatusInterface {
+    /// Get a human-readable status message for all FPGA devices on the platform.
+    ///
+    /// Returns a formatted status string whose content is platform-specific.
+    ///
+    /// # Arguments
+    ///
+    /// * `platform_string`: Platform compatibility string (must not be empty).
+    ///
+    /// # Returns: `Result<String, fdo::Error>`
+    /// * `Ok(String)` – Platform-specific status message.
+    /// * `Err(fdo::Error)` if `platform_string` is empty or the platform cannot be determined.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let msg = status_interface.get_status_message("xlnx-sys").await?;
+    /// println!("{msg}");
+    /// ```
     async fn get_status_message(&self, platform_string: &str) -> Result<String, fdo::Error> {
         info!("get_fpga_state called with platform_string: {platform_string}");
         if platform_string.is_empty() {

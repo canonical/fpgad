@@ -11,6 +11,9 @@ readme = "README.md"
 keywords = ["fpga", "daemon", "embedded", "hardware", "xilinx"]
 categories = ["hardware-support", "embedded"]
 
+[package.metadata.docs.rs]
+rustdoc-args = ["--document-private-items"]
+
 [features]
 default = ["softeners-all"]
 softeners-all = ["softeners", "xilinx-dfx-mgr"]

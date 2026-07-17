@@ -33,7 +33,7 @@
 //!
 //! ```rust,no_run
 //! use zbus::Connection;
-//! use crate::control_proxy::ControlProxy;
+//! use fpgad_proxies::proxies::control_proxy::ControlProxy;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let connection = Connection::system().await?;
@@ -49,7 +49,7 @@
 //! ```
 //!
 //! For detailed method documentation, see the daemon's control interface documentation in the main
-//! [fpgad daemon crate](https://docs.rs/crate/fpgad/latest/daemon/comm/dbus/control_interface/index.html)
+//! [fpgad daemon crate](https://docs.rs/fpgad/latest/fpgad/comm/dbus/control_interface/index.html)
 
 use zbus::{Result, proxy};
 
@@ -131,12 +131,7 @@ pub trait Control {
     /// # Returns: `Result<String, Error>`
     /// *  `Ok(String)` – Confirmation message including overlay filesystem path.
     /// * `Err(fdo::Error)` if overlay or platform cannot be accessed.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// assert!(remove_bitstream("xlnx,zynqmp-pcap-fpga", "").is_ok());
-    /// ```
+    ///   See [Error Handling](../../index.html#error-handling)
     async fn remove_bitstream(
         &self,
         platform_string: &str,
@@ -149,7 +144,7 @@ pub trait Control {
     /// # Arguments
     ///
     /// * `sub_cmd` - One of `write_flags`, `write_property`, `write_property_bytes` — see
-    ///   [`WriteSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/xlnx_sys/enum.WriteSubCommand.html)
+    ///   [`WriteSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/xilinx_sys/enum.WriteSubCommand.html)
     /// * `path_str` - Device handle or sysfs path to flags property for `write_flags`, or sysfs property path for property writes
     /// * `value_str` - Value to write (flags value, string payload, or raw byte string)
     ///
