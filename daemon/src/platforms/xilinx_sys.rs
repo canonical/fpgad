@@ -609,8 +609,9 @@ fn set_flags(fpga: &XilinxSysFPGA, new_flags: u32) -> Result<String, FpgadError>
         return Err(e);
     }
 
-    match fpga.state() {
-        Ok(state) => match state.as_str() {
+    {
+        let state = fpga.state()?;
+        match state.as_str() {
             "operating" => {
                 info!(
                     "{}'s state is 'operating' after writing flags.",
@@ -623,8 +624,7 @@ fn set_flags(fpga: &XilinxSysFPGA, new_flags: u32) -> Result<String, FpgadError>
                     device_handle, state
                 );
             }
-        },
-        Err(e) => return Err(e),
+        }
     };
 
     let returned_flags = flags(fpga)?;

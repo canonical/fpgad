@@ -52,6 +52,12 @@ slots:
     interface: dbus
     bus: system
     name: com.canonical.fpgad
+  fpgad-cli-app:
+    interface: content
+    content: fpgad-cli-content
+    source:
+      read:
+        - $SNAP/cli
 plugs:
   cli-dbus:
     interface: dbus
@@ -73,7 +79,7 @@ plugs:
       - /run/dfx-mgrd.socket
 apps:
   fpgad:
-    command: bin/fpgad_cli
+    command: cli/fpgad_cli
     completer: share/bash-completion/completions/fpgad_cli
     plugs:
       - cli-dbus
@@ -121,6 +127,8 @@ parts:
     rust-path:
       - cli
     rust-channel: 'stable'
+    organize:
+      bin/fpgad_cli: cli/fpgad_cli
   cli-completions:
     after:
       - cli
@@ -128,7 +136,7 @@ parts:
     override-build: |
       craftctl default
       mkdir -p "$CRAFT_PART_INSTALL/share/bash-completion/completions"
-      "$CRAFT_STAGE/bin/fpgad_cli" completions bash \
+      "$CRAFT_STAGE/cli/fpgad_cli" completions bash \
         > "$CRAFT_PART_INSTALL/share/bash-completion/completions/fpgad_cli"
   daemon:
     plugin: rust
@@ -140,6 +148,7 @@ parts:
     plugin: nil
     stage-packages:
       - dfx-mgr
+    # TODO(Sinan): Try using $SNAP_DATA here? Might work!
     override-stage: |
       craftctl default
       cat << 'EOF' > daemon.conf
@@ -153,6 +162,11 @@ parts:
       # move everything, including the staged packages
       "*": (component/dfx-mgr)
       daemon.conf: (component/dfx-mgr)
+  cli_wrapper:
+    plugin: dump
+    source: snap/wrapper
+    organize:
+      "fpgad_cli_wrapper.py": wrapper/fpgad_cli_wrapper.py
   test:
     plugin: dump
     source: tests
@@ -195,6 +209,7 @@ parts:
     source: scripts
     organize:
       "test_wrapper.sh": bin/test_wrapper.sh
+# TODO(Artie/Sinan): This might not be necessary any more (since changing upstream and conf dir)
 layout:
   # For dfx-mgr configuration files (when component is installed)
   /etc/dfx-mgrd:
