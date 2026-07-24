@@ -116,6 +116,8 @@ impl OverlayHandler for XilinxDfxMgrOverlayHandler {
         xilinx_dfx_mgr::load_overlay(&bitstream_path, source_path).map_err(|e| e.into())
     }
 
+    // Will default to slot 1 which may not be correct. User **should** specify which to unload.
+    // TODO(Sinan): to work out what to do here.
     fn remove_overlay(&self, slot_handle: Option<&str>) -> Result<String, FpgadError> {
         Ok(xilinx_dfx_mgr::remove(slot_handle)?)
     }

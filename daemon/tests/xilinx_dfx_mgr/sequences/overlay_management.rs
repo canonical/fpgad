@@ -10,7 +10,9 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::xilinx_dfx_mgr::{PLATFORM_STRING, setup};
+use crate::xilinx_dfx_mgr::{
+    PLATFORM_STRING, find_slot_ids_in_status_message, remove_detected_slots, setup,
+};
 use fpgad_proxies::proxies::{control_proxy, status_proxy};
 use googletest::prelude::*;
 use rstest::*;
@@ -34,8 +36,8 @@ async fn apply_overlay_via_dfx_mgr(_setup: ()) {
         .await
         .expect("failed to create status proxy");
 
-    // Remove any existing overlays/slots
-    let _ = control_proxy.remove_overlay(PLATFORM_STRING, "").await;
+    // Remove any existing overlays/slots so the load below starts from a clean slate
+    remove_detected_slots(&control_proxy, &status_proxy, "").await;
 
     // Reset flags
     control_proxy
@@ -74,12 +76,28 @@ async fn apply_overlay_via_dfx_mgr(_setup: ()) {
     println!("Overlay status: {:#?}", status);
     expect_that!(status, anything());
 
-    // Remove overlay
-    let remove_result = control_proxy.remove_overlay(PLATFORM_STRING, "").await;
+    // Find the ID of the loaded .bit.bin/.dtbo row in the status message and remove that slot
+    let status_message = status_proxy
+        .get_status_message(PLATFORM_STRING)
+        .await
+        .expect("failed to get status message");
+    println!("Status message:\n{status_message}");
+    let slot_ids = find_slot_ids_in_status_message(&status_message, "");
     expect_that!(
-        &remove_result,
-        ok(displays_as(contains_substring("returns: 0 (Ok)")))
+        slot_ids.is_empty(),
+        eq(false),
+        "no loaded slot found to remove"
     );
+    for slot_id in slot_ids {
+        println!("Removing slot with ID: {slot_id}");
+        let remove_result = control_proxy
+            .remove_overlay(PLATFORM_STRING, &slot_id)
+            .await;
+        expect_that!(
+            &remove_result,
+            ok(displays_as(contains_substring("returns: 0 (Ok)")))
+        );
+    }
 }
 
 #[tokio::test]
