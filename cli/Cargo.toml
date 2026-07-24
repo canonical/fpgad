@@ -22,3 +22,4 @@ env_logger = { version = "0.11.8", default-features = false }
 log = "0.4.27"
 tokio = { version = "1.47.0", default-features = false, features = ["rt-multi-thread", "macros", "sync"] }
 zbus = { version = "5.9.0", default-features = false, features = ["tokio"] }
+fpgad_proxies = { path = "../fpgad_proxies" }

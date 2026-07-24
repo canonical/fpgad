@@ -10,8 +10,8 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::common::proxies::status_proxy;
 use crate::xilinx_sys::setup;
+use fpgad_proxies::proxies::status_proxy;
 use googletest::prelude::*;
 use rstest::*;
 use zbus::Connection;

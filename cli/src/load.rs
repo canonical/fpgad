@@ -29,12 +29,12 @@
 //! [Error Handling]: ../index.html#error-handling
 
 use crate::LoadSubcommand;
-use crate::proxies::control_proxy;
 use crate::status::{
     call_get_platform_type, call_get_platform_types, get_first_device_handle, get_first_platform,
 };
+use fpgad_proxies::proxies::control_proxy;
 use std::path;
-use zbus::Connection;
+use zbus::{self, Connection};
 
 /// Sanitizes and converts a file path string to an absolute path.
 ///

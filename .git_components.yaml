@@ -41,3 +41,12 @@ snapcraft:
   owners:
     - artiepoole
     - talhaHavadar
+daemon:
+  owners:
+    - artiepoole
+    - talhaHavadar
+proxies:
+  owners:
+    - artiepoole
+    - talhaHavadar
+    - Sinan-Karakaya

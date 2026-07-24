@@ -26,10 +26,10 @@
 //! [Device Handles]: ../index.html#device-handles
 //! [Error Handling]: ../index.html#error-handling
 
-use crate::proxies::control_proxy;
 use crate::status::get_first_device_handle;
+use fpgad_proxies::proxies::control_proxy;
 use std::path::{Component, Path, PathBuf};
-use zbus::Connection;
+use zbus::{self, Connection};
 
 /// Sanitizes a path segment by ensuring it does not contain absolute paths,
 /// parent directory traversal, or root/prefix components.

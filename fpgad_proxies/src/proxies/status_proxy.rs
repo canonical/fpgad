@@ -33,7 +33,7 @@
 //!
 //! ```rust,no_run
 //! use zbus::Connection;
-//! use crate::proxies::status_proxy::StatusProxy;
+//! use fpgad_proxies::proxies::status_proxy::StatusProxy;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let connection = Connection::system().await?;
@@ -44,8 +44,8 @@
 //! # }
 //! ```
 //!
-//! For detailed method documentation, see the daemon's control interface documentation in the main
-//! [fpgad daemon crate](https://docs.rs/crate/fpgad/latest/daemon/comm/dbus/control_interface/index.html)
+//! For detailed method documentation, see the daemon's status interface documentation in the main
+//! [fpgad daemon crate](https://docs.rs/fpgad/latest/fpgad/comm/dbus/status_interface/index.html)
 
 use zbus::{Result, proxy};
 
@@ -81,7 +81,7 @@ pub trait Status {
     /// ```rust,no_run
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # use zbus::Connection;
-    /// # use crate::proxies::status_proxy::StatusProxy;
+    /// # use fpgad_proxies::proxies::status_proxy::StatusProxy;
     /// let connection = Connection::system().await?;
     /// let proxy = StatusProxy::new(&connection).await?;
     /// let status = proxy.get_status_message("xlnx-sys").await?;
@@ -114,7 +114,7 @@ pub trait Status {
     /// # Arguments
     ///
     /// * `sub_cmd` - One of `read_property` or `read_flags` — see
-    ///   [`ReadSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/xlnx_sys/enum.ReadSubCommand.html)
+    ///   [`ReadSubCommand`](https://docs.rs/fpgad/latest/fpgad/platforms/xilinx_sys/enum.ReadSubCommand.html)
     /// * `path_str` - device handle or sysfs path to flags property for `read_flags`, or sysfs property path for `read_property`,
     ///
     /// # Returns: `Result<String>`

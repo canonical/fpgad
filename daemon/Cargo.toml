@@ -11,6 +11,9 @@ readme = "README.md"
 keywords = ["fpga", "daemon", "embedded", "hardware", "xilinx"]
 categories = ["hardware-support", "embedded"]
 
+[package.metadata.docs.rs]
+rustdoc-args = ["--document-private-items"]
+
 [features]
 default = ["softeners-all"]
 softeners-all = ["softeners", "xilinx-dfx-mgr"]
@@ -25,6 +28,7 @@ tokio = { version = "1.47.0", default-features = false, features = ["rt-multi-th
 zbus = { version = "5.9.0", default-features = false, features = ["tokio"] }
 thiserror = "2.0.12"
 fdt = "0.1.5"
+fpgad_proxies = { workspace = true }
 
 [dev-dependencies]
 googletest = "0.14.2"

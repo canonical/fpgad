@@ -29,11 +29,11 @@
 //! [Error Handling]: ../index.html#error-handling
 
 use crate::RemoveSubcommand;
-use crate::proxies::control_proxy;
 use crate::status::{
     call_get_platform_type, get_first_device_handle, get_first_overlay, get_first_platform,
 };
-use zbus::Connection;
+use fpgad_proxies::proxies::control_proxy;
+use zbus::{self, Connection};
 
 /// Sends the DBus command to remove a bitstream.
 ///
