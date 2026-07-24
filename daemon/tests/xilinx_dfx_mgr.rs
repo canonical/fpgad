@@ -12,7 +12,7 @@
 
 pub mod xilinx_dfx_mgr {
     pub mod control;
-    pub static PLATFORM_STRING: &str = "xlnx,zynqmp-pcap-fpga";
+    pub static PLATFORM_STRING: &str = "dfx-mgr";
     #[cfg(feature = "xilinx-dfx-mgr")]
     pub mod platform_selection;
     pub mod sequences;
@@ -139,5 +139,65 @@ pub mod xilinx_dfx_mgr {
     #[once]
     pub fn setup() {
         setup_xilinx_files();
+    }
+
+    /// Parse the output of `get_status_message` and return the IDs of the rows that
+    /// are currently loaded and match `name_substring` (empty string matches any).
+    /// Returns an empty list if nothing matches.
+    ///
+    /// A row counts as loaded if its Accelerator column contains `.bit.bin`/`.dtbo`
+    /// or if its slotLoc column is not `-1` (i.e. it is loaded into a slot).
+    ///
+    /// The status message for the xilinx-dfx-mgr platform is the output of
+    /// `dfx-mgr-client -listPackage`, e.g.:
+    /// ```text
+    /// ID accelType   Base        slotLoc Accelerator
+    /// -- ----------- ----------- ------- -----------
+    ///  1 XRT_FLAT    k26_star... 0       k26_starter_kits
+    ///  4 -           -           -       k26-starter-kits.bit.bin
+    /// ```
+    pub fn find_slot_ids_in_status_message(
+        status_message: &str,
+        name_substring: &str,
+    ) -> Vec<String> {
+        status_message
+            .lines()
+            .filter(|line| name_substring.is_empty() || line.contains(name_substring))
+            .filter_map(|line| {
+                let mut tokens = line.split_whitespace();
+                let id = tokens.next()?;
+                // Only consider numbered rows (skips header and separator rows)
+                id.parse::<u32>().ok()?;
+                let slot_loc = tokens.nth(2)?;
+                let loaded =
+                    line.contains(".bit.bin") || line.contains(".dtbo") || slot_loc != "-1";
+                loaded.then(|| id.to_string())
+            })
+            .collect()
+    }
+
+    /// Remove every loaded package slot found in the output of `get_status_message`,
+    /// optionally restricted to rows matching `name_substring`. Used for cleanup so
+    /// that leftover slots don't make subsequent loads fail.
+    pub async fn remove_detected_slots(
+        control_proxy: &fpgad_proxies::proxies::control_proxy::ControlProxy<'_>,
+        status_proxy: &fpgad_proxies::proxies::status_proxy::StatusProxy<'_>,
+        name_substring: &str,
+    ) {
+        let status_message = status_proxy
+            .get_status_message(PLATFORM_STRING)
+            .await
+            .expect("failed to get status message");
+        println!("Status message:\n{status_message}");
+        for slot_id in find_slot_ids_in_status_message(&status_message, name_substring) {
+            println!("Removing slot with ID: {slot_id}");
+            let remove_result = control_proxy
+                .remove_overlay(PLATFORM_STRING, &slot_id)
+                .await;
+            match remove_result {
+                Ok(output) => println!("Removed slot {slot_id}: {output}"),
+                Err(e) => eprintln!("Warning: failed to remove slot {slot_id}: {e:#?}"),
+            }
+        }
     }
 }

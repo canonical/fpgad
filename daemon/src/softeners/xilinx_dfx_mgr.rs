@@ -202,8 +202,8 @@ pub fn load(accel_name: &str) -> Result<String, FpgadSoftenerError> {
 #[allow(dead_code)]
 pub fn remove(slot_handle: Option<&str>) -> Result<String, FpgadSoftenerError> {
     match slot_handle {
-        Some(slot_handle) => Ok(run_dfx_mgr(&["-remove", slot_handle])?),
-        None => Ok(run_dfx_mgr(&["-remove"])?),
+        Some(slot_handle) => Ok(run_dfx_mgr(&["-unload", slot_handle])?),
+        None => Ok(run_dfx_mgr(&["-unload", "1"])?),
     }
 }
 

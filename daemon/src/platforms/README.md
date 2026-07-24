@@ -45,8 +45,8 @@ functionality beyond the xilinx_sys platform. They are enabled via Cargo feature
   - `versal-fpga` - Versal ACAP devices
   - `zynq-devcfg-1.0` - Zynq-7000 devices
 
-  **Requirements:** The dfx-mgrd daemon must be running (automatically started in snap
-  environment).
+  **Requirements:** [`dfx-mgr`](https://github.com/Xilinx/dfx-mgr) version `>2026.1` must be installed, and the dfx-mgrd daemon must be running (automatically started if using snap).
+  On Ubuntu 24.04 (noble), the latest `dfx-mgr` version is only available via the `ppa:ubuntu-xilinx/default` PPA, as the archive version cannot have breaking changes.
 
 
 ## Platform Registration

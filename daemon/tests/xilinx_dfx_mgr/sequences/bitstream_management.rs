@@ -10,10 +10,13 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::xilinx_dfx_mgr::{PLATFORM_STRING, setup};
+use crate::xilinx_dfx_mgr::{
+    PLATFORM_STRING, find_slot_ids_in_status_message, remove_detected_slots, setup,
+};
 use fpgad_proxies::proxies::{control_proxy, status_proxy};
 use googletest::prelude::*;
 use rstest::*;
+use std::path::Path;
 use zbus::Connection;
 
 #[gtest]
@@ -49,25 +52,13 @@ async fn load_bitstream_via_dfx_mgr(
         eq("0")
     );
 
-    // Check if there's a loaded bitstream and remove it if "0->0" is found
-    let current_state = status_proxy
-        .get_fpga_state(PLATFORM_STRING, device_handle)
-        .await
-        .expect("failed to get fpga state");
-
-    if current_state.contains("0->0") {
-        println!("Found '0->0' in state, removing existing bitstream");
-        control_proxy
-            .remove_overlay(PLATFORM_STRING, "")
-            .await
-            .expect("failed to remove overlay");
-    }
+    // Remove any leftover loaded packages so the load below starts from a clean slate
+    remove_detected_slots(&control_proxy, &status_proxy, "").await;
 
     // Load bitstream via dfx-mgr-client
     let result = control_proxy
         .write_bitstream_direct(PLATFORM_STRING, device_handle, bitstream_file, fw_lookup)
         .await;
-
     expect_that!(
         &result,
         ok(displays_as(contains_substring("Loaded with slot_handle")))
@@ -79,15 +70,29 @@ async fn load_bitstream_via_dfx_mgr(
         .await;
 
     println!("DFX-MGR state after load: {:#?}", state);
-    // TODO: set substr
-    expect_that!(state, ok(displays_as(contains_substring("#  Accel_type"))));
+    expect_that!(state, ok(displays_as(contains_substring("accelType"))));
 
-    // Cleanup - remove the loaded bitstream
-    let cleanup_result = control_proxy
-        .remove_bitstream(PLATFORM_STRING, "fpga0", "0")
-        .await;
-    if let Err(e) = cleanup_result {
-        println!("Warning: cleanup failed: {:#?}", e);
+    // Cleanup - find the ID of the loaded .bit.bin row in the status message
+    // and remove that slot. Match on the base file name since the Accelerator
+    // column of the listing does not contain the full path.
+    let file_name = Path::new(bitstream_file)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .expect("bitstream file path has no valid file name");
+    let status_message = status_proxy
+        .get_status_message(PLATFORM_STRING)
+        .await
+        .expect("failed to get status message");
+    println!("Status message:\n{status_message}");
+    let slot_ids = find_slot_ids_in_status_message(&status_message, file_name);
+    for slot_id in slot_ids {
+        println!("Removing slot with ID: {slot_id}");
+        let cleanup_result = control_proxy
+            .remove_overlay(PLATFORM_STRING, &slot_id)
+            .await;
+        if let Err(e) = cleanup_result {
+            println!("Warning: cleanup failed: {:#?}", e);
+        }
     }
 }
 

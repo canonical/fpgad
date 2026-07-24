@@ -27,6 +27,4 @@ class TestCLIOptions(FPGATestBase):
     def test_status_with_platform_option_xlnx(self):
         """Test status command with explicit --platform option set to `xlnx`."""
         proc = self.run_fpgad(["--platform", "xlnx", "status"])
-        self.assert_in_proc_out(
-            "#  Accel_type  user_load_type user_load_region Base", proc
-        )
+        self.assert_in_proc_out("ID accelType   Base", proc)

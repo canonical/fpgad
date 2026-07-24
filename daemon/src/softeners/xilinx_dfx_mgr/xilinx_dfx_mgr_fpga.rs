@@ -23,7 +23,7 @@
 //! - **State Query**: Returns dfx-mgr package listing instead of simple sysfs state
 //! - **Bitstream Loading**: Uses `dfx-mgr-client -b` instead of direct firmware loading due to snap confinement
 //!   limitations (temporary?)
-//! - **Firmware Removal**: Supports slot-based removal via `dfx-mgr-client -remove`
+//! - **Firmware Removal**: Supports slot-based removal via `dfx-mgr-client -unload`
 //!
 //! # Examples
 //!

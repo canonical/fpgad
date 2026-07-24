@@ -10,7 +10,7 @@
 //
 // You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/.
 
-use crate::xilinx_dfx_mgr::{PLATFORM_STRING, setup};
+use crate::xilinx_dfx_mgr::setup;
 use fpgad_proxies::proxies::status_proxy;
 use googletest::prelude::*;
 use rstest::*;
@@ -28,16 +28,17 @@ async fn get_platform_types_test(_setup: ()) {
         .expect("failed to create status proxy");
     let res = proxy.get_platform_types().await;
 
-    expect_that!(&res, ok(contains_substring(PLATFORM_STRING)));
+    expect_that!(&res, ok(contains_substring("xlnx,zynqmp-pcap-fpga")));
 
     if let Ok(types) = res {
         println!("Available platform types: {:#?}", types);
-        // Should include either xilinx_sys or xlnx,zynqmp-pcap-fpga
+        // Should include one of the device types dfx-mgr supports
         expect_that!(
             types,
             any![
-                contains_substring("xilinx_sys"),
-                contains_substring("xlnx,zynqmp-pcap-fpga")
+                contains_substring("versal-fpga"),
+                contains_substring("zynq-devcfg-1.0"),
+                contains_substring("zynqmp-pcap-fpga")
             ]
         );
     }

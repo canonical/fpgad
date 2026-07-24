@@ -14,7 +14,10 @@ issues:
   - https://github.com/canonical/fpgad/issues
 package-repositories:
   - type: apt
-    ppa: ubuntu-xilinx/default
+    url: https://ppa.launchpadcontent.net/ubuntu-xilinx/default/ubuntu
+    key-id: 803DDF595EA7B6644F9B96B752150A179A9E84C9
+    suites: [stonking]
+    components: [main]
 platforms:
   amd64:
     build-on: [amd64]
@@ -209,8 +212,3 @@ parts:
     source: scripts
     organize:
       "test_wrapper.sh": bin/test_wrapper.sh
-# TODO(Artie/Sinan): This might not be necessary any more (since changing upstream and conf dir)
-layout:
-  # For dfx-mgr configuration files (when component is installed)
-  /etc/dfx-mgrd:
-    bind: $SNAP_COMMON/etc/dfx-mgrd
