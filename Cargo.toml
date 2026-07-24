@@ -3,7 +3,7 @@ resolver = "3"
 members = ["daemon", "cli", "fpgad_macros", "fpgad_proxies"]
 
 [workspace.package]
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 license = "GPL-3.0"
 homepage = "https://github.com/canonical/fpgad"
@@ -11,8 +11,8 @@ repository = "https://github.com/canonical/fpgad"
 authors = ["Talha Can Havadar <talha.can.havadar@canonical.com>", "Artie Poole <stuart.poole@canonical.com>"]
 
 [workspace.dependencies]
-fpgad_macros = { version = "0.5.0", path = "fpgad_macros" }
-fpgad_proxies = { version = "0.5.0", path = "fpgad_proxies" }
+fpgad_macros = { version = "0.5.1", path = "fpgad_macros" }
+fpgad_proxies = { version = "0.5.1", path = "fpgad_proxies" }
 
 [profile.release]
 opt-level = "z"
