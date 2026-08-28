@@ -45,3 +45,9 @@ repos:
       - id: ruff-format
         args:
           - --check
+  - repo: https://github.com/notken12/licensesnip
+    rev: f01f898 # pre-commit hooks is not tagged yet
+    hooks:
+      - id: licensesnip
+        args:
+          - 'check'
