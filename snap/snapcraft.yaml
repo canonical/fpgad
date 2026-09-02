@@ -114,11 +114,9 @@ parts:
   version:
     plugin: nil
     source: .
-    build-snaps:
-      - jq
     override-pull: |
       craftctl default
-      cargo_version=$(cargo metadata --no-deps --format-version 1 | jq -r .packages[0].version)
+      cargo_version=$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json, sys; print(json.load(sys.stdin)["packages"][0]["version"])')
       craftctl set version="$cargo_version+git$(date +'%Y%m%d').$(git describe --always --exclude '*')"
   # with `snapcraft remote-build` cargo build with workspace is not working as
   # it is in local builds so keeping the parts separated to make sure `remote-build`
