@@ -3,7 +3,7 @@ resolver = "3"
 members = ["daemon", "cli", "fpgad_macros", "fpgad_proxies"]
 
 [workspace.package]
-version = "0.5.1"
+version = "0.5.2"
 edition = "2024"
 license = "GPL-3.0"
 homepage = "https://github.com/canonical/fpgad"
