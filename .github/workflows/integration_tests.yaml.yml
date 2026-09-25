@@ -5,7 +5,7 @@ on:
 jobs:
   binary-integration-tests:
     name: Build and Test the Daemon Binary on DUT
-    runs-on: [self-hosted, self-hosted-linux-amd64-jammy-private-endpoint-medium]
+    runs-on: ubuntu-latest
     #    todo: enable testflinger environment
     #    environment:
     #      name: testflinger
@@ -39,11 +39,13 @@ jobs:
           echo "test_path=job.yaml" >> $GITHUB_OUTPUT
       - name: Submit TF job
         id: submit
-        uses: canonical/testflinger/.github/actions/submit@rev263
+        uses: canonical/testflinger/.github/actions/submit@submit/v1.5.1
         continue-on-error: true
         with:
           poll: true
           job-path: ${{ steps.prepare-tf-job.outputs.test_path }}
+          client-id: ${{ secrets.TF_CLIENT_ID }}
+          secret-key: ${{ secrets.TF_SECRET_KEY }}
       - name: Fetch and Display Artifacts
         shell: bash
         run: |

@@ -223,7 +223,7 @@ pub fn load_bitstream(bitstream_path: &Path) -> Result<String, FpgadSoftenerErro
             bitstream_path.display()
         ))
     })?;
-    run_dfx_mgr(&["-b", path_str])
+    run_dfx_mgr(&["-b", path_str, "-f", "Full"])
 }
 
 /// Load an overlay with bitstream using dfx-mgr
@@ -251,5 +251,5 @@ pub fn load_overlay(bitstream_path: &Path, dtbo_path: &Path) -> Result<String, F
         ))
     })?;
 
-    run_dfx_mgr(&["-o", dtbo_str, "-b", bitstream_str])
+    run_dfx_mgr(&["-b", bitstream_str, "-f", "Full", "-o", dtbo_str])
 }
