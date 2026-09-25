@@ -5,7 +5,7 @@ on:
 jobs:
   binary-integration-tests:
     name: Build and Test the Daemon Binary on DUT
-    runs-on: [self-hosted, self-hosted-linux-amd64-jammy-private-endpoint-medium]
+    runs-on: ubuntu-latest
     #    todo: enable testflinger environment
     #    environment:
     #      name: testflinger
