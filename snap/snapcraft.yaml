@@ -151,6 +151,9 @@ parts:
     plugin: nil
     stage-packages:
       - dfx-mgr
+    override-build: |
+      craftctl default
+      rm -rf "$CRAFT_PART_INSTALL/var"
     # TODO(Sinan): Try using $SNAP_DATA here? Might work!
     override-stage: |
       craftctl default
