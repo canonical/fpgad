@@ -183,6 +183,8 @@ jobs:
         with:
           poll: true
           job-path: ${{ steps.prepare-tf-job.outputs.test_path }}
+          client-id: ${{ secrets.TF_CLIENT_ID }}
+          secret-key: ${{ secrets.TF_SECRET_KEY }}
       - name: Fetch and Display Artifacts
         shell: bash
         run: |
