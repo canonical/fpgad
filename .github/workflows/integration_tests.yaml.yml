@@ -79,9 +79,14 @@ jobs:
           fi
   snap-build:
     name: Check Snap Builds
-    runs-on: ubuntu-24.04-arm
-    outputs:
-      artifact_id: ${{ steps.upload-snap.outputs.artifact-id }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - architecture: amd64
+            runner: ubuntu-latest
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
       - uses: canonical/action-build@v1.3.0
@@ -109,14 +114,15 @@ jobs:
           fi
 
           # Create tarball with snap and components
-          tar -czvf fpgad-snap-package.tar.gz "$SNAP_FILE" $COMP_FILES
-          echo "Created tarball: fpgad-snap-package.tar.gz"
-          echo "package_path=$(pwd)/fpgad-snap-package.tar.gz" >> $GITHUB_OUTPUT
+          PACKAGE="fpgad-${{ matrix.architecture }}-snap-package.tar.gz"
+          tar -czvf "$PACKAGE" "$SNAP_FILE" $COMP_FILES
+          echo "Created tarball: $PACKAGE"
+          echo "package_path=$(pwd)/$PACKAGE" >> $GITHUB_OUTPUT
           echo "::endgroup::"
       - uses: actions/upload-artifact@v7
         id: upload-snap
         with:
-          name: snap-fpgad-${{ github.event.pull_request != null && github.event.pull_request.head.sha || 'workflow-dispatch' }}
+          name: snap-fpgad-${{ matrix.architecture }}-${{ github.event.pull_request != null && github.event.pull_request.head.sha || 'workflow-dispatch' }}
           path: ${{ steps.package-snap.outputs.package_path }}
   snap-integration-tests:
     name: Install and Test the Snap Package on DUT
@@ -137,7 +143,8 @@ jobs:
         id: download-snap
         uses: actions/download-artifact@v8
         with:
-          artifact-ids: ${{ needs.snap-build.outputs.artifact_id }}
+          pattern: snap-fpgad-arm64-*
+          merge-multiple: true
           path: ./snap-download
       - name: Prepare Testflinger Job
         id: prepare-tf-job
@@ -148,15 +155,15 @@ jobs:
             echo "Contents of snap-download directory:"
             ls -lR ./snap-download || true
 
-            SNAP_TARBALL=$(find ./snap-download -name "fpgad-snap-package.tar.gz" -type f | head -n 1)
+             SNAP_TARBALL=$(find ./snap-download -name "fpgad-arm64-snap-package.tar.gz" -type f | head -n 1)
             if [[ -z "$SNAP_TARBALL" || ! -f "$SNAP_TARBALL" ]]; then
-              echo "::error::Snap package tarball 'fpgad-snap-package.tar.gz' not found in download directory"
+               echo "::error::Snap package tarball 'fpgad-arm64-snap-package.tar.gz' not found in download directory"
               exit 1
             fi
             echo "Found snap package at: $SNAP_TARBALL"
             # Copy to current directory for use in job.yaml
-            cp "$SNAP_TARBALL" ./fpgad-snap-package.tar.gz
-            echo "Copied to: $(pwd)/fpgad-snap-package.tar.gz"
+             cp "$SNAP_TARBALL" ./fpgad-snap-package.tar.gz
+             echo "Copied to: $(pwd)/fpgad-snap-package.tar.gz"
           echo "::endgroup::"
 
           echo "::group::creating job.yaml"
