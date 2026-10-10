@@ -273,7 +273,7 @@ name = "fpgad_macros"
 version = "0.5.1"
 dependencies = [
  "quote",
- "syn 2.0.119",
+ "syn 3.0.3",
 ]
 
 [[package]]
