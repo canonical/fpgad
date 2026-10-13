@@ -13,7 +13,7 @@ jobs:
     if: ${{ !github.event.pull_request.draft }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install dependencies
         shell: bash
         run: |
@@ -88,7 +88,7 @@ jobs:
           - architecture: arm64
             runner: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: canonical/action-build@v1.3.0
         id: snapcraft
       - name: Package snap and components
@@ -132,7 +132,7 @@ jobs:
     timeout-minutes: 3600
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install dependencies
         shell: bash
         run: |
