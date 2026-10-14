@@ -70,7 +70,7 @@ async fn load_bitstream_via_dfx_mgr(
         .await;
 
     println!("DFX-MGR state after load: {:#?}", state);
-    expect_that!(state, ok(displays_as(contains_substring("accelType"))));
+    expect_that!(state, ok(displays_as(contains_substring("Accel_type"))));
 
     // Cleanup - find the ID of the loaded .bit.bin row in the status message
     // and remove that slot. Match on the base file name since the Accelerator
