@@ -1,6 +1,6 @@
-job_queue: xilinx-kv260-c36973
+job_queue: 202405-34038
 provision_data:
-  urls: ['https://tel-image-cache.canonical.com/oem-share/limerick/kria-24.04/classic-24.04-x07/iot-limerick-kria-classic-server-2404-classic-24.04-x07-20250423.img.xz']
+  urls: ['https://tel-image-cache.canonical.com/oem-share/limerick/build/kria/noble/server/37888966017/ubuntu-24.04-preinstalled-server-arm64+kria.img.xz']
   preset: LimerickKriaClassic
 test_data:
   attachments: # these are replaced in the workflow - local testing only
