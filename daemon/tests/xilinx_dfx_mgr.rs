@@ -151,10 +151,10 @@ pub mod xilinx_dfx_mgr {
     /// The status message for the xilinx-dfx-mgr platform is the output of
     /// `dfx-mgr-client -listPackage`, e.g.:
     /// ```text
-    /// #  Accel_type  user_load_type user_load_region Base        Pid   Base_type #slots(RPU+PL+AIE) slot->handle Accelerator
-    /// -- ----------- -------------- ---------------- ----------- ----- --------- ------------------ ------------ -----------
-    ///  1 XRT_FLAT    -              -                k24-star... id_ok XRT_FLAT  (0+0+0)            -1           k24-starter-kits
-    ///  3 -           Full                            -           -     -         -                  0->0         k26-starter-kits.bit.bin
+    /// ID accelType   Base        slotLoc Accelerator
+    /// -- ----------- ----------- ------- -----------
+    ///  1 XRT_FLAT    k26_star... 0       k26_starter_kits
+    ///  4 -           -           -       k26-starter-kits.bit.bin
     /// ```
     pub fn find_slot_ids_in_status_message(
         status_message: &str,

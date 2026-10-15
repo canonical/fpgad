@@ -28,7 +28,7 @@ use zbus::Connection;
     "",
     err(displays_as(contains_substring("Expects an argument. Use -h to see options")))
 )]
-#[case::all_good("-listPackage", ok(displays_as(contains_substring("Accel_type"))))]
+#[case::all_good("-listPackage", ok(displays_as(contains_substring("accelType"))))]
 async fn cases<M: for<'a> Matcher<&'a zbus::Result<String>>>(
     #[case] command: &str,
     #[case] condition: M,
