@@ -7,12 +7,11 @@ sudo env DEBIAN_FRONTEND=noninteractive apt update && sudo env DEBIAN_FRONTEND=n
 # Install the dfx-mgr release that the fpgad snap's dfx-mgr component is built from,
 # so CI tests the same client the snap ships. The PPA's noble series still carries an
 # older git snapshot, so point the source at the resolute series instead.
-DFX_MGR_PPA_VERSION="2026.1-0ubuntu1~xlnx2"
 sudo env DEBIAN_FRONTEND=noninteractive apt install software-properties-common -y
 sudo add-apt-repository -y --no-update ppa:ubuntu-xilinx/default
 sudo sed -i 's/^Suites: noble$/Suites: resolute/' /etc/apt/sources.list.d/ubuntu-xilinx-ubuntu-default-noble.sources
 sudo env DEBIAN_FRONTEND=noninteractive apt update
-sudo env DEBIAN_FRONTEND=noninteractive apt install -y "dfx-mgr=${DFX_MGR_PPA_VERSION}" "libdfx-mgr2=${DFX_MGR_PPA_VERSION}"
+sudo env DEBIAN_FRONTEND=noninteractive apt install -y dfx-mgr
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 . "$HOME/.cargo/env"
 rustup component add llvm-tools-preview
