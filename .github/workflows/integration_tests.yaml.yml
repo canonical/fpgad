@@ -128,7 +128,7 @@ jobs:
           path: ${{ steps.package-snap.outputs.package_path }}
   snap-integration-tests:
     name: Install and Test the Snap Package on DUT
-    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-medium]
+    runs-on: ubuntu-latest
     if: ${{ !github.event.pull_request.draft }}
     needs: ['snap-build']
     timeout-minutes: 3600
