@@ -117,6 +117,9 @@ async fn remove_bitstream_via_dfx_mgr(_setup: ()) {
     expect_that!(
         &result,
         ok(displays_as(contains_substring("returns: 0 (Ok)")))
+            .or(ok(displays_as(contains_substring(
+                "No loaded packages to unload"
+            ))))
             .or(err(displays_as(contains_substring("returns: -1 (Error)"))))
     );
 

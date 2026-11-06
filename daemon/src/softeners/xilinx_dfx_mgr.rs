@@ -198,13 +198,50 @@ pub fn load(accel_name: &str) -> Result<String, FpgadSoftenerError> {
     run_dfx_mgr(&["-load", accel_name])
 }
 
-/// Unload package previously programmed
+/// Unload package `slot_handle`, or every loaded package when it is `None`.
 #[allow(dead_code)]
 pub fn remove(slot_handle: Option<&str>) -> Result<String, FpgadSoftenerError> {
     match slot_handle {
         Some(slot_handle) => Ok(run_dfx_mgr(&["-unload", slot_handle])?),
-        None => Ok(run_dfx_mgr(&["-unload", "1"])?),
+        None => remove_all_loaded(),
     }
+}
+
+fn remove_all_loaded() -> Result<String, FpgadSoftenerError> {
+    remove_loaded_with(list_package, |id| run_dfx_mgr(&["-unload", id]))
+}
+
+/// Re-lists before each unload, since package IDs can change after one.
+fn remove_loaded_with(
+    list: impl Fn() -> Result<String, FpgadSoftenerError>,
+    unload: impl Fn(&str) -> Result<String, FpgadSoftenerError>,
+) -> Result<String, FpgadSoftenerError> {
+    let loaded_at_start = loaded_package_ids(&list()?).len();
+    if loaded_at_start == 0 {
+        return Ok(String::from("No loaded packages to unload."));
+    }
+    let mut output = String::new();
+    for _ in 0..loaded_at_start {
+        match loaded_package_ids(&list()?).first() {
+            Some(id) => output.push_str(&unload(id)?),
+            None => break,
+        }
+    }
+    Ok(output)
+}
+
+fn loaded_package_ids(listing: &str) -> Vec<String> {
+    listing
+        .lines()
+        .filter_map(|line| {
+            let mut tokens = line.split_whitespace();
+            let id = tokens.next()?;
+            id.parse::<u32>().ok()?;
+            let slot_loc = tokens.nth(2)?;
+            let loaded = line.contains(".bit.bin") || line.contains(".dtbo") || slot_loc != "-1";
+            loaded.then(|| id.to_string())
+        })
+        .collect()
 }
 
 /// Load a bitstream file using dfx-mgr
@@ -223,7 +260,7 @@ pub fn load_bitstream(bitstream_path: &Path) -> Result<String, FpgadSoftenerErro
             bitstream_path.display()
         ))
     })?;
-    run_dfx_mgr(&["-b", path_str])
+    run_dfx_mgr(&["-b", path_str, "-f", "Full"])
 }
 
 /// Load an overlay with bitstream using dfx-mgr
@@ -251,5 +288,116 @@ pub fn load_overlay(bitstream_path: &Path, dtbo_path: &Path) -> Result<String, F
         ))
     })?;
 
-    run_dfx_mgr(&["-o", dtbo_str, "-b", bitstream_str])
+    run_dfx_mgr(&["-b", bitstream_str, "-f", "Full", "-o", dtbo_str])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{loaded_package_ids, remove_loaded_with};
+    use crate::softeners::error::FpgadSoftenerError;
+    use std::cell::RefCell;
+
+    fn fake_listing(state: &[(bool, &str)]) -> String {
+        let mut listing = String::from("ID accelType   Base        slotLoc Accelerator\n");
+        for (i, (loaded, name)) in state.iter().enumerate() {
+            let slot = if *loaded { "0" } else { "-1" };
+            listing.push_str(&format!(
+                "{:>2} XRT_FLAT    -           {slot:<7} {name}\n",
+                i + 1
+            ));
+        }
+        listing
+    }
+
+    #[test]
+    fn unloads_each_loaded_package_using_fresh_ids() {
+        let state = RefCell::new(vec![
+            (false, "k24-starter-kits"),
+            (false, "k26-starter-kits"),
+            (true, "a.bit.bin"),
+            (true, "b.bit.bin"),
+        ]);
+        let unloaded = RefCell::new(Vec::new());
+        let result = remove_loaded_with(
+            || Ok(fake_listing(&state.borrow())),
+            |id| {
+                unloaded.borrow_mut().push(id.to_string());
+                let index: usize = id.parse().expect("numeric id");
+                let mut packages = state.borrow_mut();
+                if index == 0 || index > packages.len() || !packages[index - 1].0 {
+                    return Err(FpgadSoftenerError::DfxMgr(format!("ID {id} is not loaded")));
+                }
+                packages.remove(index - 1);
+                Ok(format!("unload ID {id} returns: 0 (Ok)\n"))
+            },
+        );
+        assert!(result.is_ok(), "unexpected error: {result:?}");
+        assert_eq!(unloaded.into_inner(), vec!["3", "3"]);
+        assert_eq!(state.borrow().len(), 2);
+    }
+
+    #[test]
+    fn nothing_loaded_sends_no_unload() {
+        let unloaded = RefCell::new(0);
+        let result = remove_loaded_with(
+            || Ok(fake_listing(&[(false, "k24-starter-kits")])),
+            |_| {
+                *unloaded.borrow_mut() += 1;
+                Ok(String::new())
+            },
+        );
+        assert_eq!(result.unwrap(), "No loaded packages to unload.");
+        assert_eq!(unloaded.into_inner(), 0);
+    }
+
+    #[test]
+    fn failed_unload_stops_and_returns_the_error() {
+        let calls = RefCell::new(0);
+        let result = remove_loaded_with(
+            || Ok(fake_listing(&[(true, "a.bit.bin"), (true, "b.bit.bin")])),
+            |_| {
+                *calls.borrow_mut() += 1;
+                Err(FpgadSoftenerError::DfxMgr("unload failed".to_string()))
+            },
+        );
+        assert!(result.is_err());
+        assert_eq!(calls.into_inner(), 1);
+    }
+
+    const LISTING: &str = "\
+WARNING: Package IDs have changed since last -listPackage.\n\
+ID accelType   Base        slotLoc Accelerator\n\
+-- ----------- ----------- ------- -----------\n\
+ 1 XRT_FLAT    k24-star... -1      k24-starter-kits\n\
+ 2 XRT_FLAT    k26-star... -1      k26-starter-kits\n\
+ 3 -           -           -       k26-starter-kits.bit.bin\n";
+
+    #[test]
+    fn loaded_package_is_found_by_bit_bin_name() {
+        assert_eq!(loaded_package_ids(LISTING), vec!["3".to_string()]);
+    }
+
+    #[test]
+    fn package_with_a_slot_location_is_loaded() {
+        let listing = " 4 SIHA_PL_DFX static      2       rp0rm0\n";
+        assert_eq!(loaded_package_ids(listing), vec!["4".to_string()]);
+    }
+
+    #[test]
+    fn dtbo_package_is_loaded() {
+        let listing = " 5 -           -           -       overlay.dtbo\n";
+        assert_eq!(loaded_package_ids(listing), vec!["5".to_string()]);
+    }
+
+    #[test]
+    fn listing_with_nothing_loaded_returns_no_ids() {
+        let listing = " 1 XRT_FLAT    k24-star... -1      k24-starter-kits\n";
+        assert!(loaded_package_ids(listing).is_empty());
+    }
+
+    #[test]
+    fn header_and_empty_input_return_no_ids() {
+        assert!(loaded_package_ids("ID accelType Base slotLoc Accelerator\n").is_empty());
+        assert!(loaded_package_ids("").is_empty());
+    }
 }
