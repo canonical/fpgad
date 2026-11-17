@@ -19,6 +19,9 @@ jobs:
         run: |
           echo "::group::install dependencies"
             sudo snap install yq
+            # Beta CLI has auth retries, stable (20261109) doesn't
+            # (canonical/testflinger#1398).
+            sudo snap install testflinger-cli --channel=latest/beta
           echo "::endgroup::"
       - name: Prepare Testflinger Job
         id: prepare-tf-job
@@ -140,6 +143,9 @@ jobs:
         run: |
           echo "::group::install dependencies"
             sudo snap install yq
+            # Beta CLI has auth retries, stable (20261109) doesn't
+            # (canonical/testflinger#1398).
+            sudo snap install testflinger-cli --channel=latest/beta
           echo "::endgroup::"
       - name: Download built snap
         id: download-snap
