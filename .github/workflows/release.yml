@@ -30,7 +30,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       commit_sha: ${{ steps.meta.outputs.commit_sha }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Resolve and validate release inputs
@@ -87,7 +87,7 @@ jobs:
             arch: arm64
     needs: metadata
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.metadata.outputs.commit_sha }}
       - name: Build all release binaries
@@ -141,7 +141,7 @@ jobs:
     if: ${{ always() && (inputs.skip_cargo == true || needs.cargo-publish.result == 'success') }}
     steps:
       - name: Checkout release commit
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.metadata.outputs.commit_sha }}
           fetch-depth: 0
